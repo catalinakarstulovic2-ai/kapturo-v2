@@ -24,6 +24,15 @@ def obtener_stats(
     Devuelve métricas reales del tenant para el dashboard principal.
     """
     tid = current_user.tenant_id
+
+    # Super admin sin tenant → devuelve zeros (ver su panel en /superadmin)
+    if tid is None:
+        return {
+            "total_prospectos": 0, "calificados": 0, "en_pipeline": 0,
+            "esta_semana": 0, "alarmas_pendientes": 0, "alarmas_lista": [],
+            "pipeline_por_etapa": [], "top_prospectos": [],
+        }
+
     ahora = datetime.now(timezone.utc)
     hace_7_dias = ahora - timedelta(days=7)
     manana = ahora + timedelta(days=1)

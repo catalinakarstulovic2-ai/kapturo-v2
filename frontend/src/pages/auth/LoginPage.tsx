@@ -16,7 +16,8 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate('/dashboard')
+      const { user } = useAuthStore.getState()
+      navigate(user?.role === 'super_admin' ? '/superadmin' : '/dashboard')
     } catch {
       toast.error('Email o contraseña incorrectos')
     } finally {
