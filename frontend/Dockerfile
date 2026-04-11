@@ -15,22 +15,18 @@ RUN npm run build
 # ── Serve con nginx ──────────────────────────────────────────────────────────
 FROM nginx:alpine
 
-RUN apk add --no-cache bash
+# envsubst viene con gettext
+RUN apk add --no-cache gettext
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Script que reemplaza el placeholder con la URL real al iniciar
-RUN echo '#!/bin/sh' > /docker-entrypoint-custom.sh && \
-    echo 'set -e' >> /docker-entrypoint-custom.sh && \
-    echo 'API_URL="${VITE_API_URL:-}"' >> /docker-entrypoint-custom.sh && \
-    echo 'if [ -n "$API_URL" ]; then' >> /docker-entrypoint-custom.sh && \
-    echo '  find /usr/share/nginx/html -name "*.js" -exec sed -i "s|RUNTIME_API_URL_PLACEHOLDER|$API_URL|g" {} \;' >> /docker-entrypoint-custom.sh && \
-    echo '  echo "API URL set to: $API_URL"' >> /docker-entrypoint-custom.sh && \
-    echo 'fi' >> /docker-entrypoint-custom.sh && \
-    echo 'nginx -g "daemon off;"' >> /docker-entrypoint-custom.sh && \
-    chmod +x /docker-entrypoint-custom.sh
+# nginx.conf como template (usa $PORT)
+COPY nginx.conf /etc/nginx/conf.d/default.conf.template
+
+# Script de inicio
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 80
 
-CMD ["/docker-entrypoint-custom.sh"]
+CMD ["/entrypoint.sh"]
