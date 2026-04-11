@@ -42,7 +42,7 @@ export default function AgentsPage() {
 
   const { data: pendientes = [] } = useQuery({
     queryKey: ['mensajes-pendientes'],
-    queryFn: () => api.get('/agents/mensajes/pendientes').then(r => r.data),
+    queryFn: () => api.get('/agents/mensajes/pendientes').then(r => Array.isArray(r.data) ? r.data : r.data?.items ?? r.data?.mensajes ?? []),
     refetchInterval: 30000,
   })
 
