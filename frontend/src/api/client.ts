@@ -1,9 +1,15 @@
 import axios from 'axios'
 
-// En producción usa la URL del backend de Railway, en dev usa el proxy de Vite
-const baseURL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api/v1`
-  : '/api/v1'
+// En producción la URL del backend se inyecta en runtime vía entrypoint.sh
+// (el placeholder RUNTIME_API_URL_PLACEHOLDER se reemplaza en los .js compilados)
+// En dev usa el proxy de Vite → '/api/v1'
+const getBaseURL = (): string => {
+  const env = import.meta.env.VITE_API_URL as string | undefined
+  if (!env || env === 'RUNTIME_API_URL_PLACEHOLDER') return '/api/v1'
+  return `${env}/api/v1`
+}
+
+const baseURL = getBaseURL()
 
 const api = axios.create({
   baseURL,
