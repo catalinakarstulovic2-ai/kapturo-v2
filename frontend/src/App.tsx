@@ -12,6 +12,7 @@ import AgentsPage from './pages/agents/AgentsPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import InboxPage from './pages/conversations/InboxPage'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
+import OnboardingPage from './pages/onboarding/OnboardingPage'
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
@@ -29,6 +30,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/onboarding" element={<PrivateRoute><OnboardingPage /></PrivateRoute>} />
         <Route
           path="/"
           element={

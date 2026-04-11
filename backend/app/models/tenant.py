@@ -43,6 +43,11 @@ class Tenant(Base):
     api_keys: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    # Configuración del agente IA por tenant
+    agent_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    agent_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+
     plan: Mapped["SubscriptionPlan"] = relationship(back_populates="tenants")
     users: Mapped[list["User"]] = relationship(back_populates="tenant")
     modules: Mapped[list["TenantModule"]] = relationship(back_populates="tenant")

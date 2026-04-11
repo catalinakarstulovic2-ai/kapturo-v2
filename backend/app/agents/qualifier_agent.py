@@ -7,6 +7,7 @@ Toma prospectos sin score y los califica usando Claude Haiku.
 import json
 from app.agents.base_agent import BaseAgent
 from app.models.prospect import Prospect
+from app.models.tenant import Tenant
 from datetime import datetime, timezone
 
 
@@ -60,8 +61,38 @@ class QualifierAgent(BaseAgent):
 
         return {"calificados": calificados, "omitidos": omitidos}
 
+    def _obtener_contexto_tenant(self) -> dict:
+        """Lee la configuración del agente del tenant actual."""
+        tenant = self.db.query(Tenant).filter(Tenant.id == self.tenant_id).first()
+        if tenant and tenant.agent_config:
+            return tenant.agent_config
+        return {}
+
     async def _calificar(self, prospect: Prospect) -> tuple[float, str]:
-        """Genera un score para un prospecto usando Claude Haiku."""
+        """Genera un score para un prospecto usando Claude Haiku con contexto del tenant."""
+        ctx = self._obtener_contexto_tenant()
+
+        # Construir sección de cliente ideal si existe configuración
+        cliente_ideal = ""
+        if ctx:
+            cliente_ideal = f"""
+CLIENTE IDEAL DE ESTE NEGOCIO:
+- Qué venden: {ctx.get('product', 'No especificado')}
+- A quién venden: {ctx.get('target', 'No especificado')}
+- Industria ideal: {ctx.get('ideal_industry', 'Cualquiera')}
+- Cargo ideal: {ctx.get('ideal_role', 'Decisor de compra')}
+- Tamaño ideal: {ctx.get('ideal_size', 'Cualquiera')}
+
+Califica qué tan parecido es este prospecto al cliente ideal descrito arriba.
+"""
+        else:
+            cliente_ideal = """
+CRITERIOS GENERALES:
+1. ¿Tiene cargo de decisor (CEO, Gerente, Director, Dueño)?
+2. ¿Tiene información de contacto suficiente (email o teléfono)?
+3. ¿La empresa parece tener capacidad económica?
+"""
+
         prompt = f"""Eres un experto en ventas B2B. Califica este prospecto de 0 a 100.
 
 PROSPECTO:
@@ -73,12 +104,7 @@ PROSPECTO:
 - Industria: {prospect.industry or 'No especificado'}
 - País: {prospect.country or 'No especificado'}
 - Fuente: {prospect.source or 'No especificado'}
-
-CRITERIOS:
-1. ¿Tiene cargo de decisor (CEO, Gerente, Director, Dueño)?
-2. ¿Tiene información de contacto suficiente (email o teléfono)?
-3. ¿La empresa parece tener capacidad económica?
-
+{cliente_ideal}
 Responde SOLO en este formato JSON:
 {{"score": <número 0-100>, "razon": "<1-2 oraciones explicando el score>"}}"""
 

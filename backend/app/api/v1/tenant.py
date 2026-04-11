@@ -38,6 +38,21 @@ class ActualizarEmpresaRequest(BaseModel):
     name: Optional[str] = None
 
 
+class AgentConfigRequest(BaseModel):
+    agent_name: Optional[str] = None
+    product: Optional[str] = None
+    target: Optional[str] = None
+    value_prop: Optional[str] = None
+    extra_context: Optional[str] = None
+    tone: Optional[str] = None          # "informal" | "professional" | "formal"
+    ideal_industry: Optional[str] = None
+    ideal_role: Optional[str] = None
+    ideal_size: Optional[str] = None    # "small" | "medium" | "large" | "any"
+    module: Optional[str] = None
+    meeting_type: Optional[str] = None  # "video" | "in_person" | "phone" | "prospect_chooses"
+    onboarding_completed: Optional[bool] = None
+
+
 def _mask(value: str | None) -> str:
     """Devuelve los últimos 4 caracteres enmascarados para mostrar en UI."""
     if not value:
@@ -174,3 +189,57 @@ def actualizar_mi_empresa(
 
     db.commit()
     return {"id": tenant.id, "name": tenant.name}
+
+
+@router.get("/me/agent-config")
+def obtener_agent_config(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Devuelve la configuración del agente IA del tenant."""
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+    return {
+        "agent_name": tenant.agent_name,
+        "onboarding_completed": tenant.onboarding_completed,
+        "config": tenant.agent_config or {},
+    }
+
+
+@router.put("/me/agent-config")
+def guardar_agent_config(
+    data: AgentConfigRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Guarda la configuración del agente IA del tenant."""
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+    if data.agent_name:
+        tenant.agent_name = data.agent_name
+
+    config = dict(tenant.agent_config or {})
+    campos = ["product", "target", "value_prop", "extra_context", "tone",
+              "ideal_industry", "ideal_role", "ideal_size", "module", "meeting_type"]
+    for campo in campos:
+        valor = getattr(data, campo)
+        if valor is not None:
+            config[campo] = valor
+
+    tenant.agent_config = config
+
+    if data.onboarding_completed is not None:
+        tenant.onboarding_completed = data.onboarding_completed
+
+    db.commit()
+
+    return {
+        "mensaje": "Configuración guardada",
+        "agent_name": tenant.agent_name,
+        "onboarding_completed": tenant.onboarding_completed,
+        "config": tenant.agent_config,
+    }
