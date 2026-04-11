@@ -1,15 +1,10 @@
 import axios from 'axios'
 
-// En producción la URL del backend se inyecta en runtime vía entrypoint.sh
-// (el placeholder RUNTIME_API_URL_PLACEHOLDER se reemplaza en los .js compilados)
-// En dev usa el proxy de Vite → '/api/v1'
-const getBaseURL = (): string => {
-  const env = import.meta.env.VITE_API_URL as string | undefined
-  if (!env || env === 'RUNTIME_API_URL_PLACEHOLDER') return '/api/v1'
-  return `${env}/api/v1`
-}
-
-const baseURL = getBaseURL()
+// En producción la URL del backend se inyecta en runtime vía entrypoint.sh.
+// El placeholder se reemplaza en los .js compilados. Usamos startsWith('http')
+// para detectar si ya fue reemplazado (evita que el sed rompa la condición).
+const _raw = import.meta.env.VITE_API_URL as string | undefined
+const baseURL = _raw && _raw.startsWith('http') ? `${_raw}/api/v1` : '/api/v1'
 
 const api = axios.create({
   baseURL,
