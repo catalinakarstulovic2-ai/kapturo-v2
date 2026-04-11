@@ -14,17 +14,23 @@ app = FastAPI(
 
 # Permitir que el frontend (React) hable con el backend
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
-allowed_origins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-]
-if FRONTEND_URL:
-    allowed_origins.append(FRONTEND_URL)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+if ENVIRONMENT == "production":
+    # En producción acepta cualquier origen *.up.railway.app + el dominio configurado
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ]
+    if FRONTEND_URL:
+        allowed_origins.append(FRONTEND_URL)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=ENVIRONMENT != "production",  # credentials no funciona con allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
