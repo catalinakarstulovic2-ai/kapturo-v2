@@ -372,9 +372,10 @@ export default function PipelinePage() {
   const [newStageName, setNewStageName] = useState('')
   const [showAddStage, setShowAddStage] = useState(false)
 
-  const { data: stages = [], isLoading } = useQuery<PipelineStage[]>({
+  const { data: stages = [], isPending, isError, refetch } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline'],
     queryFn: () => api.get('/pipeline/').then(r => r.data),
+    retry: 2,
   })
 
   const moverMutation = useMutation({
@@ -426,7 +427,13 @@ export default function PipelinePage() {
 
   const totalLeads = stages.reduce((acc, s) => acc + (s.cards?.length || 0), 0)
 
-  if (isLoading) return <div className="p-8 text-center text-gray-400">Cargando pipeline...</div>
+  if (isPending) return <div className="p-8 text-center text-gray-400 animate-pulse">Cargando pipeline...</div>
+  if (isError) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-4">
+      <p className="text-gray-500">No se pudo cargar el pipeline.</p>
+      <button className="btn-primary" onClick={() => refetch()}>Reintentar</button>
+    </div>
+  )
 
   if (!stages.length) {
     return (
