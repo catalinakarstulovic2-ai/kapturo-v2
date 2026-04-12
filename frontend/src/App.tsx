@@ -28,7 +28,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   const [valid, setValid] = useState(false)
 
   useEffect(() => {
-    if (!token) { setChecking(false); return }
+    if (!token) { setChecking(false); setValid(false); return }
     api.get('/auth/me')
       .then(() => setValid(true))
       .catch(() => { logout(); setValid(false) })
