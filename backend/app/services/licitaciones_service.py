@@ -78,17 +78,22 @@ class LicitacionesService:
         """
         Busca licitaciones y retorna para la tabla del frontend. No guarda nada.
 
-        Filtros del frontend que se pasan:
-          - fecha_desde / fecha_hasta (YYYY-MM-DD): rango de fechas (max 30 días)
+        Paginado: 50 items por página. Fase 1 carga todos los códigos (rápido),
+        Fase 2 carga detalles solo para la página solicitada (~50 llamadas).
+
+        Filtros del frontend:
+          - fecha_desde / fecha_hasta (YYYY-MM-DD): rango de fechas (max 180 días)
           - region: código numérico de región
-          - tipo_licitacion: "LE", "LP", etc. — filtro client-side
-          - keyword: texto libre — filtra en nombre de la licitación
-          - comprador: texto libre — filtra en nombre del organismo
-          - proveedor: texto libre — filtra en nombre del adjudicado (solo licitador_b)
+          - tipo_licitacion: "LE", "LP", etc. — filtro sobre CodigoExterno
+          - keyword: texto libre — pre-filtra sobre Nombre+Descripcion del listado
+          - comprador: texto libre — filtra post-detalle en nombre del organismo
+          - proveedor: texto libre — filtra post-detalle en nombre del adjudicado
         """
+        import re
+        POR_PAGINA = 50
         filtros = filtros or {}
 
-        # Extraer filtros client-side (no van a la API)
+        # Extraer filtros
         tipo_licitacion = filtros.pop("tipo_licitacion", None)
         keyword         = (filtros.pop("keyword", "") or "").strip().lower()
         comprador_txt   = (filtros.pop("comprador", "") or "").strip().lower()
@@ -97,35 +102,96 @@ class LicitacionesService:
         fecha_hasta     = filtros.pop("fecha_hasta", None)
         region          = filtros.get("region")
 
-        fechas = list(reversed(_fechas_desde_rango(fecha_desde, fecha_hasta, max_dias=30)))  # más reciente primero
+        fechas = list(reversed(_fechas_desde_rango(fecha_desde, fecha_hasta, max_dias=180)))
         estado = "adjudicada" if tipo == "licitador_b" else "publicada"
 
-        # ── Paso 1: Obtener listas para cada fecha en paralelo ─────────────
+        # ── Fase 1: Obtener TODOS los items del listado (sin detalle) ──────
         async def fetch_lista(fecha: str) -> list[dict]:
-            try:
-                resp = await self.mp_client.buscar_licitaciones(
-                    fecha=fecha, estado=estado, region=region, pagina=pagina
-                )
-                return resp.get("Listado", [])
-            except Exception:
-                return []
+            todos = []
+            pag = 1
+            while True:
+                try:
+                    resp = await self.mp_client.buscar_licitaciones(
+                        fecha=fecha, estado=estado, region=region, pagina=pag
+                    )
+                    listado = resp.get("Listado", [])
+                    if not listado:
+                        break
+                    todos.extend(listado)
+                    if len(listado) < 10:
+                        break
+                    pag += 1
+                    if pag > 10:
+                        break
+                except Exception:
+                    break
+            return todos
 
         listas = await asyncio.gather(*[fetch_lista(f) for f in fechas])
 
-        # Merge y deduplicar por CodigoExterno
+        # Merge y deduplicar, conservando el objeto completo del listado
         codigos_vistos: set[str] = set()
-        codigos_ordenados: list[str] = []
+        items_listado: list[dict] = []
         for lista in listas:
             for item in lista:
                 cod = item.get("CodigoExterno")
                 if cod and cod not in codigos_vistos:
                     codigos_vistos.add(cod)
-                    codigos_ordenados.append(cod)
+                    items_listado.append(item)
 
-        # Limitar a 100 items para el preview (más recientes primero)
-        codigos_preview = codigos_ordenados[:100]
+        # ── Pre-filtros sobre datos del listado (sin cargar detalle) ───────
 
-        # ── Paso 2: Obtener detalle de cada item en paralelo ───────────────
+        # Filtro por tipo (se extrae del CodigoExterno: "xxxxxx-LP24" → "LP")
+        if tipo_licitacion:
+            def _tipo_cod(cod: str) -> str:
+                m = re.search(r'-([A-Z][A-Z0-9]+)\d{2}$', cod or "")
+                return m.group(1) if m else ""
+            items_listado = [
+                i for i in items_listado
+                if _tipo_cod(i.get("CodigoExterno", "")) == tipo_licitacion
+            ]
+
+        # Filtro por keyword (Nombre + Descripcion del listado — campos livianos)
+        if keyword:
+            rubros_kw = [r.strip() for r in keyword.split(",") if r.strip()]
+            def _txt_listado(i: dict) -> str:
+                return _norm((i.get("Nombre") or "") + " " + (i.get("Descripcion") or ""))
+            def _match_listado(i: dict) -> bool:
+                txt = _txt_listado(i)
+                for rubro in rubros_kw:
+                    r_norm = _norm(rubro)
+                    palabras = [p for p in r_norm.split() if len(p) > 2]
+                    if any(p in txt for p in palabras) or r_norm in txt:
+                        return True
+                return False
+            items_listado = [i for i in items_listado if _match_listado(i)]
+
+        # ── Rubros counts desde listado (rápido, cubre todas las páginas) ──
+        catalogo_rubros = self.mp_client.obtener_catalogo()["rubros"]
+        rubros_counts: dict[str, int] = {}
+        for rubro in catalogo_rubros:
+            r_norm = _norm(rubro)
+            palabras = [p for p in r_norm.split() if len(p) > 2]
+            count = 0
+            for it in items_listado:
+                txt = _norm((it.get("Nombre") or "") + " " + (it.get("Descripcion") or ""))
+                if any(p in txt for p in palabras) or r_norm in txt:
+                    count += 1
+            if count > 0:
+                rubros_counts[rubro] = count
+
+        # ── Paginación ─────────────────────────────────────────────────────
+        total_disponible = len(items_listado)
+        total_paginas = max(1, (total_disponible + POR_PAGINA - 1) // POR_PAGINA)
+        pagina = max(1, min(pagina, total_paginas))
+
+        inicio = (pagina - 1) * POR_PAGINA
+        codigos_pagina = [
+            i.get("CodigoExterno")
+            for i in items_listado[inicio:inicio + POR_PAGINA]
+        ]
+
+        # ── Fase 2: Detalle solo para los ~50 items de la página actual ────
         sem = asyncio.Semaphore(10)
 
         async def fetch_detalle(cod: str) -> dict | None:
@@ -135,66 +201,23 @@ class LicitacionesService:
                 except Exception:
                     return None
 
-        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_preview])
+        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
         detalles_ok = [d for d in detalles if d]
 
-        # ── Paso 3: Normalizar ─────────────────────────────────────────────
+        # ── Normalizar ─────────────────────────────────────────────────────
         items = normalizar_para_preview({"Listado": detalles_ok}, tipo)
 
-        # ── Paso 4: Filtros client-side ────────────────────────────────────
-        if tipo_licitacion:
-            items = [i for i in items if i.get("tipo") == tipo_licitacion]
-
-        total_disponible = len(items)  # total sin filtro de rubro
-
-        # Calcular conteo por cada rubro del catálogo
-        catalogo_rubros = self.mp_client.obtener_catalogo()["rubros"]
-        rubros_counts: dict[str, int] = {}
-        for rubro in catalogo_rubros:
-            r_norm = _norm(rubro)
-            palabras = [p for p in r_norm.split() if len(p) > 2]
-            count = 0
-            for it in items:
-                txt = _norm(
-                    (it.get("nombre") or "") + " " +
-                    (it.get("descripcion") or "") + " " +
-                    (it.get("categoria") or "")
-                )
-                if any(p in txt for p in palabras) or r_norm in txt:
-                    count += 1
-            if count > 0:
-                rubros_counts[rubro] = count
-
-        if keyword:
-            # Soporte multi-keyword separado por comas (ej: "salud,educación")
-            rubros = [r.strip() for r in keyword.split(",") if r.strip()]
-            def _texto(i) -> str:
-                return _norm(
-                    (i.get("nombre") or "") + " " +
-                    (i.get("descripcion") or "") + " " +
-                    (i.get("categoria") or "")
-                )
-            def _match(i) -> bool:
-                txt = _texto(i)
-                for rubro in rubros:
-                    r_norm = _norm(rubro)
-                    # Buscar cada palabra del rubro (ignorar palabras <=2 chars)
-                    palabras = [p for p in r_norm.split() if len(p) > 2]
-                    if any(p in txt for p in palabras) or r_norm in txt:
-                        return True
-                return False
-            items = [i for i in items if _match(i)]
-
+        # ── Filtros post-detalle (requieren datos completos) ────────────────
         if comprador_txt:
-            items = [i for i in items if comprador_txt in i.get("organismo", "").lower()]
+            items = [i for i in items if _norm(comprador_txt) in _norm(i.get("organismo", ""))]
 
         if proveedor_txt and tipo == "licitador_b":
             items = [
                 i for i in items
-                if proveedor_txt in i.get("adjudicado_nombre", "").lower()
+                if _norm(proveedor_txt) in _norm(i.get("adjudicado_nombre", ""))
             ]
 
-        # ── Paso 5: Cruzar con prospectos ya guardados ─────────────────────
+        # ── Cruzar con prospectos ya guardados ─────────────────────────────
         for item in items:
             rut = item.get("adjudicado_rut") if tipo == "licitador_b" else item.get("organismo_rut")
             if rut:
@@ -218,7 +241,14 @@ class LicitacionesService:
                     item["score"] = existing.score
                     item["score_reason"] = existing.score_reason
 
-        return {"total": len(items), "total_disponible": total_disponible, "rubros_counts": rubros_counts, "pagina": pagina, "items": items}
+        return {
+            "total": total_disponible,
+            "total_paginas": total_paginas,
+            "total_disponible": total_disponible,
+            "pagina": pagina,
+            "items": items,
+            "rubros_counts": rubros_counts,
+        }
 
     # ─── GUARDAR INDIVIDUAL ───────────────────────────────────────────────
 

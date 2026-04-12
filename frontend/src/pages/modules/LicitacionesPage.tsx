@@ -119,6 +119,8 @@ export default function LicitacionesPage() {
   const [rubrosConConteo, setRubrosConConteo] = useState<Record<string, number>>({})
   const [buscarRubroQuery, setBuscarRubroQuery] = useState('')
   const [previewContactos, setPreviewContactos] = useState<Record<string, { phone?: string; website?: string; address?: string; source?: string; loading?: boolean }>>({})  
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
 
   const queryClient = useQueryClient()
 
@@ -151,8 +153,8 @@ export default function LicitacionesPage() {
 
   // ── Preview / Búsqueda ──────────────────────────────────────────────────
   const buscarMutation = useMutation({
-    mutationFn: () => {
-      const params = new URLSearchParams({ tipo: tab, pagina: '1' })
+    mutationFn: (pagina: number = 1) => {
+      const params = new URLSearchParams({ tipo: tab, pagina: String(pagina) })
       const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
       const hasta = new Date(); hasta.setDate(hasta.getDate() - 1)
       const desde = new Date(hasta); desde.setDate(desde.getDate() - (parseInt(filtros.periodo) - 1))
@@ -165,9 +167,11 @@ export default function LicitacionesPage() {
       if (filtros.proveedor)       params.set('proveedor', filtros.proveedor)
       return api.get(`/modules/licitaciones/preview?${params}`)
     },
-    onSuccess: (res) => {
+    onSuccess: (res, pagina) => {
       setResultados(res.data.items)
       setTotalResultados(res.data.total)
+      setTotalPaginas(res.data.total_paginas ?? 1)
+      setPaginaActual(pagina ?? 1)
       setExpandedId(null)
       const savedAt = new Date().toISOString()
       const rc: Record<string, number> = res.data.rubros_counts ?? {}
@@ -181,7 +185,10 @@ export default function LicitacionesPage() {
           total_disponible: res.data.total_disponible, savedAt,
         }))
       } catch {}
-      toast.success(`${res.data.total} licitaciones encontradas`)
+      const msg = (pagina ?? 1) === 1
+        ? `${res.data.total} licitaciones encontradas`
+        : `Página ${pagina} de ${res.data.total_paginas ?? 1}`
+      toast.success(msg)
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en la búsqueda'),
   })
@@ -249,7 +256,7 @@ export default function LicitacionesPage() {
       setEnrichingId(null)
       if (res.data.status === 'enriched') {
         toast.success(`Enriquecido vía ${res.data.source}: ${res.data.campos?.join(', ')}`)
-        buscarMutation.mutate()
+        buscarMutation.mutate(paginaActual)
       } else {
         toast(
           (t) => (
@@ -306,6 +313,8 @@ export default function LicitacionesPage() {
     setExpandedId(null)
     setRubrosSeleccionados([])
     setRubrosConConteo({})
+    setPaginaActual(1)
+    setTotalPaginas(1)
     setPreviewContactos({})
   }
 
@@ -357,13 +366,13 @@ export default function LicitacionesPage() {
       <div className="card p-1 flex gap-1 max-w-xl">
         <button
           className={clsx('flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors', tab === 'licitador_b' ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-50')}
-          onClick={() => { setTab('licitador_b'); setResultados([]); setCacheInfo(null); try { localStorage.removeItem('kapturo_licitaciones_cache') } catch {} }}
+          onClick={() => { setTab('licitador_b'); setResultados([]); setCacheInfo(null); setPaginaActual(1); setTotalPaginas(1); try { localStorage.removeItem('kapturo_licitaciones_cache') } catch {} }}
         >
           🏆 Empresas que ganaron
         </button>
         <button
           className={clsx('flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors', tab === 'licitador_a' ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-50')}
-          onClick={() => { setTab('licitador_a'); setResultados([]); setCacheInfo(null); try { localStorage.removeItem('kapturo_licitaciones_cache') } catch {} }}
+          onClick={() => { setTab('licitador_a'); setResultados([]); setCacheInfo(null); setPaginaActual(1); setTotalPaginas(1); try { localStorage.removeItem('kapturo_licitaciones_cache') } catch {} }}
         >
           📋 Licitaciones abiertas
         </button>
@@ -585,7 +594,7 @@ export default function LicitacionesPage() {
 
         <button
           className="btn-primary flex items-center gap-2"
-          onClick={() => buscarMutation.mutate()}
+          onClick={() => { setPaginaActual(1); buscarMutation.mutate(1) }}
           disabled={buscarMutation.isPending}
         >
           {buscarMutation.isPending
@@ -646,7 +655,7 @@ export default function LicitacionesPage() {
                 <Trash2 size={11} /> Limpiar
               </button>
               <button
-                onClick={() => buscarMutation.mutate()}
+                onClick={() => buscarMutation.mutate(paginaActual)}
                 disabled={buscarMutation.isPending}
                 className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40"
               >
@@ -874,6 +883,52 @@ export default function LicitacionesPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Paginación */}
+          {totalPaginas > 1 && (
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
+              <span className="text-xs text-gray-500">
+                Página <strong>{paginaActual}</strong> de <strong>{totalPaginas}</strong>
+                <span className="ml-1 text-gray-400">· {totalResultados.toLocaleString('es-CL')} licitaciones</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => buscarMutation.mutate(paginaActual - 1)}
+                  disabled={paginaActual <= 1 || buscarMutation.isPending}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Anterior
+                </button>
+                {Array.from({ length: Math.min(totalPaginas, 5) }, (_, i) => {
+                  const startPage = Math.max(1, paginaActual - 2)
+                  const page = startPage + i
+                  if (page > totalPaginas) return null
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => buscarMutation.mutate(page)}
+                      disabled={buscarMutation.isPending}
+                      className={clsx(
+                        'text-xs w-8 h-8 rounded-lg border transition-colors disabled:opacity-40',
+                        page === paginaActual
+                          ? 'bg-brand-500 text-white border-brand-500 font-semibold'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-100'
+                      )}
+                    >
+                      {page}
+                    </button>
+                  )
+                })}
+                <button
+                  onClick={() => buscarMutation.mutate(paginaActual + 1)}
+                  disabled={paginaActual >= totalPaginas || buscarMutation.isPending}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

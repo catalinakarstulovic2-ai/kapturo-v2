@@ -50,3 +50,7 @@ app.include_router(messages.router, prefix="/api/v1")
 @app.get("/")
 def root():
     return {"status": "Kapturo API funcionando"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
