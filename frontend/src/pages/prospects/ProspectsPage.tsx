@@ -97,7 +97,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
       <div className="relative w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div className="flex items-start justify-between p-4 md:p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
               <Building2 size={18} className="text-brand-500" />
@@ -112,7 +112,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
           </button>
         </div>
 
-        <div className="flex-1 p-5 space-y-6">
+        <div className="flex-1 p-4 md:p-5 space-y-5">
 
           {/* Score y estado */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -322,20 +322,20 @@ export default function ProspectsPage() {
         <p className="text-sm text-gray-500 mt-0.5">{stats.total} en total</p>
       </div>
 
-      {/* Stat cards — siempre 4 columnas, se achican en vez de cortarse */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { icon: Users,      label: 'Total',       value: stats.total,       color: 'text-brand-600',   bg: 'bg-brand-50'   },
           { icon: Star,       label: 'Calificados', value: stats.calificados, color: 'text-amber-600',   bg: 'bg-amber-50'   },
           { icon: Send,       label: 'Contactados', value: stats.contactados, color: 'text-purple-600',  bg: 'bg-purple-50'  },
           { icon: TrendingUp, label: 'En pipeline', value: stats.enPipeline,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
         ].map(({ icon: Icon, label, value, color, bg }) => (
-          <div key={label} className="card p-4 flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-              <Icon size={16} className={color} />
+          <div key={label} className="card p-3 md:p-4 flex items-center gap-3 min-w-0">
+            <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+              <Icon size={15} className={color} />
             </div>
             <div className="min-w-0">
-              <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
+              <p className="text-lg md:text-xl font-bold text-gray-900 leading-none">{value}</p>
               <p className="text-xs text-gray-500 mt-0.5 truncate">{label}</p>
             </div>
           </div>
@@ -410,16 +410,17 @@ export default function ProspectsPage() {
                   onClick={() => setSelected(p)}
                   className="hover:bg-brand-50/40 transition-colors cursor-pointer group"
                 >
-                  <td className="pl-5 pr-4 py-3">
-                    <div className="flex items-center gap-3">
+                  <td className="pl-4 pr-3 py-3 md:pl-5 md:pr-4">
+                    <div className="flex items-center gap-2 md:gap-3">
                       <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
                         <Building2 size={14} className="text-brand-500" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{p.company_name || '—'}</p>
-                        {p.rut && <p className="text-xs text-gray-400">RUT: {p.rut}</p>}
+                        <p className="font-medium text-gray-900 truncate text-sm">{p.company_name || '—'}</p>
+                        {p.city && <p className="text-xs text-gray-400 truncate md:hidden">{p.city}</p>}
+                        {p.rut && <p className="text-xs text-gray-400 hidden md:block">RUT: {p.rut}</p>}
                         {p.source_module && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{p.source_module}</span>
+                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full hidden md:inline">{p.source_module}</span>
                         )}
                       </div>
                     </div>
