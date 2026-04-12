@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
 
 // En producción la URL del backend se inyecta en runtime vía entrypoint.sh.
 // El placeholder se reemplaza en los .js compilados. Usamos startsWith('http')
@@ -23,9 +24,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('kapturo_token')
-      localStorage.removeItem('kapturo-auth')
-      localStorage.removeItem('kapturo-auth-v2')
+      useAuthStore.getState().logout()
     }
     return Promise.reject(err)
   }

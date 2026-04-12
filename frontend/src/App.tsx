@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 import { useAuthStore } from './store/authStore'
-import api from './api/client'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
@@ -23,21 +21,8 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { token, logout } = useAuthStore()
-  const [checking, setChecking] = useState(true)
-  const [valid, setValid] = useState(false)
-
-  useEffect(() => {
-    if (!token) { setChecking(false); setValid(false); return }
-    api.get('/auth/me')
-      .then(() => setValid(true))
-      .catch(() => { logout(); setValid(false) })
-      .finally(() => setChecking(false))
-  }, [token])
-
-  if (!token) return <Navigate to="/login" replace />
-  if (checking) return null
-  return valid ? <>{children}</> : <Navigate to="/login" replace />
+  const { token } = useAuthStore()
+  return token ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 export default function App() {
