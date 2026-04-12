@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APIFY_API_KEY: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
     MERCADO_PUBLICO_API_KEY: str = ""
+    HUNTER_API_KEY: str = ""
 
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""

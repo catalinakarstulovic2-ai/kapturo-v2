@@ -414,18 +414,65 @@ class LicitacionesService:
             except Exception:
                 pass
 
-        # --- Fuente 3: SII por RUT (dirección + actividad) ---
-        if not enriched and prospect.rut:
+        # --- Fuente 3: Hunter.io — busca emails por dominio de la web ---
+        if prospect.website and not enriched.get("email") and not prospect.email:
             try:
-                sii_data = await self._consultar_sii(prospect.rut)
-                if sii_data.get("domicilio") and not prospect.address:
-                    enriched["address"] = sii_data["domicilio"]
-                if sii_data.get("ciudad") and not prospect.city:
-                    enriched["city"] = sii_data["ciudad"]
-                if sii_data.get("razon_social") and not prospect.company_name:
-                    enriched["company_name"] = sii_data["razon_social"]
-                if enriched:
-                    enriched["enrichment_source"] = "SII"
+                hunter_key = keys.get("hunter") or settings.HUNTER_API_KEY
+                if hunter_key:
+                    import httpx as _hx
+                    import re as _re
+                    # Extraer dominio limpio de la URL
+                    domain = _re.sub(r"https?://(www\.)?|/.*", "", prospect.website or "").strip()
+                    if domain:
+                        async with _hx.AsyncClient(timeout=15) as _hc:
+                            hr = await _hc.get(
+                                "https://api.hunter.io/v2/domain-search",
+                                params={"domain": domain, "limit": 5, "api_key": hunter_key},
+                            )
+                            if hr.status_code == 200:
+                                hdata = hr.json().get("data", {})
+                                emails = hdata.get("emails", [])
+                                # Tomar el primer email con mejor confianza
+                                emails_sorted = sorted(emails, key=lambda e: e.get("confidence", 0), reverse=True)
+                                if emails_sorted:
+                                    top = emails_sorted[0]
+                                    email_val = top.get("value")
+                                    nombre = f"{top.get('first_name','')} {top.get('last_name','')}".strip()
+                                    if email_val:
+                                        enriched["email"] = email_val
+                                        if nombre and not prospect.contact_name:
+                                            enriched["contact_name"] = nombre
+                                        enriched["enrichment_source"] = "Hunter"
+            except Exception:
+                pass
+
+        # --- Fuente 4: Hunter por nombre empresa (si no hay web aún) ---
+        if not enriched.get("email") and not prospect.email and prospect.company_name:
+            try:
+                hunter_key = keys.get("hunter") or settings.HUNTER_API_KEY
+                if hunter_key:
+                    import httpx as _hx
+                    async with _hx.AsyncClient(timeout=15) as _hc:
+                        hr2 = await _hc.get(
+                            "https://api.hunter.io/v2/domain-search",
+                            params={"company": prospect.company_name, "limit": 3, "api_key": hunter_key},
+                        )
+                        if hr2.status_code == 200:
+                            hdata2 = hr2.json().get("data", {})
+                            # Si encontró el dominio, guardar también la web
+                            if hdata2.get("domain") and not prospect.website:
+                                enriched["website"] = f"https://{hdata2['domain']}"
+                            emails2 = sorted(hdata2.get("emails", []),
+                                           key=lambda e: e.get("confidence", 0), reverse=True)
+                            if emails2:
+                                top2 = emails2[0]
+                                email_val2 = top2.get("value")
+                                nombre2 = f"{top2.get('first_name','')} {top2.get('last_name','')}".strip()
+                                if email_val2:
+                                    enriched["email"] = email_val2
+                                    if nombre2 and not prospect.contact_name:
+                                        enriched["contact_name"] = nombre2
+                                    enriched["enrichment_source"] = "Hunter"
             except Exception:
                 pass
 
