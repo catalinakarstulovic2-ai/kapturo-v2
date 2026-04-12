@@ -55,7 +55,7 @@ class FollowupAgent(BaseAgent):
                 resultado = await writer.run(
                     prospect_id=tarjeta.prospect_id,
                     canal="whatsapp",
-                    contexto_cliente={"producto": "seguimiento de conversación"},
+                    # No pasar contexto_cliente — el WriterAgent usa el config del tenant directamente
                 )
                 if "message_id" in resultado:
                     seguimientos_generados += 1

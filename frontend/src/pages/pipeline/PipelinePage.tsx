@@ -55,15 +55,16 @@ function KanbanCard({ card, onClick, onDragStart, onDragEnd, isDragging }: {
   return (
     <div
       draggable
-      onDragStart={onDragStart}
+      onDragStart={e => { e.stopPropagation(); onDragStart(e) }}
       onDragEnd={onDragEnd}
       onClick={onClick}
       className={clsx(
-        'bg-white rounded-xl p-3 shadow-sm border border-gray-100 cursor-pointer select-none',
+        'bg-white rounded-xl p-3 shadow-sm border border-gray-100 cursor-grab select-none',
         'hover:shadow-md hover:border-brand-200 transition-all duration-150',
-        isDragging && 'opacity-40 scale-95 rotate-1'
+        isDragging && 'opacity-30 scale-95 rotate-1 cursor-grabbing'
       )}
     >
+      <div className={clsx(isDragging && 'pointer-events-none')}>
       {/* Score + días */}
       <div className="flex items-center justify-between mb-2">
         <ScoreBadge score={p?.score || 0} />
@@ -103,6 +104,7 @@ function KanbanCard({ card, onClick, onDragStart, onDragEnd, isDragging }: {
         {!p?.phone && !p?.whatsapp && !p?.email && (
           <span className="text-xs text-gray-300">Sin datos de contacto</span>
         )}
+      </div>
       </div>
     </div>
   )
@@ -366,6 +368,7 @@ export default function PipelinePage() {
   const qc = useQueryClient()
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
+  const dragCounters = useState<Record<string, number>>(() => ({}))[0]
   const [selectedCard, setSelectedCard] = useState<PipelineCard | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [editingStage, setEditingStage] = useState<{ id: string; name: string; color: string } | null>(null)
@@ -566,16 +569,24 @@ export default function PipelinePage() {
                   ? 'bg-brand-50 border-2 border-dashed border-brand-300'
                   : 'bg-gray-100'
               )}
-              onDragOver={e => { e.preventDefault(); setDragOverStageId(stage.id) }}
-              onDragLeave={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDragOverStageId(null)
+              onDragOver={e => { e.preventDefault() }}
+              onDragEnter={e => {
+                e.preventDefault()
+                dragCounters[stage.id] = (dragCounters[stage.id] || 0) + 1
+                setDragOverStageId(stage.id)
+              }}
+              onDragLeave={() => {
+                dragCounters[stage.id] = (dragCounters[stage.id] || 1) - 1
+                if (dragCounters[stage.id] <= 0) {
+                  dragCounters[stage.id] = 0
+                  setDragOverStageId(prev => prev === stage.id ? null : prev)
                 }
               }}
               onDrop={e => {
                 e.preventDefault()
+                dragCounters[stage.id] = 0
                 const cardId = e.dataTransfer.getData('cardId')
-                if (cardId) moverMutation.mutate({ cardId, stageId: stage.id })
+                if (cardId && draggingCardId) moverMutation.mutate({ cardId, stageId: stage.id })
                 setDragOverStageId(null)
               }}
             >

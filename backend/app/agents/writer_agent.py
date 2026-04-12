@@ -128,13 +128,29 @@ class WriterAgent(BaseAgent):
         else:
             instrucciones_formato = "Máximo 4 párrafos. Incluir asunto sugerido al inicio entre [ASUNTO: ...]."
 
+        target = ctx_tenant.get('target', '')
+        ideal_industry = ctx_tenant.get('ideal_industry', '')
+        ideal_role = ctx_tenant.get('ideal_role', '')
+        meeting_type = ctx_tenant.get('meeting_type', 'prospect_chooses')
+        meeting_labels = {
+            'video': 'videollamada',
+            'in_person': 'reunión presencial',
+            'phone': 'llamada telefónica',
+            'prospect_chooses': 'lo que prefiera el prospecto',
+        }
+        meeting_label = meeting_labels.get(meeting_type, 'reunión')
+
         prompt = f"""Redacta un mensaje de prospección B2B en español para {canal}.
 
 SOBRE QUIÉN ENVÍA:
 - Empresa: {empresa}
 - Producto/servicio: {producto}
+- A quién le venden normalmente: {target or 'Empresas B2B'}
 - Propuesta de valor: {propuesta or 'No especificada'}
-- Nombre del agente/vendedor: {agent_name or 'No especificado'}
+- Nombre del vendedor/agente: {agent_name or 'No especificado'}
+- Industria objetivo: {ideal_industry or 'No especificada'}
+- Cargo que suele contactar: {ideal_role or 'Decisor de compra'}
+- Forma de reunión preferida: {meeting_label}
 {f'- Contexto adicional: {extra}' if extra else ''}
 
 SOBRE EL PROSPECTO (destinatario):
@@ -146,7 +162,7 @@ INSTRUCCIONES DE TONO:
 INSTRUCCIONES DE FORMATO:
 {instrucciones_formato}
 - Menciona un detalle específico del prospecto para que se vea personalizado
-- Termina con una pregunta o llamado a acción claro
+- El llamado a acción debe proponer concretamente: {meeting_label}
 - NO uses clichés como "espero que estés bien" o "me permito contactarte"
 - NO uses emojis excesivos
 - El objetivo es generar interés y conseguir una respuesta

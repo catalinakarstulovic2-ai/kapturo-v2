@@ -75,15 +75,19 @@ class QualifierAgent(BaseAgent):
         # Construir sección de cliente ideal si existe configuración
         cliente_ideal = ""
         if ctx:
+            size_labels = {'small': 'Pequeña (1-10)', 'medium': 'Mediana (11-100)', 'large': 'Grande (100+)', 'any': 'Cualquiera'}
             cliente_ideal = f"""
-CLIENTE IDEAL DE ESTE NEGOCIO:
+CONTEXTO DEL NEGOCIO:
 - Qué venden: {ctx.get('product', 'No especificado')}
-- A quién venden: {ctx.get('target', 'No especificado')}
-- Industria ideal: {ctx.get('ideal_industry', 'Cualquiera')}
-- Cargo ideal: {ctx.get('ideal_role', 'Decisor de compra')}
-- Tamaño ideal: {ctx.get('ideal_size', 'Cualquiera')}
+- A quién le venden: {ctx.get('target', 'No especificado')}
+- Propuesta de valor: {ctx.get('value_prop', 'No especificada')}
+- Industria ideal del cliente: {ctx.get('ideal_industry', 'Cualquiera')}
+- Cargo ideal del contacto: {ctx.get('ideal_role', 'Decisor de compra')}
+- Tamaño de empresa ideal: {size_labels.get(ctx.get('ideal_size', 'any'), 'Cualquiera')}
+{f"- Contexto adicional: {ctx.get('extra_context')}" if ctx.get('extra_context') else ''}
 
-Califica qué tan parecido es este prospecto al cliente ideal descrito arriba.
+Califica qué tan probable es que este prospecto sea un buen cliente para este negocio.
+Considera: coincidencia de industria, cargo de decisor, datos de contacto disponibles.
 """
         else:
             cliente_ideal = """
