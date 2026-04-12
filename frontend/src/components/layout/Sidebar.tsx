@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -14,7 +14,12 @@ const nav = [
   { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
+}
+
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuthStore()
   const isSuperAdmin = user?.role === 'super_admin'
   const userModules: string[] = user?.modules ?? []
@@ -26,23 +31,35 @@ export default function Sidebar() {
   })
 
   return (
-    <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
+    <aside className={clsx(
+      'w-60 bg-white border-r border-gray-200 flex flex-col flex-shrink-0',
+      // Móvil: posición fija, se desliza desde la izquierda
+      'fixed inset-y-0 left-0 z-30 transition-transform duration-300',
+      // Desktop: posición normal, siempre visible
+      'md:static md:translate-x-0',
+      open ? 'translate-x-0' : '-translate-x-full'
+    )}>
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
             <Zap size={16} className="text-white" />
           </div>
           <span className="font-bold text-gray-900 text-lg">Kapturo</span>
         </div>
+        {/* Botón cerrar — solo visible en móvil */}
+        <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600 p-1">
+          <X size={20} />
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {visibleNav.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
@@ -61,6 +78,7 @@ export default function Sidebar() {
         {user?.role === 'super_admin' && (
           <NavLink
             to="/superadmin"
+            onClick={onClose}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mt-2 border border-dashed',
