@@ -4,18 +4,26 @@ import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
 const nav = [
-  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/prospectos',      icon: Users,           label: 'Prospectos' },
-  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline' },
-  { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones' },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones' },
-  { to: '/prospector',      icon: Search,          label: 'Prospector' },
-  { to: '/agentes',         icon: Bot,             label: 'Agentes IA' },
-  { to: '/configuracion',   icon: Settings,        label: 'Configuración' },
+  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null },
+  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null },
+  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null },
+  { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null },
+  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones' },
+  { to: '/prospector',      icon: Search,          label: 'Prospector',       module: 'kapturo_ventas' },
+  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null },
+  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null },
 ]
 
 export default function Sidebar() {
   const { user } = useAuthStore()
+  const isSuperAdmin = user?.role === 'super_admin'
+  const userModules: string[] = user?.modules ?? []
+
+  const visibleNav = nav.filter(item => {
+    if (!item.module) return true                          // items sin módulo: siempre visibles
+    if (isSuperAdmin) return true                          // super_admin ve todo
+    return userModules.includes(item.module)               // solo si el tenant tiene el módulo
+  })
 
   return (
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
@@ -31,7 +39,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {nav.map(({ to, icon: Icon, label }) => (
+        {visibleNav.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

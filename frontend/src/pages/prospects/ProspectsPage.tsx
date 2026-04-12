@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import api from '../../api/client'
 import type { Prospect } from '../../types'
 import toast from 'react-hot-toast'
 import {
   Star, MapPin, Mail, Phone, Building2, X, TrendingUp,
   Sparkles, Trash2, Bell, FileText, Send, Loader2,
-  CheckCircle2, Globe, ChevronRight,
+  CheckCircle2, Globe, ChevronRight, Users,
 } from 'lucide-react'
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -264,6 +264,26 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
   )
 }
 
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+function TableSkeleton() {
+  return (
+    <div className="animate-pulse divide-y divide-gray-100">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3">
+          <div className="w-8 h-8 rounded-lg bg-gray-200 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-gray-200 rounded w-44" />
+            <div className="h-2.5 bg-gray-100 rounded w-28" />
+          </div>
+          <div className="h-5 w-10 bg-gray-200 rounded-full" />
+          <div className="h-5 w-16 bg-gray-100 rounded-full hidden md:block" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function ProspectsPage() {
@@ -279,41 +299,104 @@ export default function ProspectsPage() {
     }).then(r => r.data),
   })
 
+  // Stats — fetch todos para contar por estado
+  const { data: allData } = useQuery({
+    queryKey: ['prospectos-stats'],
+    queryFn: () => api.get('/modules/prospector/prospectos', { params: { por_pagina: 500 } }).then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  const stats = {
+    total:       allData?.total ?? 0,
+    calificados: allData?.prospectos?.filter((p: Prospect) => p.is_qualified).length ?? 0,
+    contactados: allData?.prospectos?.filter((p: Prospect) => ['contacted','responded','converted'].includes(p.status)).length ?? 0,
+    enPipeline:  allData?.prospectos?.filter((p: Prospect) => (p as any).in_pipeline).length ?? 0,
+  }
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 min-w-0">
+
+      {/* Título */}
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Prospectos</h1>
-        <span className="text-sm text-gray-500">{data?.total ?? 0} en total</span>
+        <p className="text-sm text-gray-500 mt-0.5">{stats.total} en total</p>
+      </div>
+
+      {/* Stat cards — siempre 4 columnas, se achican en vez de cortarse */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { icon: Users,      label: 'Total',       value: stats.total,       color: 'text-brand-600',   bg: 'bg-brand-50'   },
+          { icon: Star,       label: 'Calificados', value: stats.calificados, color: 'text-amber-600',   bg: 'bg-amber-50'   },
+          { icon: Send,       label: 'Contactados', value: stats.contactados, color: 'text-purple-600',  bg: 'bg-purple-50'  },
+          { icon: TrendingUp, label: 'En pipeline', value: stats.enPipeline,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        ].map(({ icon: Icon, label, value, color, bg }) => (
+          <div key={label} className="card p-4 flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+              <Icon size={16} className={color} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Filtros */}
-      <div className="card p-4 flex flex-wrap gap-3">
-        <select className="input w-auto" value={modulo} onChange={e => { setModulo(e.target.value); setPagina(1) }}>
-          <option value="">Todos los módulos</option>
-          <option value="licitador_a">Licitador A</option>
-          <option value="licitador_b">Licitador B</option>
-          <option value="prospector">Prospector</option>
-        </select>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-          <input type="checkbox" checked={soloCalificados} onChange={e => { setSoloCalificados(e.target.checked); setPagina(1) }} className="rounded" />
-          Solo calificados
-        </label>
+      <div className="card px-4 py-3 flex flex-wrap items-center gap-2">
+        {[
+          { value: '',           label: 'Todos' },
+          { value: 'licitador_a', label: 'Licitador A' },
+          { value: 'licitador_b', label: 'Licitador B' },
+          { value: 'prospector',  label: 'Prospector' },
+        ].map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => { setModulo(opt.value); setPagina(1) }}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              modulo === opt.value
+                ? 'bg-brand-500 text-white border-brand-500'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-brand-400 hover:text-brand-600'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <div className="w-px h-5 bg-gray-200 mx-1" />
+        <button
+          onClick={() => { setSoloCalificados(v => !v); setPagina(1) }}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+            soloCalificados
+              ? 'bg-amber-500 text-white border-amber-500'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-600'
+          }`}
+        >
+          ⭐ Solo calificados
+        </button>
       </div>
 
       {/* Tabla */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden mt-2">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Cargando prospectos...</div>
+          <TableSkeleton />
         ) : !data?.prospectos?.length ? (
-          <div className="p-8 text-center text-gray-400">
-            <Star size={32} className="mx-auto mb-2 opacity-30" />
-            <p>No hay prospectos aún. Lanza una búsqueda en Licitaciones o Prospector.</p>
+          <div className="p-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <Users size={24} className="text-gray-400" />
+            </div>
+            <p className="font-semibold text-gray-700 mb-1">Todavía no tienes prospectos</p>
+            <p className="text-sm text-gray-400 mb-4">Ve a{' '}
+              <Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>
+              {' '}o{' '}
+              <Link to="/prospector" className="text-brand-500 font-medium hover:underline">Prospector</Link>
+              {' '}para encontrar clientes.
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Empresa</th>
+                <th className="text-left pl-5 pr-4 py-3 font-medium text-gray-600">Empresa</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Contacto</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Score</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Estado</th>
@@ -327,13 +410,13 @@ export default function ProspectsPage() {
                   onClick={() => setSelected(p)}
                   className="hover:bg-brand-50/40 transition-colors cursor-pointer group"
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="pl-5 pr-4 py-3">
+                    <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
                         <Building2 size={14} className="text-brand-500" />
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{p.company_name || '—'}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{p.company_name || '—'}</p>
                         {p.rut && <p className="text-xs text-gray-400">RUT: {p.rut}</p>}
                         {p.source_module && (
                           <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{p.source_module}</span>

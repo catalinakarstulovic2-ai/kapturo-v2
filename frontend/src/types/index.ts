@@ -4,6 +4,7 @@ export interface User {
   full_name: string
   role: 'super_admin' | 'admin' | 'member'
   tenant_id: string | null
+  modules: string[]
 }
 
 export interface Prospect {

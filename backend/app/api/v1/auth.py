@@ -7,7 +7,7 @@ from slugify import slugify
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User, UserRole
-from app.models.tenant import Tenant
+from app.models.tenant import Tenant, TenantModule
 from app.core.middleware import get_current_user
 from app.services.pipeline_service import PipelineService
 
@@ -90,12 +90,20 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Devuelve los datos del usuario autenticado."""
+    modules: list[str] = []
+    if current_user.tenant_id:
+        mods = db.query(TenantModule).filter(
+            TenantModule.tenant_id == current_user.tenant_id,
+            TenantModule.is_active == True
+        ).all()
+        modules = [str(m.module.value) if hasattr(m.module, 'value') else str(m.module) for m in mods]
     return {
         "id": current_user.id,
         "email": current_user.email,
         "full_name": current_user.full_name,
         "role": current_user.role,
         "tenant_id": current_user.tenant_id,
+        "modules": modules,
     }

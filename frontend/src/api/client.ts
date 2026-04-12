@@ -18,13 +18,14 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Si el token expiró, redirige al login
+// Si el token expiró, borra el token. React se encarga de redirigir.
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('kapturo_token')
-      window.location.href = '/login'
+      localStorage.removeItem('kapturo-auth')
+      localStorage.removeItem('kapturo-auth-v2')
     }
     return Promise.reject(err)
   }

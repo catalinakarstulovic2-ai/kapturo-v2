@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
+import ResetPage from './pages/auth/ResetPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import ProspectsPage from './pages/prospects/ProspectsPage'
 import PipelinePage from './pages/pipeline/PipelinePage'
@@ -30,6 +31,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/reset" element={<ResetPage />} />
         <Route path="/onboarding" element={<PrivateRoute><OnboardingPage /></PrivateRoute>} />
         <Route
           path="/"

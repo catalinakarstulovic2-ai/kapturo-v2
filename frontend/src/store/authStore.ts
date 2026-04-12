@@ -48,6 +48,6 @@ export const useAuthStore = create<AuthState>()(
         set({ user: me.data, isAuthenticated: true })
       },
     }),
-    { name: 'kapturo-auth', partialize: (s) => ({ token: s.token }) }
+    { name: 'kapturo-auth-v2', partialize: (s) => ({ token: s.token }) }
   )
 )
