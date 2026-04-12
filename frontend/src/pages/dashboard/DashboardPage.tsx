@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Users, TrendingUp, Bell, Star, ArrowRight,
   MapPin, Globe, Phone, Mail,
-  CheckCircle2, AlertCircle, Zap, Search,
+  CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -226,17 +226,96 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick actions */}
+      {/* Primeros pasos — solo cuando no hay prospectos */}
+      {!isPending && (stats?.total_prospectos ?? 0) === 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Rocket size={17} className="text-brand-500" />
+            <h2 className="font-semibold text-gray-900">Primeros pasos</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card p-5 flex flex-col gap-3 border-brand-100 hover:border-brand-300 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center">
+                <FileSearch size={20} className="text-brand-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Buscar licitaciones</p>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra licitaciones públicas en Mercado Público, guarda prospectos y enriquece sus datos de contacto automáticamente.</p>
+              </div>
+              <button onClick={() => navigate('/licitaciones')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700">
+                Ir a Licitaciones <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="card p-5 flex flex-col gap-3 border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <Search size={20} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Buscar con Prospector</p>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra empresas por rubro, ciudad o perfil. Importa prospectos desde Google Maps y Apollo y cargalos al CRM.</p>
+              </div>
+              <button onClick={() => navigate('/prospector')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+                Ir a Prospector <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="card p-5 flex flex-col gap-3 border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <Bot size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Configurar tu agente</p>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">Personaliza el agente de ventas con el nombre, tono y contexto de tu empresa para que responda como parte de tu equipo.</p>
+              </div>
+              <button onClick={() => navigate('/agentes')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700">
+                Ir a Agentes <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Módulos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Licitaciones',  icon: Search,      path: '/licitaciones',    color: 'text-brand-600 bg-brand-50 hover:bg-brand-100' },
-          { label: 'Prospector',    icon: MapPin,       path: '/prospector',      color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
-          { label: 'Pipeline',      icon: TrendingUp,   path: '/pipeline',        color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' },
-          { label: 'Conversaciones',icon: Globe,        path: '/conversaciones',  color: 'text-amber-600 bg-amber-50 hover:bg-amber-100' },
+          {
+            label: 'Licitaciones',
+            desc: 'Busca y sigue licitaciones públicas de Mercado Público.',
+            icon: FileSearch,
+            path: '/licitaciones',
+            color: 'text-brand-600 bg-brand-50 hover:bg-brand-100',
+            iconColor: 'text-brand-600',
+          },
+          {
+            label: 'Prospector',
+            desc: 'Encuentra empresas por rubro o ciudad e impórtalas al CRM.',
+            icon: MapPin,
+            path: '/prospector',
+            color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100',
+            iconColor: 'text-emerald-600',
+          },
+          {
+            label: 'Pipeline',
+            desc: 'Gestiona tus leads por etapas y cierra más negocios.',
+            icon: TrendingUp,
+            path: '/pipeline',
+            color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100',
+            iconColor: 'text-indigo-600',
+          },
+          {
+            label: 'Conversaciones',
+            desc: 'Responde mensajes de WhatsApp con apoyo del agente IA.',
+            icon: Globe,
+            path: '/conversaciones',
+            color: 'text-amber-600 bg-amber-50 hover:bg-amber-100',
+            iconColor: 'text-amber-600',
+          },
         ].map(a => (
-          <button key={a.path} onClick={() => navigate(a.path)} className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-medium transition-colors ${a.color}`}>
-            <a.icon size={18} />
-            {a.label}
+          <button key={a.path} onClick={() => navigate(a.path)} className={`flex flex-col items-start gap-2 p-4 rounded-2xl text-left transition-colors ${a.color}`}>
+            <a.icon size={18} className={a.iconColor} />
+            <p className="text-sm font-semibold">{a.label}</p>
+            <p className="text-xs opacity-70 leading-relaxed">{a.desc}</p>
           </button>
         ))}
       </div>

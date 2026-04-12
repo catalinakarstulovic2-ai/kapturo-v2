@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
 import {
   FileText, Search, ChevronDown, ChevronUp, Loader2,
   Mail, Phone, Globe, MapPin, User, Building2,
   Sparkles, BookmarkPlus, CheckCircle2, ExternalLink,
-  SlidersHorizontal, RefreshCw, Filter, Download, Trash2, X,
+  SlidersHorizontal, RefreshCw, Filter, Download, Trash2, X, ArrowRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -238,6 +239,8 @@ export default function LicitacionesPage() {
   })
 
   // ── Enriquecer ──────────────────────────────────────────────────────────
+  const navigate = useNavigate()
+
   const enriquecerMutation = useMutation({
     mutationFn: (prospect_id: string) =>
       api.post(`/modules/licitaciones/enriquecer/${prospect_id}`),
@@ -246,10 +249,22 @@ export default function LicitacionesPage() {
       setEnrichingId(null)
       if (res.data.status === 'enriched') {
         toast.success(`Enriquecido vía ${res.data.source}: ${res.data.campos?.join(', ')}`)
-        // Re-buscar para reflejar nuevos datos
         buscarMutation.mutate()
       } else {
-        toast('No se encontraron datos adicionales', { icon: '🔍' })
+        toast(
+          (t) => (
+            <div className="flex items-center gap-3">
+              <span className="text-sm">No se encontraron datos de contacto para esta empresa.</span>
+              <button
+                onClick={() => { toast.dismiss(t.id); navigate('/prospectos') }}
+                className="shrink-0 text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+              >
+                Ver prospecto <ArrowRight size={12} />
+              </button>
+            </div>
+          ),
+          { icon: '🔍', duration: 6000 }
+        )
       }
     },
     onError: () => {
@@ -814,9 +829,17 @@ export default function LicitacionesPage() {
 
                                 {/* Guardar */}
                                 {item.prospect_id ? (
-                                  <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700">
-                                    <CheckCircle2 size={11} /> Guardado
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+                                      <CheckCircle2 size={11} /> Guardado
+                                    </span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); navigate('/prospectos') }}
+                                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                                    >
+                                      Ver prospecto <ArrowRight size={11} />
+                                    </button>
+                                  </div>
                                 ) : (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); guardarMutation.mutate(item) }}
