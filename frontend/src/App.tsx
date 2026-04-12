@@ -35,6 +35,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
       .finally(() => setChecking(false))
   }, [token])
 
+  if (!token) return <Navigate to="/login" replace />
   if (checking) return null
   return valid ? <>{children}</> : <Navigate to="/login" replace />
 }
