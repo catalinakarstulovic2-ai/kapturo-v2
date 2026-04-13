@@ -16,6 +16,7 @@ class ApolloClient:
         self.headers = {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
+            "X-Api-Key": self.api_key,
         }
 
     async def search_people(self, filters: dict) -> dict:
@@ -31,7 +32,6 @@ class ApolloClient:
           - per_page: int
         """
         payload = {
-            "api_key": self.api_key,
             "per_page": filters.get("per_page", 25),
             "page": filters.get("page", 1),
         }
@@ -59,7 +59,7 @@ class ApolloClient:
         Enriquece datos de una persona usando su LinkedIn URL o email.
         Devuelve datos detallados del contacto.
         """
-        payload = {"api_key": self.api_key}
+        payload = {}
 
         if linkedin_url:
             payload["linkedin_url"] = linkedin_url
@@ -84,7 +84,6 @@ class ApolloClient:
           website_url, phone, primary_domain, name, etc.
         """
         payload = {
-            "api_key": self.api_key,
             "q_organization_name": name,
             "organization_locations": ["Chile"],
             "per_page": 1,

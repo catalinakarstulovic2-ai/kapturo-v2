@@ -393,6 +393,21 @@ class ProspectorService:
         self.db.commit()
         return True
 
+    def restaurar_prospecto(self, prospect_id: str) -> bool:
+        """Restaura un prospecto excluido — vuelve a aparecer en la lista."""
+        prospect = (
+            self.db.query(Prospect)
+            .filter(Prospect.tenant_id == self.tenant_id, Prospect.id == prospect_id)
+            .first()
+        )
+        if not prospect:
+            return False
+        prospect.excluido = False
+        prospect.excluido_at = None
+        prospect.status = ProspectStatus.qualified if prospect.is_qualified else ProspectStatus.new
+        self.db.commit()
+        return True
+
     def llevar_a_pipeline(self, prospect_id: str) -> bool:
         """Agrega el prospecto a la primera etapa del pipeline del tenant."""
         prospect = (
@@ -503,6 +518,7 @@ Devuelve SOLO el mensaje de WhatsApp, sin explicaciones."""
         solo_calificados: bool = False,
         score_minimo: float = 0,
         incluir_excluidos: bool = False,
+        solo_excluidos: bool = False,
         pagina: int = 1,
         por_pagina: int = 50,
     ) -> dict:
@@ -515,7 +531,9 @@ Devuelve SOLO el mensaje de WhatsApp, sin explicaciones."""
             query = query.filter(Prospect.is_qualified == True)
         if score_minimo > 0:
             query = query.filter(Prospect.score >= score_minimo)
-        if not incluir_excluidos:
+        if solo_excluidos:
+            query = query.filter(Prospect.excluido == True)
+        elif not incluir_excluidos:
             query = query.filter(
                 (Prospect.excluido == False) | (Prospect.excluido.is_(None))
             )

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Home } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -10,6 +10,7 @@ const nav = [
   { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null },
   { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones' },
   { to: '/prospector',      icon: Search,          label: 'Prospector',       module: 'kapturo_ventas' },
+  { to: '/inmobiliaria',    icon: Home,            label: 'Inmobiliaria',     module: 'inmobiliaria' },
   { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null },
   { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null },
 ]

@@ -9,6 +9,7 @@ import ProspectsPage from './pages/prospects/ProspectsPage'
 import PipelinePage from './pages/pipeline/PipelinePage'
 import LicitacionesPage from './pages/modules/LicitacionesPage'
 import ProspectorPage from './pages/modules/ProspectorPage'
+import InmobiliariaPage from './pages/modules/InmobiliariaPage'
 import AgentsPage from './pages/agents/AgentsPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import InboxPage from './pages/conversations/InboxPage'
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="pipeline" element={<PipelinePage />} />
           <Route path="licitaciones" element={<LicitacionesPage />} />
           <Route path="prospector" element={<ProspectorPage />} />
+          <Route path="inmobiliaria" element={<InmobiliariaPage />} />
           <Route path="conversaciones" element={<InboxPage />} />
           <Route path="agentes" element={<AgentsPage />} />
           <Route path="configuracion" element={<SettingsPage />} />

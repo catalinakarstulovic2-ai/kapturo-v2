@@ -232,6 +232,20 @@ async def excluir_prospecto(
     return {"ok": True}
 
 
+@router.post("/prospectos/{prospect_id}/restaurar")
+async def restaurar_prospecto(
+    prospect_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Restaura un prospecto descartado — vuelve a aparecer en la lista."""
+    servicio = ProspectorService(db=db, tenant_id=current_user.tenant_id)
+    ok = servicio.restaurar_prospecto(prospect_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+    return {"ok": True}
+
+
 @router.post("/prospectos/{prospect_id}/pipeline")
 async def llevar_pipeline(
     prospect_id: str,
