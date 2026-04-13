@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import type { Prospect } from '../../types'
+import ScoreBadge from '../../components/ui/ScoreBadge'
 import {
   Loader2, MapPin, Mail, Linkedin, ArrowRight, X,
   RefreshCw, Search, Phone, ChevronDown, ChevronUp,
@@ -12,18 +13,6 @@ import {
 } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 75 ? 'bg-emerald-100 text-emerald-700'
-              : score >= 65 ? 'bg-green-100 text-green-700'
-              : score >= 40 ? 'bg-amber-100 text-amber-700'
-              : 'bg-red-100 text-red-500'
-  return (
-    <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold ${color}`}>
-      {Math.round(score)}
-    </span>
-  )
-}
 
 function FuenteBadge({ source }: { source?: string }) {
   if (!source) return null

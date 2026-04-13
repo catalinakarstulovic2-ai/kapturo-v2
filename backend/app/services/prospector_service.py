@@ -1,7 +1,7 @@
 """
 Servicio del módulo Prospector.
 
-Orquesta la búsqueda de prospectos desde Google Maps (directo), Apollo.io y Apify,
+Orquesta la búsqueda de prospectos desde Google Maps (directo) y Apollo.io,
 los normaliza, califica y guarda en la BD evitando duplicados.
 """
 import json
@@ -9,8 +9,7 @@ import anthropic
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.modules.prospector.apollo_client import ApolloClient
-from app.modules.prospector.apify_client import ApifyClient
-from app.modules.prospector.normalizer import normalizar_apollo, normalizar_apify, normalizar_gmaps
+from app.modules.prospector.normalizer import normalizar_apollo, normalizar_gmaps
 from app.modules.prospector.scorer import ProspectorScorer
 from app.models.prospect import Prospect, ProspectStatus, ProspectSource
 from app.models.pipeline import PipelineStage, PipelineCard
@@ -25,7 +24,6 @@ class ProspectorService:
         # Leer claves del tenant (fallback a .env si no tiene)
         keys = self._get_tenant_keys()
         self.apollo = ApolloClient(api_key=keys.get("apollo_api_key"))
-        self.apify = ApifyClient(api_key=keys.get("apify_api_key"))
         self.scorer = ProspectorScorer()
 
     def _get_tenant_keys(self) -> dict:
@@ -75,78 +73,28 @@ class ProspectorService:
             "errores": errores,
         }
 
-    async def buscar_apify_social(
-        self,
-        keywords: list,
-        location: str,
-        contexto_cliente: dict,
-        calificar: bool = True,
-    ) -> dict:
-        """
-        Scrapes Facebook Groups con Apify, normaliza, califica y guarda.
-        """
-        items = await self.apify.scrape_facebook_groups(keywords=keywords, location=location)
-
-        guardados = 0
-        duplicados = 0
-        errores = 0
-
-        for item in items:
-            try:
-                p_dict = normalizar_apify(item, "facebook")
-                guardado = await self._guardar_prospecto(p_dict, calificar, contexto_cliente)
-                if guardado:
-                    guardados += 1
-                else:
-                    duplicados += 1
-            except Exception:
-                errores += 1
-
-        self.db.commit()
-
+    async def buscar_apify_social(self, **kwargs) -> dict:
+        """Apify — plan expirado. Endpoint deshabilitado."""
         return {
             "fuente": "apify_social",
-            "total_encontrados": len(items),
-            "guardados": guardados,
-            "duplicados": duplicados,
-            "errores": errores,
+            "ok": False,
+            "error": "Apify no disponible — plan expirado",
+            "total_encontrados": 0,
+            "guardados": 0,
+            "duplicados": 0,
+            "errores": 0,
         }
 
-    async def buscar_apify_maps(
-        self,
-        query: str,
-        location: str,
-        contexto_cliente: dict,
-        calificar: bool = True,
-    ) -> dict:
-        """
-        Scrapes Google Maps con Apify, normaliza, califica y guarda.
-        """
-        items = await self.apify.scrape_google_maps(query=query, location=location)
-
-        guardados = 0
-        duplicados = 0
-        errores = 0
-
-        for item in items:
-            try:
-                p_dict = normalizar_apify(item, "maps")
-                guardado = await self._guardar_prospecto(p_dict, calificar, contexto_cliente)
-                if guardado:
-                    guardados += 1
-                else:
-                    duplicados += 1
-            except Exception:
-                errores += 1
-
-        self.db.commit()
-
+    async def buscar_apify_maps(self, **kwargs) -> dict:
+        """Apify — plan expirado. Usar /maps-directo en su lugar."""
         return {
             "fuente": "apify_maps",
-            "total_encontrados": len(items),
-            "guardados": guardados,
-            "duplicados": duplicados,
-            "errores": errores,
+            "ok": False,
+            "error": "Apify no disponible — usa /maps-directo",
+            "total_encontrados": 0,
+            "guardados": 0,
+            "duplicados": 0,
+            "errores": 0,
         }
 
     async def _guardar_prospecto(

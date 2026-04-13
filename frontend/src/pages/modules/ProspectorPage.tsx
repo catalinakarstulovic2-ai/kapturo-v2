@@ -4,6 +4,7 @@ import api from '../../api/client'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import type { Prospect } from '../../types'
+import ScoreBadge from '../../components/ui/ScoreBadge'
 import {
   Search, Map, Globe, Loader2, ChevronDown, ChevronUp,
   Phone, MapPin, ExternalLink, X, Bot, ArrowRight, Bell,
@@ -22,11 +23,6 @@ function WebBadge({ status }: { status?: string }) {
   if (status === 'tiene_web')
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700"><Wifi size={9} /> Tiene web</span>
   return null
-}
-
-function ScoreCircle({ score }: { score: number }) {
-  const bg = score >= 70 ? 'bg-emerald-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'
-  return <div className={`w-10 h-10 rounded-full ${bg} flex items-center justify-center text-white text-sm font-bold shrink-0`}>{Math.round(score)}</div>
 }
 
 export default function ProspectorPage() {
@@ -297,7 +293,7 @@ export default function ProspectorPage() {
             return (
               <div key={p.id} className={clsx('card overflow-hidden transition-all duration-150', isExpanded && 'ring-1 ring-brand-200')}>
                 <div className="p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => toggleExpand(p.id, p)}>
-                  <ScoreCircle score={p.score} />
+                  <ScoreBadge score={p.score} variant="solid" />
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <h3 className="font-semibold text-gray-900 truncate max-w-xs">{p.company_name}</h3>
