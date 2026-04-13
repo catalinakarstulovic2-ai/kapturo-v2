@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from app.core.database import get_db
-from app.core.middleware import get_current_user
+from app.core.middleware import get_current_user, require_admin
 from app.services.inmobiliaria_service import InmobiliariaService
 from app.services.prospector_service import ProspectorService
 
@@ -26,7 +26,7 @@ class BusquedaParams(BaseModel):
 async def buscar_prospectos(
     params: BusquedaParams,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
     """
     Lanza la búsqueda de prospectos inmobiliarios usando:

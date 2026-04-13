@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.core.database import get_db
-from app.core.middleware import get_current_user
+from app.core.middleware import get_current_user, require_admin
 from app.models.user import User
 from app.services.prospector_service import ProspectorService
 
@@ -74,7 +74,7 @@ class GenerarMensajeRequest(BaseModel):
 @router.post("/maps-directo")
 async def buscar_maps_directo(
     data: BuscarMapsDirectoRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
@@ -101,7 +101,7 @@ async def buscar_maps_directo(
 @router.post("/apollo")
 async def buscar_apollo(
     data: BuscarApolloRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Busca prospectos en Apollo.io (requiere plan Pro en Apollo)."""
@@ -123,7 +123,7 @@ async def buscar_apollo(
 @router.post("/social")
 async def buscar_social(
     data: BuscarSocialRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Scrapes Facebook Groups con Apify (requiere clave Apify válida)."""
@@ -142,7 +142,7 @@ async def buscar_social(
 @router.post("/maps")
 async def buscar_maps_apify(
     data: BuscarMapsRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Scrapes Google Maps con Apify (requiere clave Apify válida). Usar /maps-directo en su lugar."""
@@ -221,7 +221,7 @@ async def set_alarma(
 @router.post("/prospectos/{prospect_id}/excluir")
 async def excluir_prospecto(
     prospect_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Marca el prospecto como excluido — no vuelve a aparecer en búsquedas."""
@@ -235,7 +235,7 @@ async def excluir_prospecto(
 @router.post("/prospectos/{prospect_id}/restaurar")
 async def restaurar_prospecto(
     prospect_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Restaura un prospecto descartado — vuelve a aparecer en la lista."""

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { useAuthStore } from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
   FileText, Search, ChevronDown, ChevronUp, Loader2,
@@ -95,6 +96,8 @@ const ScoreBadge = ({ score }: { score?: number | null }) => {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function LicitacionesPage() {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const [tab, setTab] = useState<'licitador_b' | 'licitador_a'>('licitador_b')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filtros, setFiltros] = useState({
@@ -592,7 +595,7 @@ export default function LicitacionesPage() {
           )}
         </div>
 
-        <button
+        {isAdmin && <button
           className="btn-primary flex items-center gap-2"
           onClick={() => { setPaginaActual(1); buscarMutation.mutate(1) }}
           disabled={buscarMutation.isPending}
@@ -604,8 +607,8 @@ export default function LicitacionesPage() {
                  `Procesando resultados… ${searchSeconds}s`}
               </>
             : <><Search size={15} /> Buscar licitaciones</>}
-        </button>
-        {buscarMutation.isPending && (
+        </button>}
+        {isAdmin && buscarMutation.isPending && (
           <div className="mt-2 text-xs text-gray-500 space-y-1">
             <div className="flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
