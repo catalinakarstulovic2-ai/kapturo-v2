@@ -65,6 +65,12 @@ export default function DashboardPage() {
   const hora = new Date().getHours()
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
   const hoy = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
+  const isSuperAdmin = user?.role === 'super_admin'
+  const userModuleTypes: string[] = isSuperAdmin
+    ? ['licitador', 'prospector']
+    : (user?.modules ?? []).map(m => m.tipo)
+  const tieneProspector = userModuleTypes.includes('prospector')
+  const tieneLicitador  = userModuleTypes.includes('licitador')
 
   return (
     <div className="space-y-6 pb-8">
@@ -75,13 +81,15 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">{saludo}, {primerNombre} 👋</h1>
           <p className="text-gray-500 mt-0.5 capitalize">{hoy}</p>
         </div>
-        <button
-          onClick={() => navigate('/prospector')}
-          className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-        >
-          <Search size={15} />
-          Buscar prospectos
-        </button>
+        {tieneProspector && (
+          <button
+            onClick={() => navigate('/prospeccion')}
+            className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+          >
+            <Search size={15} />
+            Buscar prospectos
+          </button>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -234,31 +242,35 @@ export default function DashboardPage() {
             <h2 className="font-semibold text-gray-900">Primeros pasos</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="card p-5 flex flex-col gap-3 border-brand-100 hover:border-brand-300 hover:shadow-md transition-all">
-              <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center">
-                <FileSearch size={20} className="text-brand-600" />
+            {tieneLicitador && (
+              <div className="card p-5 flex flex-col gap-3 border-brand-100 hover:border-brand-300 hover:shadow-md transition-all">
+                <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center">
+                  <FileSearch size={20} className="text-brand-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Buscar licitaciones</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra licitaciones públicas en Mercado Público, guarda prospectos y enriquece sus datos de contacto automáticamente.</p>
+                </div>
+                <button onClick={() => navigate('/licitaciones')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700">
+                  Ir a Licitaciones <ArrowRight size={13} />
+                </button>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Buscar licitaciones</p>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra licitaciones públicas en Mercado Público, guarda prospectos y enriquece sus datos de contacto automáticamente.</p>
-              </div>
-              <button onClick={() => navigate('/licitaciones')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700">
-                Ir a Licitaciones <ArrowRight size={13} />
-              </button>
-            </div>
+            )}
 
-            <div className="card p-5 flex flex-col gap-3 border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <Search size={20} className="text-emerald-600" />
+            {tieneProspector && (
+              <div className="card p-5 flex flex-col gap-3 border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                  <Search size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Buscar prospectos</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra empresas por rubro, ciudad o perfil. Importa prospectos desde Google Maps y Apollo y cárgalos al CRM.</p>
+                </div>
+                <button onClick={() => navigate('/prospeccion')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+                  Ir a Prospección <ArrowRight size={13} />
+                </button>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Buscar con Prospector</p>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra empresas por rubro, ciudad o perfil. Importa prospectos desde Google Maps y Apollo y cargalos al CRM.</p>
-              </div>
-              <button onClick={() => navigate('/prospector')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
-                Ir a Prospector <ArrowRight size={13} />
-              </button>
-            </div>
+            )}
 
             <div className="card p-5 flex flex-col gap-3 border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
               <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center">
@@ -279,7 +291,7 @@ export default function DashboardPage() {
       {/* Módulos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          {
+          tieneLicitador && {
             label: 'Licitaciones',
             desc: 'Busca y sigue licitaciones públicas de Mercado Público.',
             icon: FileSearch,
@@ -287,11 +299,11 @@ export default function DashboardPage() {
             color: 'text-brand-600 bg-brand-50 hover:bg-brand-100',
             iconColor: 'text-brand-600',
           },
-          {
-            label: 'Prospector',
+          tieneProspector && {
+            label: 'Prospección',
             desc: 'Encuentra empresas por rubro o ciudad e impórtalas al CRM.',
             icon: MapPin,
-            path: '/prospector',
+            path: '/prospeccion',
             color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100',
             iconColor: 'text-emerald-600',
           },
@@ -311,7 +323,7 @@ export default function DashboardPage() {
             color: 'text-amber-600 bg-amber-50 hover:bg-amber-100',
             iconColor: 'text-amber-600',
           },
-        ].map(a => (
+        ].filter(Boolean).map((a: any) => (
           <button key={a.path} onClick={() => navigate(a.path)} className={`flex flex-col items-start gap-2 p-4 rounded-2xl text-left transition-colors ${a.color}`}>
             <a.icon size={18} className={a.iconColor} />
             <p className="text-sm font-semibold">{a.label}</p>
