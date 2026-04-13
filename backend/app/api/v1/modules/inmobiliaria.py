@@ -1,12 +1,13 @@
 """
 Endpoints REST del módulo Inmobiliaria.
 
-POST /api/v1/inmobiliaria/buscar   → lanza búsqueda completa (6 fuentes)
+POST /api/v1/inmobiliaria/buscar   → lanza búsqueda con Google Maps + Hunter + Claude
 GET  /api/v1/inmobiliaria/prospectos → lista prospectos del módulo con filtros
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional, List
 from app.core.database import get_db
 from app.core.middleware import get_current_user
 from app.services.inmobiliaria_service import InmobiliariaService
@@ -16,12 +17,9 @@ router = APIRouter(prefix="/inmobiliaria", tags=["inmobiliaria"])
 
 
 class BusquedaParams(BaseModel):
-    max_apollo_latam: int = 100
-    max_apollo_usa: int = 100
-    max_facebook: int = 50
-    max_reddit: int = 100
-    max_instagram: int = 100
-    max_tiktok: int = 50
+    ubicacion: Optional[str] = None          # ej: "Santiago, Chile"
+    queries: Optional[List[str]] = None      # queries custom (o usa DEFAULT_QUERIES)
+    max_por_query: int = 20                  # resultados Maps por query
 
 
 @router.post("/buscar")
@@ -31,22 +29,19 @@ async def buscar_prospectos(
     current_user=Depends(get_current_user),
 ):
     """
-    Lanza la búsqueda completa de prospectos inmobiliarios para Leo.
+    Lanza la búsqueda de prospectos inmobiliarios usando:
+      1. Google Maps  → encuentra agencias/constructoras/inmobiliarias
+      2. Hunter.io    → enriquece con email y contacto real
+      3. Claude Haiku → califica según contexto del tenant
 
-    Ejecuta 6 fuentes en paralelo (Apollo LATAM, Apollo USA, Facebook,
-    Reddit, Instagram, TikTok), normaliza, califica y guarda.
-
-    Devuelve resumen con totales por fuente.
+    Devuelve resumen con totales y detalle por query.
     """
     try:
         service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
         resultado = await service.ejecutar_busqueda(
-            max_apollo_latam=params.max_apollo_latam,
-            max_apollo_usa=params.max_apollo_usa,
-            max_facebook=params.max_facebook,
-            max_reddit=params.max_reddit,
-            max_instagram=params.max_instagram,
-            max_tiktok=params.max_tiktok,
+            ubicacion=params.ubicacion,
+            queries=params.queries,
+            max_por_query=params.max_por_query,
         )
         return {"ok": True, "resultado": resultado}
     except Exception as e:
