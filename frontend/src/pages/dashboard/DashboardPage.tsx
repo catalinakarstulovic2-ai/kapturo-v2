@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
   const hoy = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
   const isSuperAdmin = user?.role === 'super_admin'
+  const isAdmin = user?.role === 'admin' || isSuperAdmin
   const userModuleTypes: string[] = isSuperAdmin
     ? ['licitador', 'prospector']
     : (user?.modules ?? []).map(m => m.tipo)
@@ -272,6 +273,7 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {isAdmin && (
             <div className="card p-5 flex flex-col gap-3 border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
               <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center">
                 <Bot size={20} className="text-amber-600" />
@@ -284,6 +286,7 @@ export default function DashboardPage() {
                 Ir a Agentes <ArrowRight size={13} />
               </button>
             </div>
+            )}
           </div>
         </div>
       )}

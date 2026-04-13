@@ -138,7 +138,8 @@ export default function AgentsPage() {
       )}
 
       {/* Admin+ — vista completa */}
-      {isAdmin && (<>
+      {isAdmin && (
+      <div className="contents">
       {onboardingCompleto && agentName ? (
         <div className="card p-5 bg-gradient-to-r from-brand-50 to-purple-50 border-brand-200">
           <div className="flex items-center justify-between">
@@ -359,4 +360,7 @@ export default function AgentsPage() {
           </div>
         )}
       </div>
-      </>)}
+      </div>)}
+    </div>
+  )
+}
