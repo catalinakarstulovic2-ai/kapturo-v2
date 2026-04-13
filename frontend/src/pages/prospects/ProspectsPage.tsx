@@ -345,10 +345,10 @@ export default function ProspectsPage() {
       {/* Filtros */}
       <div className="card px-4 py-3 flex flex-wrap items-center gap-2">
         {[
-          { value: '',           label: 'Todos' },
-          { value: 'licitador_a', label: 'Licitador A' },
-          { value: 'licitador_b', label: 'Licitador B' },
-          { value: 'prospector',  label: 'Prospector' },
+          { value: '',             label: 'Todos' },
+          { value: 'licitador_a',  label: 'Licitaciones Abiertas' },
+          { value: 'licitador_b',  label: 'Empresas Ganadoras' },
+          { value: 'prospector',   label: 'Prospección' },
         ].map(opt => (
           <button
             key={opt.value}
@@ -388,7 +388,7 @@ export default function ProspectsPage() {
             <p className="text-sm text-gray-400 mb-4">Ve a{' '}
               <Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>
               {' '}o{' '}
-              <Link to="/prospector" className="text-brand-500 font-medium hover:underline">Prospector</Link>
+              <Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>
               {' '}para encontrar clientes.
             </p>
           </div>
