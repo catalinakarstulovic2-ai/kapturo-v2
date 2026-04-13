@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '../../store/authStore'
 import {
   Bot, Sparkles, Trash2, RefreshCw, CheckCircle, XCircle,
   Loader2, MessageSquare, Settings, Zap, ZapOff, Edit3,
@@ -51,6 +52,7 @@ function AgentCard({
 export default function AgentsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const [activeAgent, setActiveAgent] = useState<string | null>(null)
   const [resultado, setResultado] = useState<any>(null)
 
@@ -58,6 +60,7 @@ export default function AgentsPage() {
   const { data: agentData } = useQuery({
     queryKey: ['agent-config'],
     queryFn: () => api.get('/tenant/me/agent-config').then(r => r.data),
+    enabled: !!user?.tenant_id,
   })
 
   const agentName = agentData?.agent_name
@@ -78,6 +81,7 @@ export default function AgentsPage() {
         Array.isArray(r.data) ? r.data : r.data?.items ?? r.data?.mensajes ?? []
       ),
     refetchInterval: 30000,
+    enabled: !!user?.tenant_id,
   })
 
   const run = (agent: string, payload?: any) => {
