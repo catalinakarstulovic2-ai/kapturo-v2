@@ -9,6 +9,7 @@ Orquesta los 4 agentes en secuencia:
 
 Los prospectos calificados entran automáticamente al pipeline del tenant.
 """
+import os
 from sqlalchemy.orm import Session
 from app.modules.inmobiliaria.collector import InmobiliariaCollector
 from app.modules.inmobiliaria.normalizer import normalizar
@@ -23,7 +24,7 @@ class InmobiliariaService:
         self.tenant_id = tenant_id
         keys = self._get_keys()
         self.collector = InmobiliariaCollector(
-            apollo_api_key=keys.get("apollo_api_key"),
+            pdl_api_key=keys.get("pdl_api_key") or os.environ.get("PDL_API_KEY"),
             apify_api_key=keys.get("apify_api_key"),
         )
         self.scorer = InmobiliariaScorer()

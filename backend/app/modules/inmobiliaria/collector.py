@@ -13,7 +13,7 @@ Cada item devuelto incluye el campo "_raw_source" para que el normalizer
 sepa de dónde viene y cómo procesarlo.
 """
 import asyncio
-from app.modules.prospector.apollo_client import ApolloClient
+from app.modules.inmobiliaria.pdl_client import PDLClient
 from app.modules.prospector.apify_client import ApifyClient
 
 
@@ -71,8 +71,8 @@ FACEBOOK_KEYWORDS = [
 
 
 class InmobiliariaCollector:
-    def __init__(self, apollo_api_key: str = None, apify_api_key: str = None):
-        self.apollo = ApolloClient(api_key=apollo_api_key)
+    def __init__(self, pdl_api_key: str = None, apify_api_key: str = None):
+        self.pdl = PDLClient(api_key=pdl_api_key) if pdl_api_key else None
         self.apify = ApifyClient(api_key=apify_api_key)
 
     async def recolectar(
@@ -113,40 +113,21 @@ class InmobiliariaCollector:
 
         return raw_prospects
 
-    # ── Apollo LATAM ──────────────────────────────────────────────────────────
+    # ── PDL LATAM ─────────────────────────────────────────────────────────────
 
     async def _buscar_apollo_latam(self, max_results: int) -> list:
-        """
-        Busca personas en LATAM con cargo de decisión e industria con liquidez.
-        Excluye agentes y corredores inmobiliarios.
-        """
-        filtros = {
-            "person_titles": DECISION_TITLES,
-            "person_locations": LATAM_COUNTRIES,
-            "organization_industry_tag_ids": [],  # Apollo usa IDs, filtro por q_keywords
-            "q_keywords": "investor OR entrepreneur OR business owner",
-            "per_page": min(max_results, 100),
-            "page": 1,
-        }
-        respuesta = await self.apollo.search_people(filtros)
-        return respuesta.get("people", []) or []
+        """Busca ejecutivos LATAM con capital via People Data Labs."""
+        if not self.pdl:
+            return []
+        return await self.pdl.buscar_latam(max_results=max_results)
 
-    # ── Apollo USA ────────────────────────────────────────────────────────────
+    # ── PDL USA ───────────────────────────────────────────────────────────────
 
     async def _buscar_apollo_usa(self, max_results: int) -> list:
-        """
-        Busca personas en USA con perfil financiero y nombres hispanos.
-        Foco en Florida, Texas, California, Nueva York — mayor concentración latina.
-        """
-        filtros = {
-            "person_titles": DECISION_TITLES,
-            "person_locations": ["Florida", "Texas", "California", "New York", "New Jersey"],
-            "q_keywords": "latino OR hispanic OR latin america investor entrepreneur",
-            "per_page": min(max_results, 100),
-            "page": 1,
-        }
-        respuesta = await self.apollo.search_people(filtros)
-        return respuesta.get("people", []) or []
+        """Busca hispanos en USA con perfil comprador via People Data Labs."""
+        if not self.pdl:
+            return []
+        return await self.pdl.buscar_usa_hispanos(max_results=max_results)
 
     # ── Apify: Facebook ───────────────────────────────────────────────────────
 
