@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Home } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -8,9 +8,8 @@ const nav = [
   { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null },
   { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null },
   { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones' },
-  { to: '/prospector',      icon: Search,          label: 'Prospector',       module: 'kapturo_ventas' },
-  { to: '/inmobiliaria',    icon: Home,            label: 'Inmobiliaria',     module: 'inmobiliaria' },
+  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitador' },
+  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector' },
   { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null },
   { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null },
 ]
@@ -23,12 +22,12 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuthStore()
   const isSuperAdmin = user?.role === 'super_admin'
-  const userModules: string[] = user?.modules ?? []
+  const userModuleTypes: string[] = (user?.modules ?? []).map(m => m.tipo)
 
   const visibleNav = nav.filter(item => {
     if (!item.module) return true                          // items sin módulo: siempre visibles
     if (isSuperAdmin) return true                          // super_admin ve todo
-    return userModules.includes(item.module)               // solo si el tenant tiene el módulo
+    return userModuleTypes.includes(item.module)           // solo si el tenant tiene el módulo
   })
 
   return (

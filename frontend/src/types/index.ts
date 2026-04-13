@@ -1,10 +1,17 @@
+export interface UserModule {
+  tipo: string        // 'licitador' | 'prospector'
+  niche?: string      // 'inmobiliaria' | 'agencia' | etc.
+  pais?: string
+  fuentes?: string[]
+}
+
 export interface User {
   id: string
   email: string
   full_name: string
   role: 'super_admin' | 'admin' | 'member'
   tenant_id: string | null
-  modules: string[]
+  modules: UserModule[]
 }
 
 export interface Prospect {

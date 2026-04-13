@@ -92,13 +92,17 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Devuelve los datos del usuario autenticado."""
-    modules: list[str] = []
+    modules: list[dict] = []
     if current_user.tenant_id:
         mods = db.query(TenantModule).filter(
             TenantModule.tenant_id == current_user.tenant_id,
             TenantModule.is_active == True
         ).all()
-        modules = [str(m.module.value) if hasattr(m.module, 'value') else str(m.module) for m in mods]
+        for m in mods:
+            mod_dict: dict = {"tipo": m.module.value if hasattr(m.module, 'value') else str(m.module)}
+            if m.niche_config:
+                mod_dict.update(m.niche_config)
+            modules.append(mod_dict)
     return {
         "id": current_user.id,
         "email": current_user.email,

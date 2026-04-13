@@ -13,9 +13,8 @@ class PlanName(str, enum.Enum):
 
 
 class ModuleType(str, enum.Enum):
-    licitaciones = "licitaciones"
-    inmobiliaria = "inmobiliaria"
-    kapturo_ventas = "kapturo_ventas"
+    licitador = "licitador"
+    prospector = "prospector"
 
 
 class SubscriptionPlan(Base):
@@ -62,6 +61,7 @@ class TenantModule(Base):
     module: Mapped[ModuleType] = mapped_column(PgEnum(ModuleType), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     config: Mapped[str] = mapped_column(String, nullable=True)  # JSON con configuración del módulo
+    niche_config: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)  # nicho, pais, fuentes
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant: Mapped["Tenant"] = relationship(back_populates="modules")
