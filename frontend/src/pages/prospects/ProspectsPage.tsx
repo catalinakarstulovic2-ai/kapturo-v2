@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import api from '../../api/client'
 import type { Prospect } from '../../types'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '../../store/authStore'
 import {
   Star, MapPin, Mail, Phone, Building2, X, TrendingUp,
   Sparkles, Trash2, Bell, FileText, Send, Loader2,
@@ -292,6 +293,14 @@ export default function ProspectsPage() {
   const [pagina, setPagina] = useState(1)
   const [selected, setSelected] = useState<Prospect | null>(null)
 
+  const { user } = useAuthStore()
+  const isSuperAdmin = user?.role === 'super_admin'
+  const userModuleTypes: string[] = isSuperAdmin
+    ? ['licitador', 'prospector']
+    : (user?.modules ?? []).map(m => m.tipo)
+  const tieneLicitador  = userModuleTypes.includes('licitador')
+  const tieneProspector = userModuleTypes.includes('prospector')
+
   const { data, isLoading } = useQuery({
     queryKey: ['prospectos', modulo, soloCalificados, pagina],
     queryFn: () => api.get('/modules/prospector/prospectos', {
@@ -345,11 +354,11 @@ export default function ProspectsPage() {
       {/* Filtros */}
       <div className="card px-4 py-3 flex flex-wrap items-center gap-2">
         {[
-          { value: '',             label: 'Todos' },
-          { value: 'licitador_a',  label: 'Licitaciones Abiertas' },
-          { value: 'licitador_b',  label: 'Empresas Ganadoras' },
-          { value: 'prospector',   label: 'Prospección' },
-        ].map(opt => (
+          { value: '',            label: 'Todos',                  show: true },
+          { value: 'licitador_a', label: 'Licitaciones Abiertas',  show: tieneLicitador },
+          { value: 'licitador_b', label: 'Empresas Ganadoras',     show: tieneLicitador },
+          { value: 'prospector',  label: 'Prospección',           show: tieneProspector },
+        ].filter(opt => opt.show).map(opt => (
           <button
             key={opt.value}
             onClick={() => { setModulo(opt.value); setPagina(1) }}
@@ -385,11 +394,10 @@ export default function ProspectsPage() {
               <Users size={24} className="text-gray-400" />
             </div>
             <p className="font-semibold text-gray-700 mb-1">Todavía no tienes prospectos</p>
-            <p className="text-sm text-gray-400 mb-4">Ve a{' '}
-              <Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>
-              {' '}o{' '}
-              <Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>
-              {' '}para encontrar clientes.
+            <p className="text-sm text-gray-400 mb-4">
+              {tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>{' '}o{' '}<Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
+              {tieneLicitador && !tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>{' '}para encontrar clientes.</>}
+              {!tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
             </p>
           </div>
         ) : (
