@@ -70,12 +70,13 @@ function KeyRow({
 export default function SettingsPage() {
   const { user } = useAuthStore()
   const isSuperAdmin = user?.role === 'super_admin'
+  const isAdmin     = user?.role === 'admin' || isSuperAdmin
   const qc = useQueryClient()
 
   const { data: tenantData, isLoading } = useQuery({
     queryKey: ['tenant-me'],
     queryFn: () => api.get('/tenant/me').then(r => r.data),
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenant_id && isAdmin,
   })
 
   const [keys, setKeys] = useState<Record<string, string>>({})
@@ -91,7 +92,7 @@ export default function SettingsPage() {
   const { data: agentConfigData, isLoading: agentConfigLoading } = useQuery({
     queryKey: ['agent-config'],
     queryFn: () => api.get('/tenant/me/agent-config').then(r => r.data),
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenant_id && isAdmin,
   })
 
   useEffect(() => {
@@ -171,8 +172,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Empresa */}
-      <div className="card p-5 space-y-3">
+      {/* Empresa — solo admin+ */}
+      {isAdmin && <div className="card p-5 space-y-3">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Building2 size={16} /> Tu empresa</h2>
         {isLoading ? (
           <p className="text-sm text-gray-400">Cargando...</p>
@@ -199,7 +200,7 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Integraciones / API Keys — solo super admin */}
       {isSuperAdmin && <div className="card p-5 space-y-1">
@@ -256,8 +257,8 @@ export default function SettingsPage() {
         )}
       </div>}
 
-      {/* Agente IA */}
-      <div className="card p-5 space-y-4">
+      {/* Agente IA — solo admin+ */}
+      {isAdmin && <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Bot size={16} /> Agente IA</h2>
           {agentSaved && (
@@ -331,7 +332,7 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

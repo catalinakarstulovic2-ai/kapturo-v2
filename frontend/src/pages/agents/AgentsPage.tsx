@@ -53,6 +53,7 @@ export default function AgentsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const [activeAgent, setActiveAgent] = useState<string | null>(null)
   const [resultado, setResultado] = useState<any>(null)
 
@@ -60,7 +61,7 @@ export default function AgentsPage() {
   const { data: agentData } = useQuery({
     queryKey: ['agent-config'],
     queryFn: () => api.get('/tenant/me/agent-config').then(r => r.data),
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenant_id && isAdmin,
   })
 
   const agentName = agentData?.agent_name
@@ -81,7 +82,7 @@ export default function AgentsPage() {
         Array.isArray(r.data) ? r.data : r.data?.items ?? r.data?.mensajes ?? []
       ),
     refetchInterval: 30000,
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenant_id && isAdmin,
   })
 
   const run = (agent: string, payload?: any) => {
@@ -127,7 +128,17 @@ export default function AgentsPage() {
         </p>
       </div>
 
-      {/* Card del agente configurado */}
+      {/* Member — sin acceso a ejecución */}
+      {!isAdmin && (
+        <div className="card p-8 text-center text-gray-400">
+          <Bot size={36} className="mx-auto mb-3 text-gray-300" />
+          <p className="font-medium text-gray-600">Solo los administradores pueden gestionar los agentes.</p>
+          <p className="text-sm mt-1">Contacta al admin de tu equipo para configurar o ejecutar agentes.</p>
+        </div>
+      )}
+
+      {/* Admin+ — vista completa */}
+      {isAdmin && (<>
       {onboardingCompleto && agentName ? (
         <div className="card p-5 bg-gradient-to-r from-brand-50 to-purple-50 border-brand-200">
           <div className="flex items-center justify-between">
@@ -348,6 +359,4 @@ export default function AgentsPage() {
           </div>
         )}
       </div>
-    </div>
-  )
-}
+      </>)}
