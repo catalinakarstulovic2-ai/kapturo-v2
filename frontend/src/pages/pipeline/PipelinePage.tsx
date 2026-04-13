@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
+import { useAuthStore } from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
   Phone, Mail, Globe, MapPin, Clock, ChevronRight,
@@ -112,10 +113,11 @@ function KanbanCard({ card, onClick, onDragStart, onDragEnd, isDragging }: {
 
 // ── Panel lateral ─────────────────────────────────────────────────────────────
 
-function ProspectPanel({ card, stages, onClose }: {
+function ProspectPanel({ card, stages, onClose, isAdmin }: {
   card: PipelineCard
   stages: PipelineStage[]
   onClose: () => void
+  isAdmin: boolean
 }) {
   const qc = useQueryClient()
   const p = card.prospect
@@ -346,7 +348,7 @@ function ProspectPanel({ card, stages, onClose }: {
 
         {/* Footer */}
         <div className="p-5 border-t border-gray-100">
-          <button
+          {isAdmin && <button
             onClick={() => {
               if (confirm('¿Sacar este lead del pipeline? El prospecto no se elimina.')) {
                 eliminarMutation.mutate()
@@ -355,7 +357,7 @@ function ProspectPanel({ card, stages, onClose }: {
             className="w-full text-sm text-red-500 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl transition-colors"
           >
             Quitar del pipeline
-          </button>
+          </button>}
         </div>
       </div>
     </div>
@@ -366,6 +368,8 @@ function ProspectPanel({ card, stages, onClose }: {
 
 export default function PipelinePage() {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
   const dragCounters = useState<Record<string, number>>(() => ({}))[0]
@@ -458,7 +462,7 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-gray-900">Pipeline CRM</h1>
           <p className="text-sm text-gray-500 mt-0.5">{totalLeads} leads en seguimiento</p>
         </div>
-        <button
+        {isAdmin && <button
           onClick={() => { setEditMode(!editMode); setEditingStage(null) }}
           className={clsx(
             'flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors',
@@ -469,7 +473,7 @@ export default function PipelinePage() {
         >
           <Settings size={15} />
           {editMode ? 'Listo' : 'Editar etapas'}
-        </button>
+        </button>}
       </div>
 
       {/* Tablero Kanban */}
@@ -663,6 +667,7 @@ export default function PipelinePage() {
           card={selectedCard}
           stages={stages}
           onClose={() => setSelectedCard(null)}
+          isAdmin={isAdmin}
         />
       )}
     </div>

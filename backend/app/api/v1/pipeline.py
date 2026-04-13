@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.core.database import get_db
-from app.core.middleware import get_current_user
+from app.core.middleware import get_current_user, require_admin
 from app.models.user import User
 from app.services.pipeline_service import PipelineService
 
@@ -68,7 +68,7 @@ def obtener_pipeline(
 @router.post("/etapas")
 def crear_etapa(
     data: CrearEtapaRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Crea una nueva etapa personalizada en el pipeline."""
@@ -88,7 +88,7 @@ def crear_etapa(
 def actualizar_etapa(
     stage_id: str,
     data: ActualizarEtapaRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Actualiza el nombre, color u orden de una etapa."""
@@ -110,7 +110,7 @@ def actualizar_etapa(
 @router.delete("/etapas/{stage_id}")
 def eliminar_etapa(
     stage_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
@@ -187,7 +187,7 @@ def actualizar_tarjeta(
 @router.delete("/tarjetas/{card_id}")
 def eliminar_tarjeta(
     card_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Elimina una tarjeta del pipeline (el prospecto no se borra)."""
@@ -200,7 +200,7 @@ def eliminar_tarjeta(
 
 @router.post("/inicializar")
 def inicializar_pipeline(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
