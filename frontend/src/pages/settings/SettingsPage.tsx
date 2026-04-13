@@ -69,6 +69,7 @@ function KeyRow({
 
 export default function SettingsPage() {
   const { user } = useAuthStore()
+  const isSuperAdmin = user?.role === 'super_admin'
   const qc = useQueryClient()
 
   const { data: tenantData, isLoading } = useQuery({
@@ -200,8 +201,8 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Integraciones / API Keys */}
-      <div className="card p-5 space-y-1">
+      {/* Integraciones / API Keys — solo super admin */}
+      {isSuperAdmin && <div className="card p-5 space-y-1">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Key size={16} /> Integraciones</h2>
           {saved && (
@@ -253,7 +254,7 @@ export default function SettingsPage() {
             </div>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Agente IA */}
       <div className="card p-5 space-y-4">
