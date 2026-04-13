@@ -22,7 +22,10 @@ class InmobiliariaService:
     def __init__(self, db: Session, tenant_id: str):
         self.db = db
         self.tenant_id = tenant_id
-        keys = self._get_keys()
+        tenant = self.db.query(Tenant).filter(Tenant.id == self.tenant_id).first()
+        keys = tenant.api_keys or {} if tenant else {}
+        # agent_config contiene el contexto del nicho del tenant (producto, países, industrias, etc.)
+        self.agent_config: dict = dict(tenant.agent_config or {}) if tenant else {}
         self.collector = InmobiliariaCollector(
             pdl_api_key=keys.get("pdl_api_key") or os.environ.get("PDL_API_KEY"),
             apify_api_key=keys.get("apify_api_key"),
@@ -55,6 +58,7 @@ class InmobiliariaService:
             max_reddit=max_reddit,
             max_instagram=max_instagram,
             max_tiktok=max_tiktok,
+            config=self.agent_config,
         )
 
         # ── Agente 2: Normalizador ────────────────────────────────────────────
@@ -142,8 +146,8 @@ class InmobiliariaService:
                 if existe:
                     return None
 
-        # Agente 3: Scorer
-        score, razon = await self.scorer.calificar(p_dict)
+        # Agente 3: Scorer — recibe el contexto del tenant
+        score, razon = await self.scorer.calificar(p_dict, config=self.agent_config)
 
         # Campos que no van directo al modelo
         raw_text = p_dict.pop("raw_text", None)

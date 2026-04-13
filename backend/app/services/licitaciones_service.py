@@ -106,26 +106,29 @@ class LicitacionesService:
         estado = "adjudicada" if tipo == "licitador_b" else "publicada"
 
         # ── Fase 1: Obtener TODOS los items del listado (sin detalle) ──────
+        list_sem = asyncio.Semaphore(20)  # máx 20 fechas en paralelo para no saturar la API
+
         async def fetch_lista(fecha: str) -> list[dict]:
-            todos = []
-            pag = 1
-            while True:
-                try:
-                    resp = await self.mp_client.buscar_licitaciones(
-                        fecha=fecha, estado=estado, region=region, pagina=pag
-                    )
-                    listado = resp.get("Listado", [])
-                    if not listado:
+            async with list_sem:
+                todos = []
+                pag = 1
+                while True:
+                    try:
+                        resp = await self.mp_client.buscar_licitaciones(
+                            fecha=fecha, estado=estado, region=region, pagina=pag
+                        )
+                        listado = resp.get("Listado", [])
+                        if not listado:
+                            break
+                        todos.extend(listado)
+                        if len(listado) < 10:
+                            break
+                        pag += 1
+                        if pag > 10:
+                            break
+                    except Exception:
                         break
-                    todos.extend(listado)
-                    if len(listado) < 10:
-                        break
-                    pag += 1
-                    if pag > 10:
-                        break
-                except Exception:
-                    break
-            return todos
+                return todos
 
         listas = await asyncio.gather(*[fetch_lista(f) for f in fechas])
 
@@ -192,14 +195,18 @@ class LicitacionesService:
         ]
 
         # ── Fase 2: Detalle solo para los ~50 items de la página actual ────
-        sem = asyncio.Semaphore(10)
+        sem = asyncio.Semaphore(5)  # max 5 paralelos — la API de MP es sensible a concurrencia alta
 
         async def fetch_detalle(cod: str) -> dict | None:
             async with sem:
-                try:
-                    return await self.mp_client.obtener_detalle(cod)
-                except Exception:
-                    return None
+                for intento in range(3):  # hasta 3 intentos con backoff
+                    try:
+                        return await self.mp_client.obtener_detalle(cod)
+                    except Exception:
+                        if intento < 2:
+                            await asyncio.sleep(0.8 * (intento + 1))  # 0.8s, 1.6s
+                            continue
+                return None
 
         detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
         detalles_ok = [d for d in detalles if d]
@@ -506,9 +513,57 @@ class LicitacionesService:
             except Exception:
                 pass
 
+        # ── Paso 5: RES API → socios/dueños → contact_name ───────────────────
+        if prospect.rut and not prospect.contact_name and not enriched.get("contact_name"):
+            try:
+                res_data = await self._consultar_res(prospect.rut)
+                if res_data.get("contact_name"):
+                    enriched["contact_name"] = res_data["contact_name"]
+                    enriched.setdefault("enrichment_source", "RES")
+                if res_data.get("address") and not prospect.address and not enriched.get("address"):
+                    enriched["address"] = res_data["address"]
+            except Exception:
+                pass
+
+        # ── Paso 6: Apollo enrich_person → cargo del contacto ─────────────────
+        email_enrich   = enriched.get("email") or prospect.email
+        linkedin_enrich = prospect.linkedin_url
+        if (email_enrich or linkedin_enrich) and not prospect.contact_title and not enriched.get("contact_title"):
+            try:
+                apollo_key_ep = keys.get("apollo") or settings.APOLLO_API_KEY
+                if apollo_key_ep:
+                    from app.modules.prospector.apollo_client import ApolloClient
+                    apollo_ep = ApolloClient(api_key=apollo_key_ep)
+                    person_data = await apollo_ep.enrich_person(
+                        linkedin_url=linkedin_enrich,
+                        email=email_enrich,
+                    )
+                    person = person_data.get("person") or {}
+                    if person.get("title"):
+                        enriched["contact_title"] = person["title"]
+                        enriched["enrichment_source"] = "Apollo"
+                    if not enriched.get("contact_name") and not prospect.contact_name:
+                        fn = f"{person.get('first_name', '')} {person.get('last_name', '')}".strip()
+                        if fn:
+                            enriched["contact_name"] = fn
+                    phones = person.get("phone_numbers") or []
+                    if phones and not prospect.phone and not enriched.get("phone"):
+                        enriched["phone"] = phones[0].get("sanitized_number", "")
+            except Exception:
+                pass
+
+        # ── Paso 7: Historial Mercado Público → licitaciones_ganadas_count ─────
+        if prospect.rut:
+            try:
+                count = await self._contar_historial_mp(prospect.rut)
+                if count > 0:
+                    enriched["licitaciones_ganadas_count"] = count
+            except Exception:
+                pass
+
         if enriched:
             for campo, valor in enriched.items():
-                if valor:
+                if valor is not None:
                     setattr(prospect, campo, valor)
             self.db.commit()
             return {
@@ -551,6 +606,75 @@ class LicitacionesService:
         except Exception:
             pass
         return {}
+
+    async def _consultar_res(self, rut: str) -> dict:
+        """
+        Consulta el Registro de Empresas y Sociedades (Ministerio Economía) por RUT.
+        Devuelve socios/representantes → útil para llenar contact_name sin Apollo.
+
+        API: https://apis.registrodeempresas.economy.cl/empresa/{rut_sin_dv}
+        """
+        import httpx
+        import re
+        rut_limpio = re.sub(r"[.\-\s]", "", rut or "").strip().upper()
+        if not rut_limpio or len(rut_limpio) < 2:
+            return {}
+        rut_numero = rut_limpio[:-1]  # sin dígito verificador
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"https://apis.registrodeempresas.economy.cl/empresa/{rut_numero}",
+                    headers={"Accept": "application/json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    socios = (
+                        data.get("socios")
+                        or data.get("representantes")
+                        or data.get("representantesLegales")
+                        or []
+                    )
+                    result = {}
+                    if socios:
+                        primer_socio = socios[0]
+                        nombre = (
+                            primer_socio.get("nombre")
+                            or primer_socio.get("name")
+                            or primer_socio.get("nombreCompleto")
+                            or ""
+                        ).strip()
+                        if nombre:
+                            result["contact_name"] = nombre
+                    domicilio = (
+                        data.get("domicilio")
+                        or data.get("direccion")
+                        or data.get("domicilioComercial")
+                        or ""
+                    )
+                    if domicilio:
+                        result["address"] = domicilio
+                    return result
+        except Exception:
+            pass
+        return {}
+
+    async def _contar_historial_mp(self, rut: str) -> int:
+        """
+        Cuenta cuántas licitaciones adjudicadas tiene este RUT en nuestra BD.
+        Es un lower bound: solo cuenta lo que Kapturo ha indexado.
+        Útil para el scorer: si ganó 10+ licitaciones, es un proveedor habitual del Estado.
+        """
+        rut_norm = (rut or "").strip()
+        if not rut_norm:
+            return 0
+        return (
+            self.db.query(Prospect)
+            .filter(
+                Prospect.rut == rut_norm,
+                Prospect.source_module == "licitador_b",
+            )
+            .count()
+        )
 
     # ─── BATCH ────────────────────────────────────────────────────────────
 
@@ -649,12 +773,14 @@ class LicitacionesService:
             "company_name": p.company_name,
             "rut": p.rut,
             "contact_name": p.contact_name,
+            "contact_title": p.contact_title,
             "email": p.email,
             "phone": p.phone,
             "website": p.website,
             "address": p.address,
             "city": p.city,
             "enrichment_source": p.enrichment_source,
+            "licitaciones_ganadas_count": p.licitaciones_ganadas_count or 0,
             "score": p.score,
             "score_reason": p.score_reason,
             "is_qualified": p.is_qualified,
@@ -825,13 +951,28 @@ class LicitacionesService:
             "company_name": p.company_name,
             "rut": p.rut,
             "contact_name": p.contact_name,
+            "contact_title": p.contact_title,
             "email": p.email,
             "phone": p.phone,
+            "website": p.website,
+            "address": p.address,
             "city": p.city,
+            "enrichment_source": p.enrichment_source,
+            "licitaciones_ganadas_count": p.licitaciones_ganadas_count or 0,
             "score": p.score,
             "score_reason": p.score_reason,
             "is_qualified": p.is_qualified,
             "status": p.status,
             "source_module": p.source_module,
+            "licitacion_codigo": p.licitacion_codigo,
+            "licitacion_nombre": p.licitacion_nombre,
+            "licitacion_monto": p.licitacion_monto,
+            "licitacion_monto_adjudicado": p.licitacion_monto_adjudicado,
+            "licitacion_organismo": p.licitacion_organismo,
+            "licitacion_categoria": p.licitacion_categoria,
+            "licitacion_region": p.licitacion_region,
+            "licitacion_estado": p.licitacion_estado,
+            "licitacion_fecha_adjudicacion": p.licitacion_fecha_adjudicacion,
+            "licitacion_fecha_cierre": p.licitacion_fecha_cierre,
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }

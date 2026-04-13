@@ -78,6 +78,9 @@ class Prospect(Base):
     alarma_fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     alarma_motivo: Mapped[str] = mapped_column(String(500), nullable=True)
 
+    # Historial de licitaciones (enriquecimiento)
+    licitaciones_ganadas_count: Mapped[int] = mapped_column(default=0, nullable=True)
+
     # Pipeline
     in_pipeline: Mapped[bool] = mapped_column(Boolean, default=False)
 

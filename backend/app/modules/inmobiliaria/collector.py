@@ -83,20 +83,32 @@ class InmobiliariaCollector:
         max_reddit: int = 100,
         max_instagram: int = 100,
         max_tiktok: int = 50,
+        config: dict = None,
     ) -> list[dict]:
         """
         Lanza las 6 búsquedas en paralelo y devuelve lista cruda unificada.
 
-        Cada item tiene el campo _raw_source con el origen:
-          apollo_latam | apollo_usa | facebook | reddit | instagram | tiktok
+        config: agent_config del tenant. Campos relevantes:
+          - paises_objetivo:       list[str] — reemplaza LATAM_COUNTRIES
+          - industrias_objetivo:   list[str] — reemplaza TARGET_INDUSTRIES
+          - cargos_objetivo:       list[str] — reemplaza DECISION_TITLES
+          - keywords_sociales:     list[str] — reemplaza FACEBOOK_KEYWORDS / TIKTOK_KEYWORDS
+          - subreddits:            list[str] — reemplaza REDDIT_SUBREDDITS
+          - keywords_reddit:       list[str] — reemplaza REDDIT_KEYWORDS
+          - cuentas_instagram:     list[str] — reemplaza INSTAGRAM_RE_ACCOUNTS
+          - ubicacion_social:      str       — ej: "Florida" (default)
+
+        Si no se pasa config, usa los valores por defecto del módulo.
         """
+        config = config or {}
+
         results = await asyncio.gather(
-            self._buscar_apollo_latam(max_apollo_latam),
-            self._buscar_apollo_usa(max_apollo_usa),
-            self._buscar_facebook(max_facebook),
-            self._buscar_reddit(max_reddit),
-            self._buscar_instagram(max_instagram),
-            self._buscar_tiktok(max_tiktok),
+            self._buscar_apollo_latam(max_apollo_latam, config),
+            self._buscar_apollo_usa(max_apollo_usa, config),
+            self._buscar_facebook(max_facebook, config),
+            self._buscar_reddit(max_reddit, config),
+            self._buscar_instagram(max_instagram, config),
+            self._buscar_tiktok(max_tiktok, config),
             return_exceptions=True,
         )
 
@@ -105,7 +117,6 @@ class InmobiliariaCollector:
 
         for source, result in zip(sources, results):
             if isinstance(result, Exception):
-                # Si una fuente falla, las otras siguen — no bloqueamos todo
                 continue
             for item in result:
                 item["_raw_source"] = source
@@ -115,49 +126,63 @@ class InmobiliariaCollector:
 
     # ── PDL LATAM ─────────────────────────────────────────────────────────────
 
-    async def _buscar_apollo_latam(self, max_results: int) -> list:
-        """Busca ejecutivos LATAM con capital via People Data Labs."""
+    async def _buscar_apollo_latam(self, max_results: int, config: dict) -> list:
+        """Busca ejecutivos en países objetivo via People Data Labs."""
         if not self.pdl:
             return []
-        return await self.pdl.buscar_latam(max_results=max_results)
+        paises = config.get("paises_objetivo") or LATAM_COUNTRIES
+        return await self.pdl.buscar_latam(
+            max_results=max_results,
+            countries=paises,
+        )
 
     # ── PDL USA ───────────────────────────────────────────────────────────────
 
-    async def _buscar_apollo_usa(self, max_results: int) -> list:
-        """Busca hispanos en USA con perfil comprador via People Data Labs."""
+    async def _buscar_apollo_usa(self, max_results: int, config: dict) -> list:
+        """Busca perfiles en USA via People Data Labs."""
         if not self.pdl:
             return []
-        return await self.pdl.buscar_usa_hispanos(max_results=max_results)
+        industrias = config.get("industrias_objetivo") or None
+        return await self.pdl.buscar_usa_hispanos(
+            max_results=max_results,
+            industries=industrias,
+        )
 
     # ── Apify: Facebook ───────────────────────────────────────────────────────
 
-    async def _buscar_facebook(self, max_results: int) -> list:
+    async def _buscar_facebook(self, max_results: int, config: dict) -> list:
+        keywords  = config.get("keywords_sociales") or FACEBOOK_KEYWORDS
+        ubicacion = config.get("ubicacion_social") or "Florida"
         return await self.apify.scrape_facebook_groups(
-            keywords=FACEBOOK_KEYWORDS,
-            location="Florida",
+            keywords=keywords,
+            location=ubicacion,
         )
 
     # ── Apify: Reddit ─────────────────────────────────────────────────────────
 
-    async def _buscar_reddit(self, max_results: int) -> list:
+    async def _buscar_reddit(self, max_results: int, config: dict) -> list:
+        subreddits = config.get("subreddits") or REDDIT_SUBREDDITS
+        keywords   = config.get("keywords_reddit") or REDDIT_KEYWORDS
         return await self.apify.scrape_reddit(
-            subreddits=REDDIT_SUBREDDITS,
-            keywords=REDDIT_KEYWORDS,
+            subreddits=subreddits,
+            keywords=keywords,
             max_results=max_results,
         )
 
     # ── Apify: Instagram ──────────────────────────────────────────────────────
 
-    async def _buscar_instagram(self, max_results: int) -> list:
+    async def _buscar_instagram(self, max_results: int, config: dict) -> list:
+        cuentas = config.get("cuentas_instagram") or INSTAGRAM_RE_ACCOUNTS
         return await self.apify.scrape_instagram_comments(
-            usernames=INSTAGRAM_RE_ACCOUNTS,
+            usernames=cuentas,
             max_comments=max_results,
         )
 
     # ── Apify: TikTok ─────────────────────────────────────────────────────────
 
-    async def _buscar_tiktok(self, max_results: int) -> list:
+    async def _buscar_tiktok(self, max_results: int, config: dict) -> list:
+        keywords = config.get("keywords_sociales") or TIKTOK_KEYWORDS
         return await self.apify.scrape_tiktok(
-            keywords=TIKTOK_KEYWORDS,
+            keywords=keywords,
             max_results=max_results,
         )

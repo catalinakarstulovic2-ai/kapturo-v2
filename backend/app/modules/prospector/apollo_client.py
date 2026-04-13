@@ -75,17 +75,19 @@ class ApolloClient:
             response.raise_for_status()
             return response.json()
 
-    async def search_organization(self, name: str) -> dict:
+    async def search_organization(self, name: str, locations: list = None) -> dict:
         """
         Busca una organización en Apollo por nombre.
         Útil para obtener website, teléfono y dominio de una empresa.
 
         Retorna: {"organizations": [...]} donde cada org tiene
           website_url, phone, primary_domain, name, etc.
+
+        locations: lista de países/ciudades para filtrar. Por defecto ["Chile"].
         """
         payload = {
             "q_organization_name": name,
-            "organization_locations": ["Chile"],
+            "organization_locations": locations or ["Chile"],
             "per_page": 1,
         }
         async with httpx.AsyncClient(timeout=30) as client:

@@ -33,6 +33,8 @@ export default function ProspectorPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('maps')
   const [mapsForm, setMapsForm] = useState({ query: '', location: '', nicho: '', producto: '', max_results: 40 })
+  const [apolloForm, setApolloForm] = useState({ titles: '', locations: '', keywords: '', industry: '', nicho: '', producto: '' })
+  const [socialForm, setSocialForm] = useState({ keywords: '', location: '', nicho: '', producto: '' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [notasEdit, setNotasEdit] = useState<Record<string, string>>({})
   const [savingStatus, setSavingStatus] = useState<Record<string, 'idle' | 'saving' | 'saved'>>({})
@@ -58,9 +60,52 @@ export default function ProspectorPage() {
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en busqueda'),
   })
 
+  const apolloMutation = useMutation({
+    mutationFn: (payload: any) => api.post('/modules/prospector/apollo', payload),
+    onSuccess: (res) => {
+      const { guardados = 0, duplicados = 0, total_encontrados = 0 } = res.data
+      toast.success(`${guardados} nuevos prospectos Apollo (${duplicados} duplicados de ${total_encontrados} encontrados)`)
+      qc.invalidateQueries({ queryKey: ['prospector-list'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en busqueda Apollo'),
+  })
+
+  const socialMutation = useMutation({
+    mutationFn: (payload: any) => api.post('/modules/prospector/social', payload),
+    onSuccess: (res) => {
+      const { guardados = 0, duplicados = 0, total_encontrados = 0 } = res.data
+      toast.success(`${guardados} nuevos prospectos Social (${duplicados} duplicados de ${total_encontrados} encontrados)`)
+      qc.invalidateQueries({ queryKey: ['prospector-list'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en busqueda Social'),
+  })
+
   const handleSearch = () => {
-    if (!mapsForm.query.trim() || !mapsForm.location.trim()) { toast.error('Ingresa que buscar y en que ciudad'); return }
-    searchMutation.mutate({ query: mapsForm.query, location: mapsForm.location, nicho: mapsForm.nicho, producto: mapsForm.producto, max_results: mapsForm.max_results })
+    if (tab === 'maps') {
+      if (!mapsForm.query.trim() || !mapsForm.location.trim()) { toast.error('Ingresa que buscar y en que ciudad'); return }
+      searchMutation.mutate({ query: mapsForm.query, location: mapsForm.location, nicho: mapsForm.nicho, producto: mapsForm.producto, max_results: mapsForm.max_results })
+    } else if (tab === 'apollo') {
+      if (!apolloForm.titles.trim()) { toast.error('Ingresa al menos un cargo a buscar'); return }
+      const titlesArr = apolloForm.titles.split(',').map(t => t.trim()).filter(Boolean)
+      const locsArr = apolloForm.locations.split(',').map(l => l.trim()).filter(Boolean)
+      apolloMutation.mutate({
+        titles: titlesArr,
+        locations: locsArr.length > 0 ? locsArr : ['Chile'],
+        keywords: apolloForm.keywords || undefined,
+        industry: apolloForm.industry || undefined,
+        nicho: apolloForm.nicho || undefined,
+        producto: apolloForm.producto || undefined,
+      })
+    } else if (tab === 'social') {
+      if (!socialForm.keywords.trim()) { toast.error('Ingresa al menos una palabra clave'); return }
+      const kwArr = socialForm.keywords.split(',').map(k => k.trim()).filter(Boolean)
+      socialMutation.mutate({
+        keywords: kwArr,
+        location: socialForm.location || undefined,
+        nicho: socialForm.nicho || undefined,
+        producto: socialForm.producto || undefined,
+      })
+    }
   }
 
   const handleNotasChange = useCallback((id: string, text: string) => {
@@ -103,9 +148,11 @@ export default function ProspectorPage() {
   }
 
   const generarMensaje = async (id: string) => {
+    const activeNicho = tab === 'apollo' ? apolloForm.nicho : tab === 'social' ? socialForm.nicho : mapsForm.nicho
+    const activeProducto = tab === 'apollo' ? apolloForm.producto : tab === 'social' ? socialForm.producto : mapsForm.producto
     setMensajeIA(prev => ({ ...prev, [id]: { texto: '', loading: true } }))
     try {
-      const res = await api.post(`/modules/prospector/prospectos/${id}/generar-mensaje`, { nicho: mapsForm.nicho, producto: mapsForm.producto, notas: notasEdit[id] ?? '' })
+      const res = await api.post(`/modules/prospector/prospectos/${id}/generar-mensaje`, { nicho: activeNicho, producto: activeProducto, notas: notasEdit[id] ?? '' })
       setMensajeIA(prev => ({ ...prev, [id]: { texto: res.data.mensaje, loading: false } }))
     } catch { toast.error('Error al generar mensaje'); setMensajeIA(prev => ({ ...prev, [id]: { texto: '', loading: false } })) }
   }
@@ -125,7 +172,7 @@ export default function ProspectorPage() {
         </div>
 
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 text-xs">
-          {([{ id: 'maps', label: 'Maps', ok: true }, { id: 'apollo', label: 'Apollo', ok: false }, { id: 'social', label: 'Social', ok: false }] as { id: Tab; label: string; ok: boolean }[]).map(t => (
+          {([{ id: 'maps', label: 'Maps', ok: true }, { id: 'apollo', label: 'Apollo', ok: true }, { id: 'social', label: 'Social', ok: true }] as { id: Tab; label: string; ok: boolean }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} className={clsx('flex-1 py-1.5 rounded font-medium transition-colors', tab === t.id ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
               {t.label}{!t.ok && <span className="ml-1 text-[9px] text-orange-400">pronto</span>}
             </button>
@@ -154,10 +201,54 @@ export default function ProspectorPage() {
               Tip: Los negocios sin web son leads calientes para agencias digitales.
             </div>
           </>}
-          {tab === 'apollo' && <div className="py-6 text-center space-y-2"><div className="text-4xl">🔒</div><p className="text-sm font-medium text-gray-700">Requiere Apollo Pro</p><p className="text-xs text-gray-500">Actualiza tu cuenta de Apollo.io para activar esta fuente.</p></div>}
-          {tab === 'social' && <div className="py-6 text-center space-y-2"><div className="text-4xl">🔜</div><p className="text-sm font-medium text-gray-700">Proximamente</p><p className="text-xs text-gray-500">Facebook, Instagram y LinkedIn disponibles pronto.</p></div>}
-          <button className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2.5" onClick={handleSearch} disabled={searchMutation.isPending || tab !== 'maps'}>
-            {searchMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Buscando...</> : <><Search size={14} /> Lanzar busqueda</>}
+          {tab === 'apollo' && <>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Cargos a buscar</label>
+              <input className="input text-sm" placeholder="CEO, Founder, Gerente General..." value={apolloForm.titles} onChange={e => setApolloForm(f => ({ ...f, titles: e.target.value }))} />
+              <p className="text-[10px] text-gray-400 mt-0.5">Separados por coma</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Ubicaciones</label>
+              <input className="input text-sm" placeholder="Chile, Argentina, Mexico..." value={apolloForm.locations} onChange={e => setApolloForm(f => ({ ...f, locations: e.target.value }))} />
+              <p className="text-[10px] text-gray-400 mt-0.5">Separadas por coma</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Industria</label>
+              <input className="input text-sm" placeholder="Tecnologia, Retail, Salud..." value={apolloForm.industry} onChange={e => setApolloForm(f => ({ ...f, industry: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tu nicho <span className="text-gray-400 font-normal">(para IA)</span></label>
+              <input className="input text-sm" placeholder="agencia web, marketing, real estate..." value={apolloForm.nicho} onChange={e => setApolloForm(f => ({ ...f, nicho: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tu producto/servicio</label>
+              <input className="input text-sm" placeholder="diseno web, SEO, automatizacion..." value={apolloForm.producto} onChange={e => setApolloForm(f => ({ ...f, producto: e.target.value }))} />
+            </div>
+          </>}
+          {tab === 'social' && <>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Palabras clave</label>
+              <input className="input text-sm" placeholder="inmobiliaria, real estate, propiedades..." value={socialForm.keywords} onChange={e => setSocialForm(f => ({ ...f, keywords: e.target.value }))} />
+              <p className="text-[10px] text-gray-400 mt-0.5">Separadas por coma</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Ubicacion / Pais</label>
+              <input className="input text-sm" placeholder="Chile, Miami, LATAM..." value={socialForm.location} onChange={e => setSocialForm(f => ({ ...f, location: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tu nicho <span className="text-gray-400 font-normal">(para IA)</span></label>
+              <input className="input text-sm" placeholder="agencia web, marketing, real estate..." value={socialForm.nicho} onChange={e => setSocialForm(f => ({ ...f, nicho: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tu producto/servicio</label>
+              <input className="input text-sm" placeholder="diseno web, SEO, automatizacion..." value={socialForm.producto} onChange={e => setSocialForm(f => ({ ...f, producto: e.target.value }))} />
+            </div>
+            <div className="bg-blue-50 rounded-lg p-2.5 text-[11px] text-blue-700 leading-relaxed">
+              Tip: Escanea Facebook Groups, Instagram y TikTok con Apify.
+            </div>
+          </> }
+          <button className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2.5" onClick={handleSearch} disabled={searchMutation.isPending || apolloMutation.isPending || socialMutation.isPending}>
+            {(searchMutation.isPending || apolloMutation.isPending || socialMutation.isPending) ? <><Loader2 size={14} className="animate-spin" /> Buscando...</> : <><Search size={14} /> Lanzar busqueda</>}
           </button>
         </div>
 
