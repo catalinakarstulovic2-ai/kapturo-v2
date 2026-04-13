@@ -102,6 +102,86 @@ class MessageService:
 
         return {"sent": True, "message_id": message_id}
 
+    async def send_direct_message(self, conversation_id: str, body: str) -> dict:
+        """
+        Envía un mensaje de texto directo desde el inbox sin pasar por aprobación IA.
+
+        Flujo:
+        1. Verifica que la conversación existe y es del tenant correcto
+        2. Obtiene el prospecto y su número de WhatsApp
+        3. Crea el registro de mensaje (direction=outbound, status=pending)
+        4. Llama a WhatsAppService.send_text()
+        5. Actualiza el status a "sent"
+
+        :param conversation_id: UUID de la conversación
+        :param body: Texto del mensaje a enviar
+        :returns: {"sent": True, "message": {...}}
+        """
+        # 1. Verificar conversación
+        conversacion = (
+            self.db.query(Conversation)
+            .filter(
+                Conversation.id == conversation_id,
+                Conversation.tenant_id == self.tenant_id,
+            )
+            .first()
+        )
+        if not conversacion:
+            raise HTTPException(status_code=404, detail="Conversación no encontrada")
+
+        # 2. Obtener prospecto y teléfono
+        prospecto = (
+            self.db.query(Prospect)
+            .filter(
+                Prospect.id == conversacion.prospect_id,
+                Prospect.tenant_id == self.tenant_id,
+            )
+            .first()
+        )
+        if not prospecto:
+            raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+
+        telefono = prospecto.whatsapp or prospecto.phone
+        if not telefono:
+            raise HTTPException(
+                status_code=400,
+                detail="El prospecto no tiene número de WhatsApp ni teléfono registrado"
+            )
+
+        # 3. Crear el mensaje
+        mensaje = Message(
+            tenant_id=self.tenant_id,
+            conversation_id=conversation_id,
+            direction=MessageDirection.outbound,
+            channel=conversacion.channel,
+            status=MessageStatus.draft,
+            body=body,
+            generated_by_ai=False,
+        )
+        self.db.add(mensaje)
+        self.db.flush()  # obtener el id sin hacer commit todavía
+
+        # 4. Enviar por WhatsApp
+        await self.whatsapp.send_text(to=telefono, body=body)
+
+        # 5. Marcar como enviado
+        mensaje.status = MessageStatus.sent
+        mensaje.sent_at = datetime.now(timezone.utc)
+        conversacion.last_message_at = datetime.now(timezone.utc)
+        self.db.commit()
+        self.db.refresh(mensaje)
+
+        return {
+            "sent": True,
+            "message": {
+                "id": mensaje.id,
+                "body": mensaje.body,
+                "direction": mensaje.direction,
+                "status": mensaje.status,
+                "created_at": mensaje.created_at.isoformat() if mensaje.created_at else None,
+            },
+        }
+
     def get_pending_messages(self) -> list:
         """
         Lista todos los mensajes pendientes de aprobación del tenant.

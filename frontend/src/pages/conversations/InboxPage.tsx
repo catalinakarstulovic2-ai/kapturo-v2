@@ -183,14 +183,21 @@ export default function InboxPage() {
     }
   }
 
-  // Enviar mensaje manual
+  // Enviar mensaje manual directo
   const sendMutation = useMutation({
     mutationFn: async () => {
-      // En este flujo simplificado el usuario escribe y se envía directo
-      // (en producción se crearía el mensaje y luego se aprobaría)
-      // Por ahora mostramos el texto en pantalla con toast informativo
-      toast('Para enviar, usa el flujo de IA: Redactar → Aprobar → Enviar desde Agentes IA')
+      if (!selectedConvId || !draftBody.trim()) return
+      return api.post(`/messages/conversations/${selectedConvId}/send-direct`, {
+        body: draftBody.trim(),
+      }).then(r => r.data)
+    },
+    onSuccess: () => {
       setDraftBody('')
+      qc.invalidateQueries({ queryKey: ['conv-messages', selectedConvId] })
+      qc.invalidateQueries({ queryKey: ['conversations'] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.detail || 'Error al enviar el mensaje')
     },
   })
 
@@ -338,14 +345,17 @@ export default function InboxPage() {
                 <button
                   className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shrink-0 disabled:opacity-40"
                   onClick={() => { if (draftBody.trim()) sendMutation.mutate() }}
-                  disabled={!draftBody.trim()}
+                  disabled={!draftBody.trim() || sendMutation.isPending}
                   title="Enviar mensaje"
                 >
-                  <Send size={16} />
+                  {sendMutation.isPending
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : <Send size={16} />
+                  }
                 </button>
               </div>
               <p className="text-[11px] text-gray-400 mt-1.5 px-1">
-                Los mensajes generados por IA requieren aprobación antes de enviarse al prospecto.
+                Puedes enviar mensajes directos o usar "Redactar con IA" para generar uno y aprobarlo.
               </p>
             </div>
           </>

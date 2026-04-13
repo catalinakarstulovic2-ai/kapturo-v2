@@ -10,12 +10,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.middleware import get_current_user, require_admin
 from app.core.config import settings
 from app.models.user import User
 from app.models.message import Message, Conversation
+from app.models.tenant import Tenant
 from app.services.whatsapp_service import WhatsAppService
 from app.services.message_service import MessageService
 
@@ -165,7 +167,34 @@ def get_conversation_messages(
     }
 
 
-# ── Webhook de Meta ────────────────────────────────────────────────────────────
+# ── Envío directo desde inbox ──────────────────────────────────────────────────
+
+class DirectMessageBody(BaseModel):
+    body: str
+
+
+@router.post("/conversations/{conversation_id}/send-direct")
+async def send_direct_message(
+    conversation_id: str,
+    payload: DirectMessageBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Envía un mensaje de texto directamente desde el inbox sin flujo de aprobación IA.
+    El mensaje se crea y se envía por WhatsApp en el mismo request.
+    """
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    if not payload.body.strip():
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+
+    servicio = MessageService(db=db, tenant_id=current_user.tenant_id)
+    return await servicio.send_direct_message(
+        conversation_id=conversation_id,
+        body=payload.body.strip(),
+    )
 
 @router.get("/webhook")
 def verify_webhook(
@@ -194,20 +223,44 @@ async def receive_webhook(
     """
     Recibe mensajes entrantes de WhatsApp desde Meta.
 
-    Este endpoint NO requiere autenticación — Meta lo llama directamente.
-    Parsea el payload y crea registros en la BD para cada mensaje recibido.
-
-    En producción, se debería rutear por tenant según el phone_number_id.
-    Por ahora usamos "webhook" como tenant_id de placeholder.
+    Ruteamos por tenant según el phone_number_id que Meta incluye en cada change.
+    Si ningún tenant tiene ese número configurado, descartamos silenciosamente.
     """
     whatsapp_service = WhatsAppService()
     mensajes = whatsapp_service.parse_webhook(payload)
 
+    # Extraer phone_number_id del primer change del payload para routing
+    def _extract_phone_number_id(raw: dict) -> str | None:
+        try:
+            return raw["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+        except (KeyError, IndexError, TypeError):
+            return None
+
+    raw_phone_id = _extract_phone_number_id(payload)
+
+    # Buscar tenant por su whatsapp_phone_number_id en api_keys
+    tenant_id: str | None = None
+    if raw_phone_id:
+        tenants = db.query(Tenant).all()
+        for t in tenants:
+            keys = t.api_keys or {}
+            if keys.get("whatsapp_phone_number_id") == raw_phone_id:
+                tenant_id = t.id
+                break
+
+    # Fallback: si coincide con la variable global de entorno
+    if not tenant_id and raw_phone_id and raw_phone_id == settings.WHATSAPP_PHONE_NUMBER_ID:
+        first_tenant = db.query(Tenant).first()
+        if first_tenant:
+            tenant_id = first_tenant.id
+
+    if not tenant_id:
+        # Webhook de Meta para un número no registrado — ignorar
+        return {"status": "ok", "mensajes_procesados": 0}
+
     procesados = 0
     for msg in mensajes:
-        # En producción: determinar tenant_id a partir del phone_number_id del webhook
-        # Por ahora usamos un tenant_id placeholder
-        servicio = MessageService(db=db, tenant_id="webhook")
+        servicio = MessageService(db=db, tenant_id=tenant_id)
         resultado = await servicio.handle_incoming(
             from_number=msg["from_number"],
             body=msg["body"],

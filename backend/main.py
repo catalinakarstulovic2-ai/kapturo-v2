@@ -5,7 +5,7 @@ from app.api.v1 import auth, admin, tenant, dashboard
 from app.api.v1.modules import licitaciones
 from app.api.v1.modules import prospector
 from app.api.v1.modules import inmobiliaria
-from app.api.v1 import pipeline, agents, messages
+from app.api.v1 import pipeline, agents, messages, cron
 
 app = FastAPI(
     title="Kapturo API",
@@ -47,6 +47,7 @@ app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
+app.include_router(cron.router, prefix="/api/v1")
 
 
 @app.get("/")
