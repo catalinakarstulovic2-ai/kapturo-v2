@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
+import { useAuthStore } from '../../store/authStore'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import type { Prospect } from '../../types'
@@ -25,41 +26,30 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 function FuenteBadge({ source }: { source?: string }) {
-  const map: Record<string, { label: string; color: string }> = {
-    apollo_latam: { label: 'LATAM',     color: 'bg-blue-100 text-blue-700' },
-    apollo_usa:   { label: 'USA',       color: 'bg-indigo-100 text-indigo-700' },
-    facebook:     { label: 'Facebook',  color: 'bg-sky-100 text-sky-700' },
-    reddit:       { label: 'Reddit',    color: 'bg-orange-100 text-orange-700' },
-    instagram:    { label: 'Instagram', color: 'bg-pink-100 text-pink-700' },
-    tiktok:       { label: 'TikTok',    color: 'bg-gray-100 text-gray-600' },
-  }
-  const meta = map[source ?? '']
-  if (!meta) return null
+  if (!source) return null
+  const label = source.replace(/_/g, ' ')
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${meta.color}`}>
-      {meta.label}
+    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+      {label}
     </span>
   )
 }
 
 const DEFAULT_PARAMS = {
-  max_apollo_latam: 100,
-  max_apollo_usa:   100,
-  max_facebook:      50,
-  max_reddit:       100,
-  max_instagram:    100,
-  max_tiktok:        50,
+  max_por_query: 20,
 }
 
-type FiltroFuente = 'todos' | 'latam' | 'usa' | 'social'
+type FiltroCalidad = 'todos' | 'calificados' | 'con_email' | 'con_web'
 
 // ── Página ─────────────────────────────────────────────────────────────────
 
 export default function InmobiliariaPage() {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const [vista, setVista] = useState<'lista' | 'papelera'>('lista')
   const [expandedId, setExpandedId]   = useState<string | null>(null)
-  const [filtroFuente, setFiltroFuente] = useState<FiltroFuente>('todos')
+  const [filtroCalidad, setFiltroCalidad] = useState<FiltroCalidad>('todos')
   const [soloCalificados, setSoloCalificados] = useState(false)
   const [excluidoLoading, setExcluidoLoading] = useState<Record<string, boolean>>({})
   const [restaurarLoading, setRestaurarLoading] = useState<Record<string, boolean>>({})
@@ -81,11 +71,10 @@ export default function InmobiliariaPage() {
   const descartados: Prospect[] = dataPapelera?.prospectos ?? []
 
   const prospects = allProspects.filter(p => {
-    const fuente = (p as any).fuente_inmobiliaria as string | undefined
     if (soloCalificados && !p.is_qualified) return false
-    if (filtroFuente === 'latam'  && fuente !== 'apollo_latam') return false
-    if (filtroFuente === 'usa'    && fuente !== 'apollo_usa')   return false
-    if (filtroFuente === 'social' && !['facebook','reddit','instagram','tiktok'].includes(fuente ?? '')) return false
+    if (filtroCalidad === 'calificados' && !p.is_qualified) return false
+    if (filtroCalidad === 'con_email'   && !p.email)       return false
+    if (filtroCalidad === 'con_web'     && !(p as any).website) return false
     return true
   })
 
@@ -99,7 +88,8 @@ export default function InmobiliariaPage() {
     onSuccess: (res) => {
       if (timer) clearInterval(timer)
       const r = res.data.resultado
-      toast.success(`${r.total_calificados} calificados de ${r.total_raw} encontrados`)
+      const enrich = r.total_enriquecidos ? ` · ${r.total_enriquecidos} con email` : ''
+      toast.success(`${r.total_calificados} calificados de ${r.total_guardados} guardados${enrich}`)
       qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
     },
     onError: (err: any) => {
@@ -150,7 +140,7 @@ export default function InmobiliariaPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Inmobiliaria</h1>
-            <p className="text-gray-500 text-sm">Terrenos en Florida · ~$90,000 USD · Leo</p>
+            <p className="text-gray-500 text-sm">Prospección · Google Maps + Hunter.io + Claude</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -170,7 +160,7 @@ export default function InmobiliariaPage() {
           >
             Recuperar leads
           </button>
-          {vista === 'lista' && (
+          {vista === 'lista' && isAdmin && (
             <button
               className="btn-primary flex items-center gap-2 px-5 py-2.5"
               onClick={() => buscarMutation.mutate()}
@@ -254,17 +244,17 @@ export default function InmobiliariaPage() {
         <div className="card p-3 flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-1">Filtrar:</span>
           {([
-            { id: 'todos',  label: 'Todos',   icon: <Home size={11} /> },
-            { id: 'latam',  label: 'LATAM',   icon: <Globe size={11} /> },
-            { id: 'usa',    label: 'USA',      icon: <Flag size={11} /> },
-            { id: 'social', label: 'Redes',   icon: <Users size={11} /> },
-          ] as { id: FiltroFuente; label: string; icon: React.ReactNode }[]).map(f => (
+            { id: 'todos',       label: 'Todos',       icon: <Home size={11} /> },
+            { id: 'calificados', label: 'Calificados', icon: <Star size={11} /> },
+            { id: 'con_email',   label: 'Con email',   icon: <Mail size={11} /> },
+            { id: 'con_web',     label: 'Con web',     icon: <Globe size={11} /> },
+          ] as { id: FiltroCalidad; label: string; icon: React.ReactNode }[]).map(f => (
             <button
               key={f.id}
-              onClick={() => setFiltroFuente(f.id)}
+              onClick={() => setFiltroCalidad(f.id)}
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                filtroFuente === f.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                filtroCalidad === f.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               )}
             >
               {f.icon}{f.label}
@@ -286,7 +276,7 @@ export default function InmobiliariaPage() {
           <Home size={48} className="mx-auto text-gray-200" />
           <div>
             <p className="font-semibold text-gray-500">Sin prospectos todavía</p>
-            <p className="text-sm text-gray-400 mt-1">Haz clic en <strong>"Buscar prospectos"</strong> para encontrar<br />compradores de terrenos en Florida.</p>
+            <p className="text-sm text-gray-400 mt-1">Haz clic en <strong>"Buscar prospectos"</strong> para encontrar<br />agencias inmobiliarias, constructoras y desarrolladores.</p>
           </div>
         </div>
       )}
