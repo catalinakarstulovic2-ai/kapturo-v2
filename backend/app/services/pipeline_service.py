@@ -86,6 +86,7 @@ class PipelineService:
                 cards_data.append({
                     "id": card.id,
                     "prospect_id": card.prospect_id,
+                    "stage_id": card.stage_id,
                     "notes": card.notes,
                     "next_action_at": card.next_action_at.isoformat() if card.next_action_at else None,
                     "created_at": card.created_at.isoformat() if card.created_at else None,
