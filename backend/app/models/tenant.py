@@ -14,6 +14,7 @@ class PlanName(str, enum.Enum):
 
 class ModuleType(str, enum.Enum):
     licitador = "licitador"
+    licitaciones = "licitaciones"
     prospector = "prospector"
     inmobiliaria = "inmobiliaria"
     kapturo_ventas = "kapturo_ventas"
