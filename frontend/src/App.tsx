@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from './store/authStore'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/auth/LoginPage'
@@ -28,6 +29,15 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { token, user, fetchMe } = useAuthStore()
+
+  // Al refrescar: si hay token guardado pero no hay user, recargamos el perfil
+  useEffect(() => {
+    if (token && !user) {
+      fetchMe().catch(() => useAuthStore.getState().logout())
+    }
+  }, [])
+
   return (
     <BrowserRouter>
       <Routes>
