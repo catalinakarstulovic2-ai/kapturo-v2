@@ -24,14 +24,18 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuthStore()
+  const { isImpersonating } = useAuthStore()
   const isSuperAdmin = user?.role === 'super_admin'
+  // Cuando impersonando, tratar al usuario como su rol real (no super_admin)
+  const effectiveIsSuperAdmin = isSuperAdmin && !isImpersonating
   const userModuleTypes: string[] = (user?.modules ?? []).map(m => m.tipo)
 
   const visibleNav = nav.filter(item => {
-    if (item.onlySuperAdmin)  return isSuperAdmin                   // solo super_admin
-    if (isSuperAdmin && item.hideSuperAdmin) return false            // ocultar operacionales
-    if (!item.module) return true                                    // sin módulo: siempre
-    return userModuleTypes.includes(item.module)                     // módulo del tenant
+    if (item.onlySuperAdmin)  return effectiveIsSuperAdmin               // solo super_admin real
+    if (effectiveIsSuperAdmin && item.hideSuperAdmin) return false       // ocultar operacionales
+    if (!item.module) return true                                        // sin módulo: siempre
+    if (effectiveIsSuperAdmin) return true                               // super_admin real ve todo
+    return userModuleTypes.includes(item.module)                        // módulo del tenant
   })
 
   return (

@@ -12,7 +12,7 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.middleware import require_super_admin
-from app.core.security import hash_password
+from app.core.security import hash_password, create_access_token
 from app.models.user import User, UserRole
 from app.models.tenant import Tenant, SubscriptionPlan, TenantModule, PlanName, ModuleType
 from app.models.prospect import Prospect
@@ -140,6 +140,39 @@ def obtener_tenant(
 
     usuarios = db.query(User).filter(User.tenant_id == tenant_id).all()
     modulos = db.query(TenantModule).filter(TenantModule.tenant_id == tenant_id).all()
+    total_prospectos = db.query(Prospect).filter(Prospect.tenant_id == tenant_id).count()
+
+    # ── Costos estimados por módulo ──────────────────────────────────
+    modulo_tipos = [m.module.value for m in modulos if m.is_active]
+    apis_info = []
+
+    if "prospector" in modulo_tipos:
+        # Google Maps: ~$0.017 por búsqueda Places (estimamos 2 búsquedas por prospecto encontrado)
+        maps_cost = round(total_prospectos * 0.017 * 2, 2)
+        # Hunter.io: gratis hasta 25 búsquedas/mes, luego $49/mes
+        hunter_cost = 0 if total_prospectos <= 25 else 49.0
+        # Claude: ~$0.003 por prospecto calificado (Haiku)
+        claude_cost = round(total_prospectos * 0.003, 2)
+        apis_info += [
+            {"api": "Google Maps Places", "uso": "Encontrar empresas por rubro y ciudad", "costo_usd": maps_cost, "modelo": f"{total_prospectos * 2} requests"},
+            {"api": "Hunter.io",          "uso": "Enriquecer emails y contactos",         "costo_usd": hunter_cost, "modelo": "Free hasta 25 búsquedas/mes, luego $49"},
+            {"api": "Claude (Anthropic)", "uso": "Calificar y puntuar cada prospecto",     "costo_usd": claude_cost, "modelo": f"{total_prospectos} calificaciones"},
+        ]
+
+    if "licitador" in modulo_tipos:
+        # Mercado Público API: gratis
+        # Claude: scoring de licitaciones
+        licit_prosp = db.query(Prospect).filter(
+            Prospect.tenant_id == tenant_id,
+            Prospect.source == "licitacion"
+        ).count() if total_prospectos > 0 else 0
+        claude_licit = round(licit_prosp * 0.003, 2)
+        apis_info += [
+            {"api": "Mercado Público API", "uso": "Buscar licitaciones públicas activas", "costo_usd": 0.0, "modelo": "Gratis"},
+            {"api": "Claude (Anthropic)",   "uso": "Calificar relevancia de licitaciones", "costo_usd": claude_licit, "modelo": f"{licit_prosp} calificaciones"},
+        ]
+
+    costo_total = round(sum(a["costo_usd"] for a in apis_info), 2)
 
     return {
         "id": tenant.id,
@@ -148,8 +181,11 @@ def obtener_tenant(
         "is_active": tenant.is_active,
         "plan": {"id": tenant.plan.id, "name": tenant.plan.name, "price_usd": tenant.plan.price_usd} if tenant.plan else None,
         "created_at": tenant.created_at,
+        "total_prospectos": total_prospectos,
         "usuarios": [{"id": u.id, "email": u.email, "full_name": u.full_name, "role": u.role, "is_active": u.is_active} for u in usuarios],
         "modulos": [{"id": m.id, "module": m.module, "is_active": m.is_active, "activated_at": m.activated_at} for m in modulos],
+        "apis": apis_info,
+        "costo_estimado_usd": costo_total,
     }
 
 
@@ -412,6 +448,47 @@ def actualizar_plan(
     db.refresh(plan)
     return {"id": plan.id, "name": plan.name, "price_usd": plan.price_usd}
 
+# ── Impersonación ──────────────────────────────────────────────────
+
+@router.post("/impersonate/{user_id}")
+def impersonar_usuario(
+    user_id: str,
+    super_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Super admin toma el contexto de otro usuario.
+    Devuelve un token temporal para ese usuario + sus datos.
+    El frontend guarda el token original para poder volver.
+    """
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if target.role == UserRole.super_admin:
+        raise HTTPException(status_code=400, detail="No puedes impersonar a otro super_admin")
+
+    token = create_access_token({"sub": target.email})
+
+    # Cargar módulos del tenant
+    modulos = []
+    if target.tenant_id:
+        modulos = db.query(TenantModule).filter(
+            TenantModule.tenant_id == target.tenant_id,
+            TenantModule.is_active == True
+        ).all()
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": target.id,
+            "email": target.email,
+            "full_name": target.full_name,
+            "role": target.role.value,
+            "tenant_id": target.tenant_id,
+            "modules": [{"tipo": m.module.value, "is_active": m.is_active} for m in modulos],
+        },
+    }
 
 # ── Stats globales ────────────────────────────────────────────────────────────
 

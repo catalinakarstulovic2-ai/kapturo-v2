@@ -1,11 +1,14 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
+  Eye, Loader2, DollarSign,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useAuthStore } from '../../store/authStore'
 
 const MODULES = ['licitaciones', 'inmobiliaria', 'kapturo_ventas'] as const
 const ROLES   = ['admin', 'member'] as const
@@ -78,6 +81,8 @@ function StatsTab() {
 
 function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => void }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { startImpersonation } = useAuthStore()
   const [editNombre, setEditNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [showCrearUser, setShowCrearUser] = useState(false)
@@ -86,6 +91,20 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'admin' })
   const [selectedModulo, setSelectedModulo] = useState<string>(MODULES[0])
   const [selectedPlanId, setSelectedPlanId] = useState('')
+  const [impersonateLoading, setImpersonateLoading] = useState<Record<string, boolean>>({})
+
+  const verComo = async (userId: string) => {
+    setImpersonateLoading(p => ({ ...p, [userId]: true }))
+    try {
+      const res = await api.post(`/admin/impersonate/${userId}`)
+      startImpersonation(res.data.access_token, res.data.user)
+      navigate('/dashboard')
+    } catch {
+      alert('Error al impersonar usuario')
+    } finally {
+      setImpersonateLoading(p => ({ ...p, [userId]: false }))
+    }
+  }
 
   const { data: t, isLoading } = useQuery({
     queryKey: ['admin-tenant', tenantId],
@@ -229,6 +248,18 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="badge bg-gray-100 text-gray-600 capitalize text-xs">{u.role}</span>
+                  {u.role === 'admin' && (
+                    <button
+                      title="Ver como este usuario"
+                      onClick={() => verComo(u.id)}
+                      disabled={impersonateLoading[u.id]}
+                      className="text-purple-500 hover:text-purple-700 disabled:opacity-50"
+                    >
+                      {impersonateLoading[u.id]
+                        ? <Loader2 size={15} className="animate-spin" />
+                        : <Eye size={15} />}
+                    </button>
+                  )}
                   <button
                     title={u.is_active ? 'Desactivar' : 'Activar'}
                     onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })}
@@ -273,6 +304,46 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
           </div>
         </div>
       </div>
+
+      {t.apis?.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-1.5">
+              <DollarSign size={14} className="text-emerald-500" /> APIs activas
+            </h3>
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              ~${t.costo_estimado_usd}/mes
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                  <th className="text-left pb-2 font-medium">API</th>
+                  <th className="text-left pb-2 font-medium">Uso</th>
+                  <th className="text-right pb-2 font-medium">Costo/mes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {t.apis.map((a: any) => (
+                  <tr key={a.api} className="py-1">
+                    <td className="py-1.5 font-medium text-gray-700">{a.api}</td>
+                    <td className="py-1.5 text-gray-500">{a.uso}</td>
+                    <td className="py-1.5 text-right font-semibold text-gray-800">
+                      {a.costo_usd === 0 ? <span className="text-emerald-600">Gratis</span> : `$${a.costo_usd}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {t.total_prospectos != null && (
+            <p className="text-xs text-gray-400 mt-2">
+              Basado en {t.total_prospectos} prospectos actuales
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="border border-red-200 rounded-xl p-4 bg-red-50">
         <p className="text-sm font-medium text-red-700 mb-2">Zona peligrosa</p>
