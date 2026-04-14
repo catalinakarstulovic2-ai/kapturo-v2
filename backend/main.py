@@ -50,6 +50,29 @@ app.include_router(messages.router, prefix="/api/v1")
 app.include_router(cron.router, prefix="/api/v1")
 
 
+@app.on_event("startup")
+def run_migrations():
+    """Aplica migraciones de columnas faltantes de forma segura al arrancar."""
+    from app.core.database import engine
+    from sqlalchemy import text
+    migrations = [
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS licitaciones_ganadas_count INTEGER DEFAULT 0",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS alarma_fecha TIMESTAMP",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS alarma_motivo VARCHAR",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS excluido BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS excluido_at TIMESTAMP",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS in_pipeline BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS notes_history JSONB DEFAULT '[]'",
+    ]
+    try:
+        with engine.begin() as conn:
+            for sql in migrations:
+                conn.execute(text(sql))
+        print("✅ Migraciones aplicadas correctamente")
+    except Exception as e:
+        print(f"⚠️  Error en migraciones: {e}")
+
+
 @app.get("/")
 def root():
     return {"status": "Kapturo API funcionando"}
