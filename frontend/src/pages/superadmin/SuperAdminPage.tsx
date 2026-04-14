@@ -457,6 +457,15 @@ function TenantsTab() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ company_name: '', slug: '' })
   const [detalle, setDetalle] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<any>(null)
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/tenants/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenants'] })
+      setConfirmDelete(null)
+    },
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tenants'],
@@ -481,6 +490,24 @@ function TenantsTab() {
 
   return (
     <div className="space-y-4">
+      {confirmDelete && (
+        <Modal title="Eliminar tenant" onClose={() => setConfirmDelete(null)}>
+          <p className="text-sm text-gray-600">
+            ¿Eliminar <strong>{confirmDelete.name}</strong> y todos sus datos? Esto es <strong className="text-red-600">irreversible</strong>.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <button
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+              onClick={() => deleteMutation.mutate(confirmDelete.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Eliminando...</> : <><Trash2 size={14} /> Eliminar</>}
+            </button>
+            <button className="btn-ghost text-sm flex-1" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+          </div>
+          {deleteMutation.isError && <p className="text-xs text-red-600">Error al eliminar. Intenta de nuevo.</p>}
+        </Modal>
+      )}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-500">{data?.total} tenants en total</p>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 text-sm">
@@ -554,6 +581,13 @@ function TenantsTab() {
                     className="text-xs text-brand-600 hover:underline flex items-center gap-1"
                   >
                     <Pencil size={13} /> Gestionar
+                  </button>
+                  <button
+                    title="Eliminar tenant"
+                    onClick={() => setConfirmDelete(t)}
+                    className="text-red-400 hover:text-red-600"
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </td>
               </tr>

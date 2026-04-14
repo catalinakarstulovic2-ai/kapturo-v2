@@ -226,6 +226,21 @@ def eliminar_tenant(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
 
+    # Borrar dependencias en orden para evitar FK violations
+    try:
+        from app.models.message import Message
+        from app.models.pipeline import PipelineStage
+        from app.models.prospect import Prospect
+        from app.models.user import User as UserModel
+        from app.models.tenant import TenantModule
+        db.query(Message).filter(Message.tenant_id == tenant_id).delete(synchronize_session=False)
+        db.query(PipelineStage).filter(PipelineStage.tenant_id == tenant_id).delete(synchronize_session=False)
+        db.query(Prospect).filter(Prospect.tenant_id == tenant_id).delete(synchronize_session=False)
+        db.query(TenantModule).filter(TenantModule.tenant_id == tenant_id).delete(synchronize_session=False)
+        db.query(UserModel).filter(UserModel.tenant_id == tenant_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+
     db.delete(tenant)
     db.commit()
     return None
