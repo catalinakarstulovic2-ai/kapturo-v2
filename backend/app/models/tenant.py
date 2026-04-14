@@ -17,7 +17,7 @@ class ModuleType(str, enum.Enum):
     licitaciones = "licitaciones"
     prospector = "prospector"
     inmobiliaria = "inmobiliaria"
-    kapturo_ventas = "kapturo_ventas"
+    # kapturo_ventas eliminado — era legacy
 
 
 class SubscriptionPlan(Base):

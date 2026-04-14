@@ -10,7 +10,7 @@ import {
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
-const MODULES = ['licitaciones', 'inmobiliaria', 'kapturo_ventas'] as const
+const MODULES = ['licitador', 'prospector', 'inmobiliaria'] as const
 const ROLES   = ['admin', 'member'] as const
 
 type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats'
