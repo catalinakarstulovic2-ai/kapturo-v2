@@ -63,6 +63,9 @@ def run_migrations():
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS excluido_at TIMESTAMP",
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS in_pipeline BOOLEAN DEFAULT FALSE",
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS notes_history JSONB DEFAULT '[]'",
+        "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS niche_config JSONB DEFAULT '{}'",
+        "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'",
+        "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP",
     ]
     try:
         with engine.begin() as conn:
