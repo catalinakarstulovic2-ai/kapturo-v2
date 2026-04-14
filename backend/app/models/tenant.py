@@ -15,6 +15,8 @@ class PlanName(str, enum.Enum):
 class ModuleType(str, enum.Enum):
     licitador = "licitador"
     prospector = "prospector"
+    inmobiliaria = "inmobiliaria"
+    kapturo_ventas = "kapturo_ventas"
 
 
 class SubscriptionPlan(Base):

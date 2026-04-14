@@ -66,6 +66,9 @@ def run_migrations():
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS niche_config JSONB DEFAULT '{}'",
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'",
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP",
+        # Agregar valores faltantes al enum moduletype
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'inmobiliaria'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'kapturo_ventas'",
     ]
     try:
         with engine.begin() as conn:
