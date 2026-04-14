@@ -222,25 +222,22 @@ def eliminar_tenant(
     db: Session = Depends(get_db),
 ):
     """Elimina un tenant y todos sus datos (irreversible)."""
+    from app.models.message import Message
+    from app.models.pipeline import PipelineStage
+    from app.models.prospect import Prospect
+    from app.models.user import User as UserModel
+    from app.models.tenant import TenantModule
+
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
 
-    # Borrar dependencias en orden para evitar FK violations
-    try:
-        from app.models.message import Message
-        from app.models.pipeline import PipelineStage
-        from app.models.prospect import Prospect
-        from app.models.user import User as UserModel
-        from app.models.tenant import TenantModule
-        db.query(Message).filter(Message.tenant_id == tenant_id).delete(synchronize_session=False)
-        db.query(PipelineStage).filter(PipelineStage.tenant_id == tenant_id).delete(synchronize_session=False)
-        db.query(Prospect).filter(Prospect.tenant_id == tenant_id).delete(synchronize_session=False)
-        db.query(TenantModule).filter(TenantModule.tenant_id == tenant_id).delete(synchronize_session=False)
-        db.query(UserModel).filter(UserModel.tenant_id == tenant_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-
+    # Borrar en orden para respetar FK constraints
+    db.query(Message).filter(Message.tenant_id == tenant_id).delete(synchronize_session=False)
+    db.query(PipelineStage).filter(PipelineStage.tenant_id == tenant_id).delete(synchronize_session=False)
+    db.query(Prospect).filter(Prospect.tenant_id == tenant_id).delete(synchronize_session=False)
+    db.query(TenantModule).filter(TenantModule.tenant_id == tenant_id).delete(synchronize_session=False)
+    db.query(UserModel).filter(UserModel.tenant_id == tenant_id).delete(synchronize_session=False)
     db.delete(tenant)
     db.commit()
     return None
