@@ -4,6 +4,7 @@ import {
   Users, TrendingUp, Bell, Star, ArrowRight,
   MapPin, Globe, Phone, Mail,
   CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
+  Building2, CreditCard, ShieldAlert,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -51,6 +52,93 @@ function WebTag({ status }: { status?: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${t.cls}`}>{t.label}</span>
 }
 
+// ── Dashboard Super Admin — métricas globales de la plataforma ─────────────────
+function SuperAdminDashboard({
+  primerNombre, saludo, hoy,
+}: { primerNombre: string; saludo: string; hoy: string }) {
+  const navigate = useNavigate()
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: () => api.get('/admin/stats').then(r => r.data),
+    refetchInterval: 60_000,
+  })
+  const t = data?.totales
+
+  return (
+    <div className="space-y-6 pb-8">
+
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{saludo}, {primerNombre} 👋</h1>
+          <p className="text-gray-500 mt-0.5 capitalize">{hoy}</p>
+        </div>
+        <button
+          onClick={() => navigate('/superadmin')}
+          className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+        >
+          <ShieldAlert size={15} />
+          Panel Admin
+        </button>
+      </div>
+
+      {/* Stats globales */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Building2}  label="Tenants activos" value={isLoading ? '—' : (t?.tenants_activos ?? 0)} sub={`de ${t?.tenants ?? 0} totales`} color="bg-purple-500" onClick={() => navigate('/superadmin')} />
+        <StatCard icon={Users}      label="Usuarios"        value={isLoading ? '—' : (t?.usuarios ?? 0)}        sub="en la plataforma"                  color="bg-brand-500"   onClick={() => navigate('/superadmin')} />
+        <StatCard icon={TrendingUp} label="Prospectos"      value={isLoading ? '—' : (t?.prospectos ?? 0)}      sub="total acumulado"                  color="bg-emerald-500" />
+        <StatCard icon={Bell}       label="Mensajes"        value={isLoading ? '—' : (t?.mensajes ?? 0)}        sub="enviados total"                   color="bg-amber-500"   />
+      </div>
+
+      {/* Actividad por tenant */}
+      {(data?.prospectos_por_tenant?.length ?? 0) > 0 && (
+        <div className="card p-5">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Users size={15} className="text-purple-500" />
+            Actividad por cliente (top 10)
+          </h2>
+          <div className="space-y-2.5">
+            {data.prospectos_por_tenant.map((row: any) => {
+              const max = data.prospectos_por_tenant[0]?.prospectos || 1
+              const pct = Math.round((row.prospectos / max) * 100)
+              return (
+                <div key={row.tenant} className="flex items-center gap-3">
+                  <p className="text-sm text-gray-700 w-44 truncate shrink-0">{row.tenant}</p>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="h-2 rounded-full bg-purple-400 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700 w-10 text-right">{row.prospectos}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Tenants',  desc: 'Crea empresas, asigna módulos y planes.', icon: Building2,  color: 'bg-purple-50 hover:bg-purple-100 border-purple-100 hover:border-purple-300', iconColor: 'text-purple-600', textColor: 'text-purple-700' },
+          { label: 'Usuarios', desc: 'Crea usuarios, cambia roles y accesos.',    icon: Users,      color: 'bg-brand-50 hover:bg-brand-100 border-brand-100 hover:border-brand-300',   iconColor: 'text-brand-600',  textColor: 'text-brand-700' },
+          { label: 'Planes',   desc: 'Define planes, límites y precios.',          icon: CreditCard, color: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-100 hover:border-emerald-300', iconColor: 'text-emerald-600', textColor: 'text-emerald-700' },
+        ].map(a => (
+          <button
+            key={a.label}
+            onClick={() => navigate('/superadmin')}
+            className={`card p-5 flex flex-col gap-3 text-left transition-all hover:shadow-md ${a.color}`}
+          >
+            <a.icon size={20} className={a.iconColor} />
+            <div>
+              <p className={`font-semibold text-sm ${a.textColor}`}>{a.label}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{a.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -72,6 +160,11 @@ export default function DashboardPage() {
     : (user?.modules ?? []).map(m => m.tipo)
   const tieneProspector = userModuleTypes.includes('prospector')
   const tieneLicitador  = userModuleTypes.includes('licitador')
+
+  // Super admin ve su propio dashboard global, no el del tenant
+  if (isSuperAdmin) {
+    return <SuperAdminDashboard primerNombre={primerNombre} saludo={saludo} hoy={hoy} />
+  }
 
   return (
     <div className="space-y-6 pb-8">

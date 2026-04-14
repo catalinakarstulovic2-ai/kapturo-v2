@@ -3,15 +3,18 @@ import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, M
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
+// hideSuperAdmin: ocultar este ítem cuando el usuario es super_admin
+// onlySuperAdmin: mostrar este ítem solo a super_admin
 const nav = [
-  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null },
-  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null },
-  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null },
-  { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitador' },
-  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector' },
-  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null },
-  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null },
+  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null,         hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitador',  hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector', hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null,         hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/superadmin',      icon: ShieldAlert,     label: 'Super Admin',      module: null,         hideSuperAdmin: false, onlySuperAdmin: true  },
 ]
 
 interface SidebarProps {
@@ -25,9 +28,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const userModuleTypes: string[] = (user?.modules ?? []).map(m => m.tipo)
 
   const visibleNav = nav.filter(item => {
-    if (!item.module) return true                          // items sin módulo: siempre visibles
-    if (isSuperAdmin) return true                          // super_admin ve todo
-    return userModuleTypes.includes(item.module)           // solo si el tenant tiene el módulo
+    if (item.onlySuperAdmin)  return isSuperAdmin                   // solo super_admin
+    if (isSuperAdmin && item.hideSuperAdmin) return false            // ocultar operacionales
+    if (!item.module) return true                                    // sin módulo: siempre
+    return userModuleTypes.includes(item.module)                     // módulo del tenant
   })
 
   return (
@@ -55,43 +59,31 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {visibleNav.map(({ to, icon: Icon, label }) => (
+        {visibleNav.map(({ to, icon: Icon, label, onlySuperAdmin }) => (
           <NavLink
             key={to}
             to={to}
             onClick={onClose}
             className={({ isActive }) =>
-              clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-brand-50 text-brand-600'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              )
+              onlySuperAdmin
+                ? clsx(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-purple-50 text-purple-700'
+                      : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700'
+                  )
+                : clsx(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-brand-50 text-brand-600'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )
             }
           >
             <Icon size={18} />
             {label}
           </NavLink>
         ))}
-
-        {/* Super Admin — solo visible para super_admin */}
-        {user?.role === 'super_admin' && (
-          <NavLink
-            to="/superadmin"
-            onClick={onClose}
-            className={({ isActive }) =>
-              clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mt-2 border border-dashed',
-                isActive
-                  ? 'bg-purple-50 text-purple-700 border-purple-300'
-                  : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700 border-purple-200'
-              )
-            }
-          >
-            <ShieldAlert size={18} />
-            Super Admin
-          </NavLink>
-        )}
       </nav>
 
       {/* Footer */}
