@@ -69,6 +69,9 @@ def run_migrations():
         # Agregar valores faltantes al enum moduletype
         "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'inmobiliaria'",
         "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'licitaciones'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'adjudicadas'",
+        # Columnas nuevas
+        "ALTER TABLE pipeline_stages ADD COLUMN IF NOT EXISTS pipeline_type VARCHAR(50) NOT NULL DEFAULT 'general'",
     ]
     try:
         with engine.begin() as conn:

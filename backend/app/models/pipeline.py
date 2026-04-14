@@ -17,6 +17,7 @@ class PipelineStage(Base):
     is_won: Mapped[bool] = mapped_column(Boolean, default=False)      # Etapa de cierre ganado
     is_lost: Mapped[bool] = mapped_column(Boolean, default=False)     # Etapa de cierre perdido
     auto_move_score_below: Mapped[float] = mapped_column(Float, nullable=True)  # Mover auto si score < X
+    pipeline_type: Mapped[str] = mapped_column(String(50), default="general", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     cards: Mapped[list["PipelineCard"]] = relationship(back_populates="stage")
