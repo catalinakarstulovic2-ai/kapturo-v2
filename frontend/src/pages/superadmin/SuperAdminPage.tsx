@@ -11,6 +11,12 @@ import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
 const MODULES = ['licitaciones', 'prospector', 'inmobiliaria', 'adjudicadas'] as const
+const MODULE_LABELS: Record<string, string> = {
+  licitaciones: 'Licitaciones',
+  prospector:   'Prospección B2B',
+  inmobiliaria: 'Inmobiliaria',
+  adjudicadas:  'Mercado Público',
+}
 const ROLES   = ['admin', 'member'] as const
 
 type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats'
@@ -289,7 +295,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             {t.modulos?.length === 0 && <p className="text-xs text-gray-400">Sin módulos asignados</p>}
             {t.modulos?.map((m: any) => (
               <div key={m.id} className="flex justify-between items-center text-sm">
-                <span className="text-gray-700 capitalize">{m.module.replace('_', ' ')}</span>
+                <span className="text-gray-700">{MODULE_LABELS[m.module] ?? m.module.replace('_', ' ')}</span>
                 <button
                   title={m.is_active ? 'Desactivar' : 'Activar'}
                   onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })}
@@ -402,7 +408,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
               className="input" value={selectedModulo}
               onChange={e => setSelectedModulo(e.target.value)}
             >
-              {MODULES.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+              {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
             </select>
             <div className="flex gap-2 pt-1">
               <button
