@@ -107,6 +107,13 @@ class PipelineService:
                         "source_module": prospect.source_module if prospect else None,
                         "status": prospect.status if prospect else None,
                         "source": prospect.source if prospect else None,
+                        # Campos de licitación (adjudicadas)
+                        "rut": prospect.rut if prospect else None,
+                        "licitacion_nombre": prospect.licitacion_nombre if prospect else None,
+                        "licitacion_codigo": prospect.licitacion_codigo if prospect else None,
+                        "licitacion_organismo": prospect.licitacion_organismo if prospect else None,
+                        "licitacion_monto_adjudicado": prospect.licitacion_monto_adjudicado if prospect else None,
+                        "licitacion_fecha_adjudicacion": str(prospect.licitacion_fecha_adjudicacion) if prospect and prospect.licitacion_fecha_adjudicacion else None,
                     } if prospect else None,
                 })
 

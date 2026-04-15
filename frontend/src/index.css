@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,29 +6,74 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-[#F8F8F8] text-[#1A1A1A] antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    @apply text-[#1A1A1A] font-semibold;
   }
 }
 
 @layer components {
+  /* ── Botones ─────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-200 transition-colors;
+    @apply bg-white hover:bg-gray-50 text-[#1A1A1A] font-medium px-4 py-2 rounded-xl border border-[#E5E7EB] transition-colors;
   }
   .btn-ghost {
-    @apply bg-transparent hover:bg-gray-100 text-gray-600 font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-transparent hover:bg-gray-100 text-[#6B7280] font-medium px-4 py-2 rounded-xl transition-colors;
   }
+  .btn-accent {
+    @apply bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Tarjetas ────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-2xl border border-[#E5E7EB] shadow-sm;
   }
+  .card-flat {
+    @apply bg-white rounded-2xl border border-[#E5E7EB];
+  }
+
+  /* ── Inputs ──────────────────────────────────────────── */
   .input {
-    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+    @apply w-full border border-[#E5E7EB] rounded-xl px-3 py-2 text-sm text-[#1A1A1A] bg-white
+           focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
+           placeholder:text-[#6B7280] transition-colors;
   }
+
+  /* ── Badges / Pills ──────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  /* Variantes semánticas */
+  .badge-brand {
+    @apply badge bg-brand-50 text-brand-700;
+  }
+  .badge-accent {
+    @apply badge bg-accent-50 text-accent-600;
+  }
+  .badge-success {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-error {
+    @apply badge bg-red-50 text-red-600;
+  }
+  .badge-neutral {
+    @apply badge bg-gray-100 text-[#6B7280];
+  }
+
+  /* ── Secciones con fondo tintado ─────────────────────── */
+  .section-brand {
+    @apply bg-brand-50 border border-brand-100 rounded-2xl;
+  }
+  .section-accent {
+    @apply bg-accent-50 border border-accent-100 rounded-2xl;
   }
 }
-

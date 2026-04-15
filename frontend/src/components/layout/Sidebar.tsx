@@ -6,16 +6,15 @@ import { useAuthStore } from '../../store/authStore'
 // hideSuperAdmin: ocultar este ítem cuando el usuario es super_admin
 // onlySuperAdmin: mostrar este ítem solo a super_admin
 const nav = [
-  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null,         hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/adjudicadas',    icon: Trophy,          label: 'Adjudicadas',      module: 'adjudicadas', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null,         hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/superadmin',      icon: ShieldAlert,     label: 'Super Admin',      module: null,         hideSuperAdmin: false, onlySuperAdmin: true  },
+  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null,            hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/adjudicadas',     icon: Trophy,          label: 'Mercado Público',  module: 'adjudicadas',   hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones',  hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector',    hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null,            hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/superadmin',      icon: ShieldAlert,     label: 'Super Admin',      module: null,            hideSuperAdmin: false, onlySuperAdmin: true  },
 ]
 
 interface SidebarProps {
@@ -51,7 +50,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
         <div className="flex items-center gap-2 flex-1">
-          <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
             <Zap size={16} className="text-white" />
           </div>
           <span className="font-bold text-gray-900 text-lg">Kapturo</span>

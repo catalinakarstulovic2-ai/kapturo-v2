@@ -5,10 +5,32 @@ import {
   MapPin, Globe, Phone, Mail,
   CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
   Building2, CreditCard, ShieldAlert,
+  DollarSign, Clock, MessageCircle, UserX, Calendar, ExternalLink,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
+import { useAdjudicadasStore } from '../../store/adjudicadasStore'
 import clsx from 'clsx'
+
+function formatM(n: number): string {
+  if (!n) return '$0'
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`
+  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)         return `$${(n / 1_000).toFixed(0)}K`
+  return `$${n.toLocaleString('es-CL')}`
+}
+
+function diasRestantes(fechaCierre: string): { dias: number; label: string; color: string } {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const cierre = new Date(fechaCierre)
+  cierre.setHours(0, 0, 0, 0)
+  const dias = Math.ceil((cierre.getTime() - hoy.getTime()) / 86_400_000)
+  if (dias <= 0)  return { dias, label: 'Hoy',          color: 'bg-red-100 text-red-700' }
+  if (dias === 1) return { dias, label: '1 día',         color: 'bg-red-100 text-red-700' }
+  if (dias <= 3)  return { dias, label: `${dias} días`,  color: 'bg-orange-100 text-orange-700' }
+  return            { dias, label: `${dias} días`,  color: 'bg-amber-100 text-amber-700' }
+}
 
 function StatCard({
   icon: Icon, label, value, sub, color, onClick,
@@ -161,6 +183,11 @@ export default function DashboardPage() {
   const tieneProspector = userModuleTypes.includes('prospector')
   const tieneLicitador  = userModuleTypes.includes('licitador')
 
+  const busquedasGuardadas = useAdjudicadasStore(s => s.busquedasGuardadas)
+  // Búsquedas creadas en los últimos 7 días (el id es Date.now())
+  const hace7dias = Date.now() - 7 * 86_400_000
+  const busquedasRecientes = busquedasGuardadas.filter(b => Number(b.id) >= hace7dias).length
+
   // Super admin ve su propio dashboard global, no el del tenant
   if (isSuperAdmin) {
     return <SuperAdminDashboard primerNombre={primerNombre} saludo={saludo} hoy={hoy} />
@@ -186,12 +213,169 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — fila 1: conteos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users}     label="Total prospectos"    value={isPending ? '—' : (stats?.total_prospectos ?? 0)} sub={isPending ? '' : `+${stats?.esta_semana ?? 0} esta semana`} color="bg-brand-500"   onClick={() => navigate('/prospectos')} />
         <StatCard icon={Star}      label="Calificados ≥60"     value={isPending ? '—' : (stats?.calificados ?? 0)}      sub="Score alto"                                                 color="bg-amber-500"  onClick={() => navigate('/prospectos')} />
         <StatCard icon={TrendingUp}label="En pipeline"         value={isPending ? '—' : (stats?.en_pipeline ?? 0)}      sub="Leads activos"                                              color="bg-emerald-500" onClick={() => navigate('/pipeline')} />
         <StatCard icon={Bell}      label="Alarmas pendientes"  value={isPending ? '—' : (stats?.alarmas_pendientes ?? 0)} sub={stats?.alarmas_pendientes > 0 ? '¡Revisar hoy!' : 'Al día'} color={stats?.alarmas_pendientes > 0 ? 'bg-red-500' : 'bg-gray-400'} />
+      </div>
+
+      {/* Stat cards — fila 2: negocio + actividad */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={DollarSign} label="Monto en pipeline"     value={isPending ? '—' : formatM(stats?.monto_pipeline ?? 0)}    sub="Deals activos"                                                                              color="bg-violet-500" onClick={() => navigate('/pipeline')} />
+        <StatCard icon={TrendingUp} label="Ganado este mes"        value={isPending ? '—' : formatM(stats?.monto_ganado_mes ?? 0)}  sub={`${stats?.tasa_conversion ?? 0}% tasa de cierre`}                                           color="bg-emerald-600" onClick={() => navigate('/pipeline')} />
+        <StatCard icon={Clock}      label="Días prom. en pipeline" value={isPending ? '—' : `${stats?.dias_promedio_pipeline ?? 0}d`} sub="Tiempo promedio activo"                                                                     color="bg-sky-500"    onClick={() => navigate('/pipeline')} />
+      </div>
+
+      {/* ── Para hoy — briefing unificado ───────────────────────────────── */}
+      <div className="card p-5 space-y-5">
+
+        {/* Cabecera */}
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Zap size={15} className="text-amber-500" />
+            Para hoy
+          </h2>
+          <span className="text-xs text-gray-400 capitalize">{hoy}</span>
+        </div>
+
+        {/* Filas de acción */}
+        <div className="divide-y divide-gray-50">
+          {(() => {
+            const licHoy     = (stats?.licitaciones_proximas ?? []).filter((l: any) => diasRestantes(l.fecha_cierre).dias <= 0).length
+            const licSemana  = stats?.licitaciones_proximas?.length ?? 0
+            const sinContact = stats?.prospectos_sin_contactar ?? 0
+            const sinResp    = stats?.conversaciones_sin_responder ?? 0
+
+            const items = [
+              // Licitaciones hoy
+              licHoy > 0 && {
+                icon: Calendar,
+                iconBg: 'bg-red-100',
+                iconColor: 'text-red-600',
+                msg: (
+                  <><span className="font-bold text-red-700">{licHoy} licitación{licHoy !== 1 ? 'es' : ''}</span> {licHoy !== 1 ? 'vencen' : 'vence'} <span className="font-semibold">hoy</span></>
+                ),
+                badge: { text: 'Urgente', cls: 'bg-red-100 text-red-700' },
+                cta: { label: 'Ver ahora', onClick: () => navigate('/adjudicadas') },
+              },
+              // Licitaciones esta semana
+              licSemana > 0 && {
+                icon: Clock,
+                iconBg: 'bg-orange-100',
+                iconColor: 'text-orange-600',
+                msg: (
+                  <><span className="font-bold text-orange-700">{licSemana} licitación{licSemana !== 1 ? 'es' : ''}</span> cierran esta semana en Mercado Público</>
+                ),
+                badge: null,
+                cta: { label: 'Ver licitaciones', onClick: () => navigate('/adjudicadas') },
+              },
+              // Búsquedas guardadas
+              busquedasGuardadas.length > 0 && {
+                icon: FileSearch,
+                iconBg: 'bg-violet-100',
+                iconColor: 'text-violet-600',
+                msg: (
+                  <>Tienes <span className="font-bold text-violet-700">{busquedasGuardadas.length} búsqueda{busquedasGuardadas.length !== 1 ? 's' : ''} guardada{busquedasGuardadas.length !== 1 ? 's' : ''}</span>
+                  {busquedasRecientes > 0 && <> · <span className="text-violet-500">{busquedasRecientes} nueva{busquedasRecientes !== 1 ? 's' : ''} esta semana</span></>}</>
+                ),
+                badge: null,
+                cta: { label: 'Buscar ahora', onClick: () => navigate('/adjudicadas') },
+              },
+              // Prospectos sin contactar
+              sinContact > 0 && {
+                icon: Users,
+                iconBg: 'bg-sky-100',
+                iconColor: 'text-sky-600',
+                msg: (
+                  <><span className="font-bold text-sky-700">{sinContact} prospecto{sinContact !== 1 ? 's' : ''}</span> sin contactar aún
+                  </>
+                ),
+                badge: null,
+                cta: { label: 'Ver prospectos', onClick: () => navigate('/prospectos') },
+              },
+            ].filter(Boolean) as any[]
+
+            if (isPending) return (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            )
+
+            if (items.length === 0) return (
+              <div className="flex items-center gap-3 py-4">
+                <CheckCircle2 size={22} className="text-emerald-400 shrink-0" />
+                <p className="text-sm text-gray-500">Todo al día — no hay acciones pendientes para hoy. 🎉</p>
+              </div>
+            )
+
+            return items.map((item, i) => (
+              <div key={i} className="flex items-center gap-3 py-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                  <item.icon size={15} className={item.iconColor} />
+                </div>
+                <p className="flex-1 text-sm text-gray-700 leading-snug">{item.msg}</p>
+                {item.badge && (
+                  <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${item.badge.cls}`}>{item.badge.text}</span>
+                )}
+                <button
+                  onClick={item.cta.onClick}
+                  className="shrink-0 text-xs font-semibold text-brand-600 hover:text-brand-800 flex items-center gap-1 whitespace-nowrap"
+                >
+                  {item.cta.label} <ArrowRight size={11} />
+                </button>
+              </div>
+            ))
+          })()}
+        </div>
+
+        {/* Licitaciones próximas — subgrid */}
+        {(isPending || (stats?.licitaciones_proximas?.length ?? 0) > 0) && (
+          <>
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Licitaciones que cierran esta semana</p>
+              {isPending ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {stats.licitaciones_proximas.map((lic: any) => {
+                    const { label, color } = diasRestantes(lic.fecha_cierre)
+                    return (
+                      <div key={lic.codigo} className="p-3.5 rounded-xl border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <p className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 flex-1">{lic.nombre}</p>
+                          <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${color}`}>{label}</span>
+                        </div>
+                        {lic.organismo && (
+                          <p className="text-xs text-gray-400 truncate mb-1.5">{lic.organismo}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs text-gray-400">{lic.codigo}</span>
+                          <div className="flex items-center gap-2">
+                            {lic.monto_estimado > 0 && (
+                              <span className="text-xs font-semibold text-emerald-700">{formatM(lic.monto_estimado)}</span>
+                            )}
+                            <a
+                              href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${lic.codigo}`}
+                              target="_blank" rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              className="text-violet-500 hover:text-violet-700"
+                            >
+                              <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -358,7 +542,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Buscar prospectos</p>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra empresas por rubro, ciudad o perfil. Importa prospectos desde Google Maps y Apollo y cárgalos al CRM.</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">Encuentra empresas por rubro, ciudad o perfil. Importa prospectos desde múltiples fuentes y cárgalos al CRM.</p>
                 </div>
                 <button onClick={() => navigate('/prospeccion')} className="mt-auto flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
                   Ir a Prospección <ArrowRight size={13} />
@@ -402,22 +586,6 @@ export default function DashboardPage() {
             path: '/prospeccion',
             color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100',
             iconColor: 'text-emerald-600',
-          },
-          {
-            label: 'Pipeline',
-            desc: 'Gestiona tus leads por etapas y cierra más negocios.',
-            icon: TrendingUp,
-            path: '/pipeline',
-            color: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100',
-            iconColor: 'text-indigo-600',
-          },
-          {
-            label: 'Conversaciones',
-            desc: 'Responde mensajes de WhatsApp con apoyo del agente IA.',
-            icon: Globe,
-            path: '/conversaciones',
-            color: 'text-amber-600 bg-amber-50 hover:bg-amber-100',
-            iconColor: 'text-amber-600',
           },
         ].filter(Boolean).map((a: any) => (
           <button key={a.path} onClick={() => navigate(a.path)} className={`flex flex-col items-start gap-2 p-4 rounded-2xl text-left transition-colors ${a.color}`}>

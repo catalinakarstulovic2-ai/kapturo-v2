@@ -1,58 +1,57 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
-import { useAuthStore } from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
-  Phone, Mail, Globe, MapPin, Clock, ChevronRight,
-  X, Edit2, Plus, Trash2, MessageCircle, Bell,
-  Building2, Settings, ExternalLink,
+  MessageCircle, Mail, Phone, Building2, MapPin, Calendar,
+  ExternalLink, X, Loader2, Search, ChevronRight, RefreshCw,
+  Shield, DollarSign, Sparkles,
 } from 'lucide-react'
-import type { PipelineStage, PipelineCard } from '../../types'
 import clsx from 'clsx'
+import { useAuthStore } from '../../store/authStore'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const daysInStage = (created_at?: string) => {
-  if (!created_at) return 0
-  return Math.floor((Date.now() - new Date(created_at).getTime()) / 86400000)
+interface AdjCard {
+  card_id: string
+  prospect_id: string
+  empresa: string
+  rut: string
+  codigo: string
+  nombre: string
+  licitacion_nombre: string
+  organismo: string
+  region: string
+  monto_adjudicado: number
+  poliza_seriedad: number
+  poliza_cumplimiento: number
+  fecha_adjudicacion: string
+  contact_name: string | null
+  email: string | null
+  phone: string | null
+  whatsapp: string | null
+  tiene_contacto: boolean
 }
 
-const ScoreBadge = ({ score }: { score: number }) => {
-  const color =
-    score >= 70 ? 'bg-emerald-100 text-emerald-700'
-    : score >= 40 ? 'bg-amber-100 text-amber-700'
-    : 'bg-red-100 text-red-700'
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color}`}>
-      {score.toFixed(0)} pts
-    </span>
-  )
+interface AdjStage {
+  etapa_id: string
+  etapa_nombre: string
+  etapa_color: string
+  cards: AdjCard[]
 }
 
-const DaysBadge = ({ days }: { days: number }) => {
-  const color = days <= 2 ? 'text-emerald-600' : days <= 6 ? 'text-amber-600' : 'text-red-500'
-  return (
-    <span className={`text-xs flex items-center gap-0.5 font-medium ${color}`}>
-      <Clock size={10} />{days}d
-    </span>
-  )
+const formatCLP = (n?: number | null) => {
+  if (!n) return '—'
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n)
 }
 
-const COLORS = ['#6366f1', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444', '#06b6d4', '#f97316']
-
-// ── Tarjeta Kanban ────────────────────────────────────────────────────────────
-
-function KanbanCard({ card, onClick, onDragStart, onDragEnd, isDragging }: {
-  card: PipelineCard
-  onClick: () => void
-  onDragStart: (e: React.DragEvent) => void
-  onDragEnd: () => void
-  isDragging: boolean
+function KanbanCard({ card, isDragging, onClick, onDragStart, onDragEnd }: {
+  card: AdjCard; isDragging: boolean; onClick: () => void
+  onDragStart: (e: React.DragEvent) => void; onDragEnd: () => void
 }) {
-  const p = card.prospect
-  const days = daysInStage(card.created_at)
-
+  const numRaw = (card.whatsapp || card.phone || '').replace(/\D/g, '')
+  const numWA = numRaw.startsWith('56') ? numRaw : `56${numRaw}`
+  const msgWA = encodeURIComponent(
+    `Hola, somos de Kapturo. Felicitamos a ${card.empresa} por la adjudicacion de "${card.licitacion_nombre}". Nos gustaria presentarles nuestra propuesta de polizas de garantia. Tienen un momento para conversar?`
+  )
   return (
     <div
       draggable
@@ -60,616 +59,521 @@ function KanbanCard({ card, onClick, onDragStart, onDragEnd, isDragging }: {
       onDragEnd={onDragEnd}
       onClick={onClick}
       className={clsx(
-        'bg-white rounded-xl p-3 shadow-sm border border-gray-100 cursor-grab select-none',
-        'hover:shadow-md hover:border-brand-200 transition-all duration-150',
-        isDragging && 'opacity-30 scale-95 rotate-1 cursor-grabbing'
+        'bg-white rounded-xl border border-gray-200 p-3 cursor-grab select-none',
+        'hover:shadow-sm hover:border-violet-200 transition-all duration-150',
+        isDragging && 'opacity-30 scale-95 cursor-grabbing ring-2 ring-violet-300'
       )}
     >
-      <div className={clsx(isDragging && 'pointer-events-none')}>
-      {/* Score + días */}
-      <div className="flex items-center justify-between mb-2">
-        <ScoreBadge score={p?.score || 0} />
-        <DaysBadge days={days} />
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{card.empresa}</p>
+          {card.rut && <p className="text-[11px] text-gray-400 font-mono mt-0.5">{card.rut}</p>}
+        </div>
+        <span
+          className={clsx('w-2.5 h-2.5 rounded-full shrink-0 mt-1 border',
+            card.tiene_contacto ? 'bg-emerald-400 border-emerald-300' : 'bg-gray-200 border-gray-100'
+          )}
+          title={card.tiene_contacto ? 'Con contacto' : 'Sin contacto'}
+        />
       </div>
-
-      {/* Empresa */}
-      <p className="font-semibold text-gray-900 text-sm truncate leading-tight">
-        {p?.company_name || 'Empresa sin nombre'}
-      </p>
-
-      {/* Contacto */}
-      {p?.contact_name && (
-        <p className="text-xs text-gray-500 truncate mt-0.5">
-          {p.contact_name}{p.contact_title ? ` · ${p.contact_title}` : ''}
+      {(card.licitacion_nombre || card.nombre) && (
+        <p className="text-[11px] text-gray-500 line-clamp-2 mt-1.5 leading-relaxed">
+          {card.licitacion_nombre || card.nombre}
         </p>
       )}
-
-      {/* Ciudad */}
-      {p?.city && (
-        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-          <MapPin size={10} />{p.city}
-        </p>
+      {card.monto_adjudicado > 0 && (
+        <div className="flex items-center gap-2 mt-2 text-[11px]">
+          <span className="font-semibold text-gray-700">{formatCLP(card.monto_adjudicado)}</span>
+          <span className="text-blue-500">S: {formatCLP(card.poliza_seriedad)}</span>
+        </div>
       )}
-
-      {/* Iconos de contacto disponible */}
-      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
-        {p?.phone || p?.whatsapp
-          ? <Phone size={11} className="text-emerald-500" />
-          : null}
-        {p?.email
-          ? <Mail size={11} className="text-blue-500" />
-          : null}
-        {p?.website
-          ? <Globe size={11} className="text-purple-500" />
-          : null}
-        {!p?.phone && !p?.whatsapp && !p?.email && (
-          <span className="text-xs text-gray-300">Sin datos de contacto</span>
+      <div className="flex gap-1.5 mt-2 pt-2 border-t border-gray-50">
+        {numRaw ? (
+          <a
+            href={`https://wa.me/${numWA}?text=${msgWA}`}
+            target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-medium transition-colors"
+          >
+            <MessageCircle size={9} /> WA
+          </a>
+        ) : null}
+        {card.email ? (
+          <a
+            href={`mailto:${card.email}`}
+            onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-medium transition-colors"
+          >
+            <Mail size={9} /> Mail
+          </a>
+        ) : null}
+        {!numRaw && !card.email && (
+          <span className="text-[10px] text-gray-300 flex items-center gap-1 italic">
+            <Phone size={8} /> Sin contacto
+          </span>
         )}
-      </div>
       </div>
     </div>
   )
 }
 
-// ── Panel lateral ─────────────────────────────────────────────────────────────
-
-function ProspectPanel({ card, stages, onClose, isAdmin }: {
-  card: PipelineCard
-  stages: PipelineStage[]
-  onClose: () => void
-  isAdmin: boolean
+function CardPanel({ card, stages, currentStageId, onClose, onRefresh }: {
+  card: AdjCard; stages: AdjStage[]; currentStageId: string
+  onClose: () => void; onRefresh: () => void
 }) {
-  const qc = useQueryClient()
-  const p = card.prospect
-  const [notes, setNotes] = useState(card.notes || '')
-  const [alarmDate, setAlarmDate] = useState(
-    card.next_action_at ? card.next_action_at.split('T')[0] : ''
-  )
-
-  const currentStage = stages.find(s => s.id === card.stage_id)
-  const nextStage = stages.find(
-    s => s.order === (currentStage?.order || 0) + 1 && !s.is_won && !s.is_lost
-  )
-
-  const updateMutation = useMutation({
-    mutationFn: (data: { notes?: string; next_action_at?: string | null }) =>
-      api.put(`/pipeline/tarjetas/${card.id}`, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      toast.success('Guardado')
-    },
+  const [localStageId, setLocalStageId] = useState(currentStageId)
+  const [buscandoContacto, setBuscandoContacto] = useState(false)
+  const [contactoLocal, setContactoLocal] = useState({
+    contact_name: card.contact_name,
+    email: card.email,
+    phone: card.phone,
+    whatsapp: card.whatsapp,
+    tiene_contacto: card.tiene_contacto,
   })
+
+  const numRaw = (contactoLocal.whatsapp || contactoLocal.phone || '').replace(/\D/g, '')
+  const numWA = numRaw.startsWith('56') ? numRaw : `56${numRaw}`
+  const msgWA = encodeURIComponent(
+    `Hola, somos de Kapturo. Felicitamos a ${card.empresa} por la adjudicacion de "${card.licitacion_nombre}". Nos gustaria presentarles nuestra propuesta de polizas de garantia. Tienen un momento para conversar?`
+  )
+  const mailSubject = `Poliza de garantia — ${card.licitacion_nombre}`
+  const mailBody = `Estimado equipo de ${card.empresa},%0A%0AHemos visto que han sido adjudicados en el proyecto "${card.licitacion_nombre}".%0A%0AQuisieramos presentarles nuestra propuesta de polizas de garantia.%0A%0ASaludos`
 
   const moverMutation = useMutation({
-    mutationFn: (stageId: string) =>
-      api.put(`/pipeline/tarjetas/${card.id}/mover`, { stage_id: stageId }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      toast.success('Lead movido')
-      onClose()
+    mutationFn: (etapaId: string) =>
+      api.patch(`/modules/adjudicadas/cards/${card.card_id}/etapa`, { etapa_id: etapaId }),
+    onSuccess: (_data, etapaId) => {
+      setLocalStageId(etapaId)
+      onRefresh()
+      toast.success('Etapa actualizada')
     },
+    onError: () => toast.error('Error al mover'),
   })
 
-  const eliminarMutation = useMutation({
-    mutationFn: () => api.delete(`/pipeline/tarjetas/${card.id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      toast.success('Removido del pipeline')
-      onClose()
-    },
-  })
+  const buscarContacto = async () => {
+    if (!card.empresa) return
+    setBuscandoContacto(true)
+    try {
+      const res = await api.get(`/modules/adjudicadas/contacto?nombre=${encodeURIComponent(card.empresa)}`)
+      const ct = res.data
+      if (ct.ok) {
+        const primer = ct.contactos?.[0]
+        await api.post(`/modules/adjudicadas/guardar/${card.codigo}`, {
+          contact_name: primer?.nombre || undefined,
+          email: primer?.email || undefined,
+          phone: ct.telefono || primer?.telefono || undefined,
+          whatsapp: ct.telefono || primer?.telefono || undefined,
+        })
+        setContactoLocal({
+          contact_name: primer?.nombre || null,
+          email: primer?.email || null,
+          phone: ct.telefono || primer?.telefono || null,
+          whatsapp: ct.telefono || primer?.telefono || null,
+          tiene_contacto: true,
+        })
+        onRefresh()
+        toast.success('Contacto encontrado y guardado')
+      } else {
+        toast.error('No se encontraron datos de contacto')
+      }
+    } catch {
+      toast.error('Error buscando contacto')
+    } finally {
+      setBuscandoContacto(false)
+    }
+  }
 
-  const phone = p?.whatsapp || p?.phone || ''
-  const whatsappUrl = phone ? `https://wa.me/${phone.replace(/\D/g, '')}` : null
-  const emailUrl = p?.email ? `mailto:${p.email}` : null
+  const currentStage = stages.find(s => s.etapa_id === localStageId)
+  const stageList = stages.map(s => ({ id: s.etapa_id, name: s.etapa_nombre, color: s.etapa_color }))
+  const currentIdx = stageList.findIndex(s => s.id === localStageId)
+  const nextStage = currentIdx >= 0 && currentIdx < stageList.length - 1 ? stageList[currentIdx + 1] : null
+  const monto = card.monto_adjudicado || 0
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      {/* Fondo oscuro */}
-      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
-
-      {/* Panel */}
-      <div className="relative w-96 bg-white shadow-2xl flex flex-col h-full overflow-y-auto">
-
-        {/* Cabecera */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100">
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-lg leading-tight truncate">
-              {p?.company_name || 'Empresa'}
-            </p>
-            {p?.contact_name && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {p.contact_name}{p.contact_title ? ` · ${p.contact_title}` : ''}
-              </p>
-            )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <ScoreBadge score={p?.score || 0} />
+    <div
+      className="w-80 xl:w-96 shrink-0 sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden"
+      style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}
+    >
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3 z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+              <Building2 size={16} className="text-violet-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-gray-900 text-sm leading-tight truncate">{card.empresa}</p>
+              {card.rut && <p className="text-xs text-gray-400 font-mono mt-0.5">{card.rut}</p>}
               {currentStage && (
                 <span
-                  className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
-                  style={{ backgroundColor: currentStage.color }}
+                  className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full text-white font-medium"
+                  style={{ backgroundColor: currentStage.etapa_color }}
                 >
-                  {currentStage.name}
+                  {currentStage.etapa_nombre}
                 </span>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 shrink-0 mt-1">
-            <X size={20} />
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
+            <X size={15} className="text-gray-400" />
           </button>
         </div>
 
-        <div className="flex-1 p-5 space-y-6">
-
-          {/* Contactar ahora */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Contactar ahora
-            </p>
+        <div className="flex-1 p-5 space-y-5">
+          <section>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contactar</p>
             <div className="flex gap-2">
-              {whatsappUrl ? (
+              {numRaw ? (
                 <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                  href={`https://wa.me/${numWA}?text=${msgWA}`}
+                  target="_blank" rel="noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
                 >
-                  <MessageCircle size={15} />WhatsApp
+                  <MessageCircle size={14} /> WhatsApp
                 </a>
               ) : (
                 <div className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-400 text-sm py-2.5 rounded-xl">
-                  <Phone size={15} />Sin teléfono
+                  <Phone size={14} /> Sin telefono
                 </div>
               )}
-              {emailUrl ? (
+              {contactoLocal.email ? (
                 <a
-                  href={emailUrl}
+                  href={`mailto:${contactoLocal.email}?subject=${mailSubject}&body=${mailBody}`}
                   className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
                 >
-                  <Mail size={15} />Email
+                  <Mail size={14} /> Email
                 </a>
               ) : (
                 <div className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-400 text-sm py-2.5 rounded-xl">
-                  <Mail size={15} />Sin email
+                  <Mail size={14} /> Sin email
                 </div>
               )}
             </div>
-            {p?.website && (
-              <a
-                href={p.website.startsWith('http') ? p.website : `https://${p.website}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm py-2 rounded-xl transition-colors"
-              >
-                <Globe size={13} />
-                <span className="truncate max-w-[200px]">{p.website}</span>
-                <ExternalLink size={11} className="text-gray-400 shrink-0" />
-              </a>
+            {contactoLocal.contact_name && (
+              <p className="text-xs text-gray-400 mt-2">👤 {contactoLocal.contact_name}</p>
             )}
-          </div>
-
-          {/* Datos del prospecto */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Datos
-            </p>
-            <div className="space-y-1.5 text-sm text-gray-600">
-              {(p?.city || p?.country) && (
-                <div className="flex items-center gap-2">
-                  <MapPin size={13} className="text-gray-400 shrink-0" />
-                  {[p.city, p.country].filter(Boolean).join(', ')}
-                </div>
-              )}
-              {p?.industry && (
-                <div className="flex items-center gap-2">
-                  <Building2 size={13} className="text-gray-400 shrink-0" />
-                  {p.industry}
-                </div>
-              )}
-              {p?.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone size={13} className="text-gray-400 shrink-0" />
-                  {p.phone}
-                </div>
-              )}
-              {p?.email && (
-                <div className="flex items-center gap-2">
-                  <Mail size={13} className="text-gray-400 shrink-0" />
-                  <span className="truncate">{p.email}</span>
-                </div>
-              )}
-            </div>
-            {p?.score_reason && (
-              <p className="text-xs text-gray-400 italic mt-2 leading-relaxed">
-                "{p.score_reason}"
-              </p>
-            )}
-          </div>
-
-          {/* Notas */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Notas
-            </p>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Agrega una nota sobre este lead..."
-              rows={3}
-              className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-            <button
-              onClick={() => updateMutation.mutate({ notes })}
-              disabled={updateMutation.isPending}
-              className="mt-1 text-xs text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50"
-            >
-              {updateMutation.isPending ? 'Guardando...' : 'Guardar nota'}
-            </button>
-          </div>
-
-          {/* Alarma */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-              <Bell size={11} />Alarma de seguimiento
-            </p>
-            <input
-              type="date"
-              value={alarmDate}
-              onChange={e => setAlarmDate(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-            {alarmDate && (
+            {!contactoLocal.tiene_contacto && (
               <button
-                onClick={() =>
-                  updateMutation.mutate({
-                    next_action_at: alarmDate ? new Date(alarmDate).toISOString() : null,
-                  })
-                }
-                className="mt-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                onClick={buscarContacto}
+                disabled={buscandoContacto}
+                className="mt-2 w-full flex items-center justify-center gap-2 text-sm text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 py-2 rounded-xl font-medium transition-colors disabled:opacity-60"
               >
-                Guardar alarma
+                {buscandoContacto
+                  ? <><Loader2 size={13} className="animate-spin" /> Buscando...</>
+                  : <><Search size={13} /> Buscar contacto</>
+                }
               </button>
             )}
-          </div>
+          </section>
 
-          {/* Mover a siguiente etapa */}
-          {nextStage && (
-            <button
-              onClick={() => moverMutation.mutate(nextStage.id)}
-              disabled={moverMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm text-white transition-opacity disabled:opacity-60"
-              style={{ backgroundColor: nextStage.color }}
+          <section>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Licitacion</p>
+            <div className="bg-gray-50 rounded-xl p-3.5 space-y-2">
+              <p className="text-sm font-semibold text-gray-800 leading-snug">
+                {card.licitacion_nombre || card.nombre}
+              </p>
+              {card.organismo && (
+                <p className="flex items-center gap-2 text-xs text-gray-500">
+                  <Building2 size={11} className="text-gray-300 shrink-0" /> {card.organismo}
+                </p>
+              )}
+              {card.region && (
+                <p className="flex items-center gap-2 text-xs text-gray-500">
+                  <MapPin size={11} className="text-gray-300 shrink-0" /> {card.region}
+                </p>
+              )}
+              {card.fecha_adjudicacion && (
+                <p className="flex items-center gap-2 text-xs text-gray-400">
+                  <Calendar size={11} className="text-gray-300 shrink-0" /> Adjudicado {card.fecha_adjudicacion}
+                </p>
+              )}
+              {card.codigo && (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-500">
+                    {card.codigo}
+                  </span>
+                  <a
+                    href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${card.codigo}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-violet-500 hover:text-violet-700 flex items-center gap-1 text-xs"
+                  >
+                    <ExternalLink size={10} /> Ver
+                  </a>
+                </div>
+              )}
+            </div>
+            {monto > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-gray-400 mb-0.5 flex items-center justify-center gap-1">
+                    <DollarSign size={9} /> Monto
+                  </p>
+                  <p className="text-xs font-bold text-gray-700">{formatCLP(monto)}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-blue-400 mb-0.5 flex items-center justify-center gap-1">
+                    <Shield size={9} /> Seriedad
+                  </p>
+                  <p className="text-xs font-bold text-blue-700">{formatCLP(card.poliza_seriedad)}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-emerald-400 mb-0.5 flex items-center justify-center gap-1">
+                    <Shield size={9} /> Cumplim.
+                  </p>
+                  <p className="text-xs font-bold text-emerald-700">{formatCLP(card.poliza_cumplimiento)}</p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Etapa</p>
+            <div className="flex flex-wrap gap-1.5">
+              {stageList.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => moverMutation.mutate(s.id)}
+                  disabled={moverMutation.isPending}
+                  className={clsx(
+                    'text-xs px-3 py-1.5 rounded-lg font-medium border transition-all',
+                    s.id === localStageId
+                      ? 'text-white border-transparent'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  )}
+                  style={s.id === localStageId ? { backgroundColor: s.color, borderColor: s.color } : {}}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+            {nextStage && (
+              <button
+                onClick={() => moverMutation.mutate(nextStage.id)}
+                disabled={moverMutation.isPending}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm text-white transition-opacity disabled:opacity-60"
+                style={{ backgroundColor: nextStage.color }}
+              >
+                <ChevronRight size={15} /> Mover a {nextStage.name}
+              </button>
+            )}
+          </section>
+
+          <section>
+            <a
+              href="/adjudicadas"
+              className="w-full flex items-center justify-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 py-2.5 rounded-xl font-medium transition-colors"
             >
-              <ChevronRight size={16} />
-              Mover a {nextStage.name}
-            </button>
-          )}
+              <Sparkles size={14} /> Generar propuesta IA
+            </a>
+            <p className="text-[10px] text-gray-400 text-center mt-1">Disponible en Adjudicadas</p>
+          </section>
         </div>
-
-        {/* Footer */}
-        <div className="p-5 border-t border-gray-100">
-          {isAdmin && <button
-            onClick={() => {
-              if (confirm('¿Sacar este lead del pipeline? El prospecto no se elimina.')) {
-                eliminarMutation.mutate()
-              }
-            }}
-            className="w-full text-sm text-red-500 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl transition-colors"
-          >
-            Quitar del pipeline
-          </button>}
-        </div>
-      </div>
     </div>
   )
 }
-
-// ── Página principal ──────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const [inputRut, setInputRut] = useState('')
+  const [rutFiltro, setRutFiltro] = useState('')
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
-  const dragCounters = useState<Record<string, number>>(() => ({}))[0]
-  const [selectedCard, setSelectedCard] = useState<PipelineCard | null>(null)
-  const [editMode, setEditMode] = useState(false)
-  const [editingStage, setEditingStage] = useState<{ id: string; name: string; color: string } | null>(null)
-  const [newStageName, setNewStageName] = useState('')
-  const [showAddStage, setShowAddStage] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<{ card: AdjCard; stageId: string } | null>(null)
 
-  const { data: stages = [], isPending, isError, refetch } = useQuery<PipelineStage[]>({
-    queryKey: ['pipeline'],
-    queryFn: () => api.get('/pipeline/').then(r => r.data),
-    retry: 2,
+  const { data: stages = [], isPending, isError, refetch } = useQuery<AdjStage[]>({
+    queryKey: ['adjudicadas-pipeline', rutFiltro],
+    queryFn: () =>
+      api
+        .get(`/modules/adjudicadas/pipeline${rutFiltro ? `?rut=${encodeURIComponent(rutFiltro)}` : ''}`)
+        .then(r => r.data),
   })
 
   const moverMutation = useMutation({
-    mutationFn: ({ cardId, stageId }: { cardId: string; stageId: string }) =>
-      api.put(`/pipeline/tarjetas/${cardId}/mover`, { stage_id: stageId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
+    mutationFn: ({ cardId, etapaId }: { cardId: string; etapaId: string }) =>
+      api.patch(`/modules/adjudicadas/cards/${cardId}/etapa`, { etapa_id: etapaId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['adjudicadas-pipeline'] }),
     onError: () => toast.error('Error al mover'),
     onSettled: () => { setDraggingCardId(null); setDragOverStageId(null) },
   })
 
-  const actualizarEtapaMutation = useMutation({
-    mutationFn: ({ id, nombre, color }: { id: string; nombre: string; color: string }) =>
-      api.put(`/pipeline/etapas/${id}`, { nombre, color }),
+  const resetMutation = useMutation({
+    mutationFn: () => api.post('/modules/adjudicadas/etapas/reset'),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      setEditingStage(null)
-      toast.success('Etapa actualizada')
+      qc.invalidateQueries({ queryKey: ['adjudicadas-pipeline'] })
+      toast.success('Etapas reiniciadas')
     },
+    onError: () => toast.error('Error al reiniciar'),
   })
 
-  const eliminarEtapaMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/pipeline/etapas/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      toast.success('Etapa eliminada')
-    },
-    onError: (e: any) =>
-      toast.error(e.response?.data?.detail || 'No se puede eliminar'),
-  })
+  const totalCards = stages.reduce((a, s) => a + s.cards.length, 0)
 
-  const crearEtapaMutation = useMutation({
-    mutationFn: (nombre: string) =>
-      api.post('/pipeline/etapas', { nombre, color: '#6366f1', order: stages.length }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      setNewStageName('')
-      setShowAddStage(false)
-      toast.success('Etapa creada')
-    },
-  })
+  const handleDrop = (e: React.DragEvent, etapaId: string) => {
+    e.preventDefault()
+    const cardId = e.dataTransfer.getData('cardId')
+    if (cardId && draggingCardId) moverMutation.mutate({ cardId, etapaId })
+    setDragOverStageId(null)
+  }
 
-  const inicializarMutation = useMutation({
-    mutationFn: () => api.post('/pipeline/inicializar'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pipeline'] })
-      toast.success('Pipeline inicializado')
-    },
-  })
-
-  const totalLeads = stages.reduce((acc, s) => acc + (s.cards?.length || 0), 0)
-
-  if (isPending) return <div className="p-8 text-center text-gray-400 animate-pulse">Cargando pipeline...</div>
+  if (isPending) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 size={24} className="animate-spin text-gray-300" />
+    </div>
+  )
   if (isError) return (
     <div className="flex flex-col items-center justify-center h-64 gap-4">
-      <p className="text-gray-500">No se pudo cargar el pipeline.</p>
-      <button className="btn-primary" onClick={() => refetch()}>Reintentar</button>
+      <p className="text-gray-500 text-sm">Error cargando el pipeline.</p>
+      <button onClick={() => refetch()} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-medium">
+        Reintentar
+      </button>
+    </div>
+  )
+  if (stages.length === 0) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+      <p className="text-gray-500 text-sm">No hay etapas configuradas.</p>
+      <button
+        onClick={() => resetMutation.mutate()}
+        disabled={resetMutation.isPending}
+        className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-medium disabled:opacity-60"
+      >
+        {resetMutation.isPending ? 'Configurando...' : 'Inicializar pipeline'}
+      </button>
     </div>
   )
 
-  if (!stages.length) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-gray-500">El pipeline no tiene etapas todavía.</p>
-        <button className="btn-primary" onClick={() => inicializarMutation.mutate()}>
-          Inicializar pipeline
-        </button>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-full space-y-4">
-
-      {/* Cabecera */}
-      <div className="flex items-center justify-between shrink-0">
+    <div className="space-y-4 min-w-0">
+      {/* Header — siempre full width */}
+      <div className="flex items-center gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pipeline CRM</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{totalLeads} leads en seguimiento</p>
+          <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {totalCards} empresa{totalCards !== 1 ? 's' : ''} en seguimiento
+          </p>
         </div>
-        {isAdmin && <button
-          onClick={() => { setEditMode(!editMode); setEditingStage(null) }}
-          className={clsx(
-            'flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors',
-            editMode
-              ? 'bg-brand-50 border-brand-300 text-brand-700'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-          )}
-        >
-          <Settings size={15} />
-          {editMode ? 'Listo' : 'Editar etapas'}
-        </button>}
-      </div>
-
-      {/* Tablero Kanban */}
-      <div className="flex gap-4 overflow-x-auto pb-4 flex-1 items-start">
-        {stages.map((stage) => (
-          <div key={stage.id} className="w-72 shrink-0 flex flex-col">
-
-            {/* Header de columna */}
-            {editMode && editingStage?.id === stage.id ? (
-              <div className="p-2 rounded-t-xl bg-gray-100 space-y-2">
-                <input
-                  value={editingStage.name}
-                  onChange={e => setEditingStage({ ...editingStage, name: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-300"
-                />
-                <div className="flex gap-1.5 flex-wrap">
-                  {COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setEditingStage({ ...editingStage, color: c })}
-                      className={clsx(
-                        'w-6 h-6 rounded-full border-2 transition-transform',
-                        editingStage.color === c ? 'border-gray-800 scale-125' : 'border-transparent'
-                      )}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      actualizarEtapaMutation.mutate({
-                        id: stage.id,
-                        nombre: editingStage.name,
-                        color: editingStage.color,
-                      })
-                    }
-                    className="flex-1 text-xs bg-brand-600 text-white py-1.5 rounded-lg"
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    onClick={() => setEditingStage(null)}
-                    className="flex-1 text-xs border border-gray-300 py-1.5 rounded-lg"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="flex items-center justify-between px-3 py-2.5 rounded-t-xl text-white text-sm font-semibold"
-                style={{ backgroundColor: stage.color }}
-              >
-                <div className="flex items-center gap-2">
-                  <span>{stage.name}</span>
-                  <span className="bg-white/25 px-2 py-0.5 rounded-full text-xs">
-                    {stage.cards?.length || 0}
-                  </span>
-                </div>
-                {editMode && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() =>
-                        setEditingStage({ id: stage.id, name: stage.name, color: stage.color })
-                      }
-                      className="hover:bg-white/20 p-1 rounded transition-colors"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    {!stage.is_won && !stage.is_lost && (
-                      <button
-                        onClick={() => {
-                          if ((stage.cards?.length || 0) > 0) {
-                            toast.error('Mueve los leads antes de eliminar esta etapa')
-                            return
-                          }
-                          if (confirm(`¿Eliminar la etapa "${stage.name}"?`)) {
-                            eliminarEtapaMutation.mutate(stage.id)
-                          }
-                        }}
-                        className="hover:bg-white/20 p-1 rounded transition-colors"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Zona de tarjetas */}
-            <div
-              className={clsx(
-                'flex-1 rounded-b-xl min-h-32 p-2 space-y-2 transition-colors',
-                dragOverStageId === stage.id
-                  ? 'bg-brand-50 border-2 border-dashed border-brand-300'
-                  : 'bg-gray-100'
-              )}
-              onDragOver={e => { e.preventDefault() }}
-              onDragEnter={e => {
-                e.preventDefault()
-                dragCounters[stage.id] = (dragCounters[stage.id] || 0) + 1
-                setDragOverStageId(stage.id)
-              }}
-              onDragLeave={() => {
-                dragCounters[stage.id] = (dragCounters[stage.id] || 1) - 1
-                if (dragCounters[stage.id] <= 0) {
-                  dragCounters[stage.id] = 0
-                  setDragOverStageId(prev => prev === stage.id ? null : prev)
-                }
-              }}
-              onDrop={e => {
-                e.preventDefault()
-                dragCounters[stage.id] = 0
-                const cardId = e.dataTransfer.getData('cardId')
-                if (cardId && draggingCardId) moverMutation.mutate({ cardId, stageId: stage.id })
-                setDragOverStageId(null)
-              }}
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              placeholder="Empresa o RUT..."
+              value={inputRut}
+              onChange={e => setInputRut(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && setRutFiltro(inputRut)}
+              className="text-sm px-3 py-2 rounded-xl border border-gray-300 outline-none focus:border-violet-400 w-44"
+            />
+            <button
+              onClick={() => setRutFiltro(inputRut)}
+              className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
             >
-              {(stage.cards || []).map(card => (
-                <KanbanCard
-                  key={card.id}
-                  card={card}
-                  onClick={() => setSelectedCard(card)}
-                  onDragStart={e => {
-                    e.dataTransfer.setData('cardId', card.id)
-                    setDraggingCardId(card.id)
-                  }}
-                  onDragEnd={() => setDraggingCardId(null)}
-                  isDragging={draggingCardId === card.id}
-                />
-              ))}
-
-              {(stage.cards || []).length === 0 && dragOverStageId !== stage.id && (
-                <div className="h-16 flex items-center justify-center text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                  Arrastra un lead aquí
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* Agregar etapa (solo en edit mode) */}
-        {editMode && (
-          <div className="w-72 shrink-0">
-            {showAddStage ? (
-              <div className="bg-gray-100 rounded-xl p-3 space-y-2">
-                <input
-                  value={newStageName}
-                  onChange={e => setNewStageName(e.target.value)}
-                  placeholder="Nombre de la etapa"
-                  autoFocus
-                  className="w-full text-sm border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300"
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && newStageName.trim()) {
-                      crearEtapaMutation.mutate(newStageName.trim())
-                    }
-                  }}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { if (newStageName.trim()) crearEtapaMutation.mutate(newStageName.trim()) }}
-                    className="flex-1 text-sm bg-brand-600 text-white py-2 rounded-xl"
-                  >
-                    Crear
-                  </button>
-                  <button
-                    onClick={() => setShowAddStage(false)}
-                    className="flex-1 text-sm border border-gray-300 py-2 rounded-xl"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
+              <Search size={14} />
+            </button>
+            {rutFiltro && (
               <button
-                onClick={() => setShowAddStage(true)}
-                className="w-full h-12 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:border-brand-300 hover:text-brand-500 transition-colors flex items-center justify-center gap-2"
+                onClick={() => { setRutFiltro(''); setInputRut('') }}
+                className="p-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
               >
-                <Plus size={16} />Agregar etapa
+                <X size={14} />
               </button>
             )}
           </div>
-        )}
+          <button
+            onClick={() => refetch()}
+            className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw size={14} />
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                if (confirm('Reiniciar etapas? Las tarjetas se moveran a Sin contactar.')) {
+                  resetMutation.mutate()
+                }
+              }}
+              disabled={resetMutation.isPending}
+              className="px-3 py-2 text-xs rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Reiniciar etapas
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Panel lateral */}
-      {selectedCard && (
-        <ProspectPanel
-          card={selectedCard}
-          stages={stages}
-          onClose={() => setSelectedCard(null)}
-          isAdmin={isAdmin}
-        />
-      )}
+      {/* Kanban + Panel — flex row solo aquí */}
+      <div className={selectedCard ? 'flex gap-4 items-start' : ''}>
+        <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-w-0 items-start">
+          {stages.map(stage => {
+          const isDragOver = dragOverStageId === stage.etapa_id
+          const totalMonto = stage.cards.reduce((a, c) => a + (c.monto_adjudicado || 0), 0)
+          return (
+            <div key={stage.etapa_id} className="w-[264px] shrink-0 flex flex-col">
+              <div
+                className="flex items-center justify-between px-3 py-2.5 rounded-t-xl text-white text-sm font-semibold"
+                style={{ backgroundColor: stage.etapa_color }}
+              >
+                <div className="flex items-center gap-2">
+                  <span>{stage.etapa_nombre}</span>
+                  <span className="bg-white/25 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                    {stage.cards.length}
+                  </span>
+                </div>
+                {totalMonto > 0 && (
+                  <span className="text-xs opacity-75 font-normal">
+                    {totalMonto >= 1_000_000
+                      ? `$${(totalMonto / 1_000_000).toFixed(0)}M`
+                      : `$${(totalMonto / 1_000).toFixed(0)}K`}
+                  </span>
+                )}
+              </div>
+              <div
+                className={clsx(
+                  'flex-1 rounded-b-xl min-h-[120px] p-2 space-y-2 transition-all',
+                  isDragOver
+                    ? 'bg-violet-50 border-2 border-dashed border-violet-300'
+                    : 'bg-gray-100/80'
+                )}
+                onDragOver={e => e.preventDefault()}
+                onDragEnter={e => { e.preventDefault(); setDragOverStageId(stage.etapa_id) }}
+                onDragLeave={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverStageId(prev => prev === stage.etapa_id ? null : prev)
+                  }
+                }}
+                onDrop={e => handleDrop(e, stage.etapa_id)}
+              >
+                {stage.cards.map(card => (
+                  <KanbanCard
+                    key={card.card_id}
+                    card={card}
+                    isDragging={draggingCardId === card.card_id}
+                    onClick={() => setSelectedCard({ card, stageId: stage.etapa_id })}
+                    onDragStart={e => {
+                      e.dataTransfer.setData('cardId', card.card_id)
+                      setDraggingCardId(card.card_id)
+                    }}
+                    onDragEnd={() => setDraggingCardId(null)}
+                  />
+                ))}
+                {stage.cards.length === 0 && !isDragOver && (
+                  <div className="h-16 flex items-center justify-center text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                    Arrastra aqui
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+        </div>
+
+        {selectedCard && (
+          <CardPanel
+            card={selectedCard.card}
+            stages={stages}
+            currentStageId={selectedCard.stageId}
+            onClose={() => setSelectedCard(null)}
+            onRefresh={() => qc.invalidateQueries({ queryKey: ['adjudicadas-pipeline'] })}
+          />
+        )}
+      </div>
     </div>
   )
 }

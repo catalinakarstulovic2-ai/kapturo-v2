@@ -80,6 +80,13 @@ export interface PipelineCard {
     source_module?: string
     status?: string
     source?: string
+    // Licitación (adjudicadas)
+    rut?: string
+    licitacion_nombre?: string
+    licitacion_codigo?: string
+    licitacion_organismo?: string
+    licitacion_monto_adjudicado?: number
+    licitacion_fecha_adjudicacion?: string
   }
 }
 

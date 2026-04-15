@@ -4,6 +4,7 @@ import { ShieldAlert, ArrowLeft, Loader2 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAuthStore } from '../../store/authStore'
+import FloatingNotes from '../ui/FloatingNotes'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -56,6 +57,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Notas flotantes — visible en toda la app */}
+      <FloatingNotes />
     </div>
   )
 }

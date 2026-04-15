@@ -1,7 +1,7 @@
 """
 Endpoints del Dashboard — métricas reales de la cuenta.
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -11,6 +11,8 @@ from app.core.middleware import get_current_user
 from app.models.user import User
 from app.models.prospect import Prospect
 from app.models.pipeline import PipelineStage, PipelineCard
+from app.models.message import Conversation, Message, MessageDirection
+from app.models.licitacion_cache import LicitacionCache
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -31,6 +33,10 @@ def obtener_stats(
             "total_prospectos": 0, "calificados": 0, "en_pipeline": 0,
             "esta_semana": 0, "alarmas_pendientes": 0, "alarmas_lista": [],
             "pipeline_por_etapa": [], "top_prospectos": [],
+            "monto_pipeline": 0, "monto_ganado_mes": 0,
+            "tasa_conversion": 0, "dias_promedio_pipeline": 0,
+            "conversaciones_sin_responder": 0, "prospectos_sin_contactar": 0,
+            "licitaciones_proximas": [],
         }
 
     ahora = datetime.now(timezone.utc)
@@ -122,13 +128,137 @@ def obtener_stats(
         })
         total_cards += count
 
+    # ── Métricas de negocio ───────────────────────────────────────────────────
+
+    # Monto total en pipeline (suma licitacion_monto de prospectos activos en pipeline)
+    monto_pipeline = (
+        db.query(func.sum(Prospect.licitacion_monto))
+        .filter(
+            Prospect.tenant_id == tid,
+            Prospect.excluido == False,
+            Prospect.in_pipeline == True,
+        )
+        .scalar()
+    ) or 0
+
+    # Monto ganado este mes (prospects en etapas "won" cuyas cards se movieron este mes)
+    inicio_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    won_stage_ids = [e["id"] for e in pipeline_por_etapa if e["is_won"]]
+    monto_ganado_mes = 0
+    if won_stage_ids:
+        monto_ganado_mes = (
+            db.query(func.sum(Prospect.licitacion_monto_adjudicado))
+            .join(PipelineCard, PipelineCard.prospect_id == Prospect.id)
+            .filter(
+                Prospect.tenant_id == tid,
+                Prospect.excluido == False,
+                PipelineCard.stage_id.in_(won_stage_ids),
+                PipelineCard.updated_at >= inicio_mes,
+            )
+            .scalar()
+        ) or 0
+
+    # Tasa de conversión: ganados totales / total prospectos
+    total_ganados = sum(e["count"] for e in pipeline_por_etapa if e["is_won"])
+    tasa_conversion = round((total_ganados / total_prospectos * 100), 1) if total_prospectos > 0 else 0.0
+
+    # Días promedio en pipeline (cards en etapas activas, no won/lost)
+    active_stage_ids = [e["id"] for e in pipeline_por_etapa if not e["is_won"] and not e["is_lost"]]
+    dias_promedio_pipeline = 0
+    if active_stage_ids:
+        cards_activas = (
+            db.query(PipelineCard)
+            .filter(
+                PipelineCard.tenant_id == tid,
+                PipelineCard.stage_id.in_(active_stage_ids),
+            )
+            .all()
+        )
+        if cards_activas:
+            dias = [(ahora - c.created_at).days for c in cards_activas if c.created_at]
+            dias_promedio_pipeline = round(sum(dias) / len(dias)) if dias else 0
+
+    # ── Métricas de actividad ─────────────────────────────────────────────────
+
+    # Conversaciones sin responder: abiertas cuyo último mensaje fue inbound
+    latest_dir_subq = (
+        db.query(Message.direction)
+        .filter(
+            Message.conversation_id == Conversation.id,
+            Message.tenant_id == tid,
+        )
+        .order_by(Message.created_at.desc())
+        .limit(1)
+        .correlate(Conversation)
+        .scalar_subquery()
+    )
+    conversaciones_sin_responder = (
+        db.query(func.count(Conversation.id))
+        .filter(
+            Conversation.tenant_id == tid,
+            Conversation.is_open == True,
+            latest_dir_subq == MessageDirection.inbound,
+        )
+        .scalar()
+    ) or 0
+
+    # Prospectos sin contactar: no en pipeline y sin ninguna conversación iniciada
+    prospectos_sin_contactar = (
+        base_q
+        .filter(
+            Prospect.in_pipeline == False,
+            ~Prospect.id.in_(
+                db.query(Conversation.prospect_id)
+                .filter(Conversation.tenant_id == tid)
+                .distinct()
+            ),
+        )
+        .count()
+    )
+
+    # ── Licitaciones próximas a cerrar (caché global, sin filtro tenant) ──────
+    hoy_str       = date.today().isoformat()
+    en_7_dias_str = (date.today() + timedelta(days=7)).strftime("%Y-%m-%dT23:59:59")
+
+    licitaciones_proximas_rows = (
+        db.query(LicitacionCache)
+        .filter(
+            LicitacionCache.estado == "publicada",
+            LicitacionCache.fecha_cierre >= hoy_str,
+            LicitacionCache.fecha_cierre <= en_7_dias_str,
+        )
+        .order_by(LicitacionCache.fecha_cierre.asc())
+        .limit(6)
+        .all()
+    )
+    licitaciones_proximas = [
+        {
+            "codigo":         r.codigo,
+            "nombre":         r.nombre,
+            "organismo":      r.organismo,
+            "fecha_cierre":   r.fecha_cierre,
+            "monto_estimado": r.monto_estimado,
+        }
+        for r in licitaciones_proximas_rows
+    ]
+
     return {
-        "total_prospectos": total_prospectos,
-        "calificados": calificados,
-        "en_pipeline": total_cards,
-        "esta_semana": esta_semana,
-        "alarmas_pendientes": len(alarmas_lista),
-        "alarmas_lista": alarmas_lista,
-        "pipeline_por_etapa": pipeline_por_etapa,
-        "top_prospectos": top_lista,
+        "total_prospectos":           total_prospectos,
+        "calificados":                calificados,
+        "en_pipeline":                total_cards,
+        "esta_semana":                esta_semana,
+        "alarmas_pendientes":         len(alarmas_lista),
+        "alarmas_lista":              alarmas_lista,
+        "pipeline_por_etapa":         pipeline_por_etapa,
+        "top_prospectos":             top_lista,
+        # Métricas de negocio
+        "monto_pipeline":             monto_pipeline,
+        "monto_ganado_mes":           monto_ganado_mes,
+        "tasa_conversion":            tasa_conversion,
+        "dias_promedio_pipeline":     dias_promedio_pipeline,
+        # Métricas de actividad
+        "conversaciones_sin_responder": conversaciones_sin_responder,
+        "prospectos_sin_contactar":   prospectos_sin_contactar,
+        # Licitaciones próximas
+        "licitaciones_proximas":      licitaciones_proximas,
     }

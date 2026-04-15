@@ -93,30 +93,28 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-y-auto">
+    <div className="w-80 xl:w-96 shrink-0 sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}>
 
-        {/* Header */}
-        <div className="flex items-start justify-between p-4 md:p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-              <Building2 size={18} className="text-brand-500" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 leading-tight">{p.company_name || '—'}</p>
-              {p.rut && <p className="text-xs text-gray-400">RUT: {p.rut}</p>}
-            </div>
+      {/* Header */}
+      <div className="flex items-start justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+            <Building2 size={16} className="text-brand-500" />
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <X size={16} className="text-gray-500" />
-          </button>
+          <div>
+            <p className="font-semibold text-gray-900 leading-tight text-sm">{p.company_name || '—'}</p>
+            {p.rut && <p className="text-xs text-gray-400">RUT: {p.rut}</p>}
+          </div>
         </div>
+        <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
+          <X size={15} className="text-gray-400" />
+        </button>
+      </div>
 
-        <div className="flex-1 p-4 md:p-5 space-y-5">
+      <div className="p-4 space-y-4">
 
           {/* Score y estado */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <ScoreBadge score={p.score} />
             <StatusBadge status={p.status} />
             {p.source_module && (
@@ -259,7 +257,6 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
             </button>
           </div>
 
-        </div>
       </div>
     </div>
   )
@@ -323,7 +320,10 @@ export default function ProspectsPage() {
   }
 
   return (
-    <div className="space-y-4 min-w-0">
+    <div className={`min-w-0 ${selected ? 'flex gap-4 items-start' : 'space-y-4'}`}>
+
+      {/* Columna izquierda: todo el contenido */}
+      <div className="flex-1 min-w-0 space-y-4">
 
       {/* Título */}
       <div>
@@ -469,7 +469,9 @@ export default function ProspectsPage() {
         </div>
       )}
 
-      {/* Panel lateral */}
+      </div>{/* fin columna izquierda */}
+
+      {/* Panel derecho inline */}
       {selected && <ProspectPanel p={selected} onClose={() => setSelected(null)} />}
     </div>
   )

@@ -168,7 +168,7 @@ export default function ProspectorPage() {
         </div>
 
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 text-xs">
-          {([{ id: 'maps', label: 'Maps', ok: true }, { id: 'apollo', label: 'Apollo', ok: true }, { id: 'social', label: 'Social', ok: true }] as { id: Tab; label: string; ok: boolean }[]).map(t => (
+          {([{ id: 'maps', label: 'Local', ok: true }, { id: 'apollo', label: 'Directorio', ok: true }, { id: 'social', label: 'Redes', ok: true }] as { id: Tab; label: string; ok: boolean }[]).map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} className={clsx('flex-1 py-1.5 rounded font-medium transition-colors', tab === t.id ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
               {t.label}{!t.ok && <span className="ml-1 text-[9px] text-orange-400">pronto</span>}
             </button>
@@ -240,7 +240,7 @@ export default function ProspectorPage() {
               <input className="input text-sm" placeholder="diseno web, SEO, automatizacion..." value={socialForm.producto} onChange={e => setSocialForm(f => ({ ...f, producto: e.target.value }))} />
             </div>
             <div className="bg-blue-50 rounded-lg p-2.5 text-[11px] text-blue-700 leading-relaxed">
-              Tip: Escanea Facebook Groups, Instagram y TikTok con Apify.
+              Tip: Escanea Facebook Groups, Instagram y TikTok para encontrar prospectos activos.
             </div>
           </> }
           <button className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2.5" onClick={handleSearch} disabled={searchMutation.isPending || apolloMutation.isPending || socialMutation.isPending}>
@@ -316,7 +316,7 @@ export default function ProspectorPage() {
                       {p.address && <div className="flex items-start gap-1.5 text-gray-600"><MapPin size={13} className="text-gray-400 mt-0.5 shrink-0" /><span className="break-words">{p.address}</span></div>}
                       {p.phone && <div className="flex items-center gap-1.5"><Phone size={13} className="text-gray-400 shrink-0" /><a href={`tel:${p.phone}`} className="text-gray-700 hover:text-brand-500">{p.phone}</a></div>}
                       {p.website && <div className="flex items-center gap-1.5"><Globe size={13} className="text-gray-400 shrink-0" /><a href={p.website.startsWith('http') ? p.website : `https://${p.website}`} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:underline truncate max-w-[200px]">{p.website.replace(/^https?:\/\//, '')}</a></div>}
-                      {p.source_url && <div className="flex items-center gap-1.5"><Map size={13} className="text-gray-400 shrink-0" /><a href={p.source_url} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-brand-500 flex items-center gap-1">Ver en Google Maps <ExternalLink size={10} /></a></div>}
+                      {p.source_url && <div className="flex items-center gap-1.5"><Map size={13} className="text-gray-400 shrink-0" /><a href={p.source_url} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-brand-500 flex items-center gap-1">Ver ubicación <ExternalLink size={10} /></a></div>}
                     </div>
 
                     {p.score_reason && <p className="text-xs text-gray-400 italic bg-gray-50 rounded-lg px-3 py-1.5">{p.score_reason}</p>}
