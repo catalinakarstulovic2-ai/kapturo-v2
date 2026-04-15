@@ -308,28 +308,29 @@ export default function AdjudicadasPage() {
     <div className="space-y-5">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
             <Trophy size={20} className="text-amber-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mercado Público</h1>
-            <p className="text-gray-500 text-sm">Licitaciones públicas de Chile · Empresas, contratos y oportunidades</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mercado Público</h1>
+            <p className="text-gray-500 text-xs sm:text-sm hidden sm:block">Licitaciones públicas de Chile · Empresas, contratos y oportunidades</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setMostrarConfig(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
           >
-            <Sparkles size={14} /> Configurar módulo
+            <Sparkles size={14} />
+            <span className="hidden sm:inline">Configurar módulo</span>
           </button>
           <button
             onClick={() => navigate('/pipeline')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
           >
-            <Kanban size={14} /> Ver Pipeline
+            <Kanban size={14} /> <span className="hidden sm:inline">Ver Pipeline</span>
           </button>
         </div>
       </div>

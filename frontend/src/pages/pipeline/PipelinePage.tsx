@@ -191,7 +191,7 @@ function CardPanel({ card, stages, currentStageId, onClose, onRefresh }: {
 
   return (
     <div
-      className="w-80 xl:w-96 shrink-0 sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden"
+      className="w-full md:w-80 xl:w-96 shrink-0 md:sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden"
       style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}
     >
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3 z-10">
@@ -499,7 +499,7 @@ export default function PipelinePage() {
       </div>
 
       {/* Kanban + Panel — flex row solo aquí */}
-      <div className={selectedCard ? 'flex gap-4 items-start' : ''}>
+      <div className={selectedCard ? 'flex flex-col md:flex-row gap-4 md:items-start' : ''}>
         <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-w-0 items-start">
           {stages.map(stage => {
           const isDragOver = dragOverStageId === stage.etapa_id

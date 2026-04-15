@@ -93,7 +93,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
   })
 
   return (
-    <div className="w-80 xl:w-96 shrink-0 sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}>
+    <div className="w-full md:w-80 xl:w-96 shrink-0 md:sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}>
 
       {/* Header */}
       <div className="flex items-start justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
@@ -320,7 +320,7 @@ export default function ProspectsPage() {
   }
 
   return (
-    <div className={`min-w-0 ${selected ? 'flex gap-4 items-start' : 'space-y-4'}`}>
+    <div className={`min-w-0 ${selected ? 'flex flex-col md:flex-row gap-4 md:items-start' : 'space-y-4'}`}>
 
       {/* Columna izquierda: todo el contenido */}
       <div className="flex-1 min-w-0 space-y-4">

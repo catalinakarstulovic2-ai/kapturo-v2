@@ -311,20 +311,24 @@ export default function DashboardPage() {
             )
 
             return items.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 py-3">
+              <div key={i} className="flex items-start gap-3 py-3">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
                   <item.icon size={15} className={item.iconColor} />
                 </div>
-                <p className="flex-1 text-sm text-gray-700 leading-snug">{item.msg}</p>
-                {item.badge && (
-                  <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${item.badge.cls}`}>{item.badge.text}</span>
-                )}
-                <button
-                  onClick={item.cta.onClick}
-                  className="shrink-0 text-xs font-semibold text-brand-600 hover:text-brand-800 flex items-center gap-1 whitespace-nowrap"
-                >
-                  {item.cta.label} <ArrowRight size={11} />
-                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700 leading-snug">{item.msg}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {item.badge && (
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${item.badge.cls}`}>{item.badge.text}</span>
+                    )}
+                    <button
+                      onClick={item.cta.onClick}
+                      className="text-xs font-semibold text-brand-600 hover:text-brand-800 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      {item.cta.label} <ArrowRight size={11} />
+                    </button>
+                  </div>
+                </div>
               </div>
             ))
           })()}

@@ -9,11 +9,19 @@ export default function FloatingNotes() {
   const { open, minimized, tasks, setOpen, setMinimized, addTask, toggleTask, deleteTask, clearDone } = useNotesStore()
   const navigate = useNavigate()
 
-  // Drag
+  // Mobile detection (< 640px)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  // Drag (desktop only)
   const dragOffset = useRef({ dx: 0, dy: 0 })
   const dragging   = useRef(false)
   const panelRef   = useRef<HTMLDivElement>(null)
-  const posRef     = useRef({ x: window.innerWidth - 360, y: 72 })
+  const posRef     = useRef({ x: Math.max(0, window.innerWidth - 360), y: 72 })
 
   // Input nueva tarea
   const [input, setInput]           = useState('')
@@ -98,6 +106,132 @@ export default function FloatingNotes() {
   const pending = tasks.filter(t => !t.done).length
   const done    = tasks.filter(t => t.done).length
 
+  // Mobile: bottom sheet
+  if (isMobile) return (
+    <>
+      {/* Backdrop */}
+      {!minimized && (
+        <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setOpen(false)} />
+      )}
+      <div className="fixed z-50 bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 flex flex-col overflow-hidden max-h-[80vh]">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-amber-400 select-none rounded-t-2xl">
+          <span className="flex-1 text-sm font-bold text-amber-900">📋 Mis tareas</span>
+          {!minimized && pending > 0 && (
+            <span className="text-[10px] bg-amber-600 text-white font-bold px-1.5 py-0.5 rounded-full">{pending}</span>
+          )}
+          <button onClick={() => setMinimized(!minimized)}
+            className="p-1 rounded hover:bg-amber-500 text-amber-800 transition-colors">
+            {minimized ? <ChevronUp size={13} /> : <Minus size={13} />}
+          </button>
+          <button onClick={() => setOpen(false)}
+            className="p-1 rounded hover:bg-amber-500 text-amber-800 transition-colors">
+            <X size={13} />
+          </button>
+        </div>
+
+        {!minimized && (
+          <>
+            {/* Input nueva tarea */}
+            <div className="p-3 border-b border-gray-100 relative">
+              {linked && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="flex items-center gap-1 text-xs bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-medium">
+                    <User size={9} /> {linked.name}
+                  </span>
+                  <button onClick={() => setLinked(null)} className="text-gray-400 hover:text-gray-600">
+                    <X size={11} />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => handleInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
+                  placeholder="Nueva tarea… usa @ para vincular"
+                  rows={2}
+                  className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-brand-400 placeholder-gray-300 resize-none"
+                />
+                <button
+                  onClick={submit}
+                  disabled={!input.trim()}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-amber-400 hover:bg-amber-500 text-white disabled:opacity-40 transition-colors shrink-0 mt-0.5"
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+              {showMention && suggestions.length > 0 && (
+                <div className="absolute left-3 right-3 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {suggestions.map((p: any) => (
+                    <button
+                      key={p.id}
+                      onMouseDown={e => { e.preventDefault(); selectProspect(p) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-left transition-colors"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
+                        <User size={11} className="text-brand-600" />
+                      </div>
+                      <span className="text-sm text-gray-800 truncate">{p.company_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lista de tareas */}
+            <div className="overflow-y-auto flex-1">
+              {tasks.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-8 px-4">
+                  Sin tareas. Escribe algo y pulsa Enter.
+                </p>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {tasks.map(task => (
+                    <div key={task.id} className={`flex items-start gap-2.5 px-3 py-2.5 group transition-colors ${task.done ? 'bg-gray-50/50' : 'hover:bg-amber-50/30'}`}>
+                      <button
+                        onClick={() => toggleTask(task.id)}
+                        className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                          task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 hover:border-amber-400'
+                        }`}
+                      >
+                        {task.done && <Check size={9} className="text-white" strokeWidth={3} />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm leading-snug ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {task.text}
+                        </p>
+                        {task.prospectName && (
+                          <button onClick={() => navigate('/prospectos')} className="flex items-center gap-1 mt-1 text-[10px] text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-1.5 py-0.5 hover:bg-brand-100 transition-colors font-medium">
+                            <User size={8} /> {task.prospectName} <ArrowRight size={8} />
+                          </button>
+                        )}
+                      </div>
+                      <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all shrink-0">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {done > 0 && (
+              <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">{done} completada{done !== 1 ? 's' : ''}</span>
+                <button onClick={clearDone} className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors">
+                  <Trash2 size={10} /> Limpiar
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  )
+
+  // Desktop: floating draggable widget
   return (
     <div
       ref={panelRef}
