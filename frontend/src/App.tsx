@@ -9,6 +9,7 @@ import DashboardPage from './pages/dashboard/DashboardPage'
 import ProspectsPage from './pages/prospects/ProspectsPage'
 import PipelinePage from './pages/pipeline/PipelinePage'
 import LicitacionesPage from './pages/modules/LicitacionesPage'
+import AdjudicadasPage from './pages/modules/AdjudicadasPage'
 import ProspectorPage from './pages/modules/ProspectorPage'
 import InmobiliariaPage from './pages/modules/InmobiliariaPage'
 import ProspeccionPage from './pages/modules/ProspeccionPage'
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="prospectos" element={<ProspectsPage />} />
           <Route path="pipeline" element={<PipelinePage />} />
           <Route path="licitaciones" element={<LicitacionesPage />} />
+          <Route path="adjudicadas" element={<AdjudicadasPage />} />
           <Route path="prospeccion" element={<ProspeccionPage />} />
           {/* Aliases para compatibilidad con links viejos */}
           <Route path="prospector" element={<Navigate to="/prospeccion" replace />} />

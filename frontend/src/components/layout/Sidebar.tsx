@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Trophy } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -10,6 +10,7 @@ const nav = [
   { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/adjudicadas',    icon: Trophy,          label: 'Adjudicadas',      module: 'adjudicadas', hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitador',  hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector', hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
