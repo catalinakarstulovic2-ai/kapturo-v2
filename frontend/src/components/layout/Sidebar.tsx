@@ -11,7 +11,7 @@ const nav = [
   { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/conversaciones',  icon: MessageSquare,   label: 'Conversaciones',   module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/adjudicadas',    icon: Trophy,          label: 'Adjudicadas',      module: 'adjudicadas', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitador',  hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector', hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,         hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null,         hideSuperAdmin: false, onlySuperAdmin: false },
