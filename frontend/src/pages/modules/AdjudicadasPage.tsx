@@ -272,9 +272,7 @@ export default function AdjudicadasPage() {
   const handleCargarBusqueda = (b: BusquedaGuardada) => {
     cargarBusqueda(b)
     setShowBusquedas(false)
-    toast.success(`Cargada: ${b.nombre}`)
-    // Ejecutar la búsqueda automáticamente con los filtros cargados
-    setTimeout(() => buscarMutation.mutate(1), 50)
+    toast.success(`Filtros cargados: ${b.nombre} — presiona Buscar para ver resultados`)
   }
 
   const exportCSV = () => {
@@ -983,23 +981,14 @@ export default function AdjudicadasPage() {
                                 </div>
 
                                 {/* ── Col 3: Contactos — solo si hay personas de contacto reales ── */}
-                                {(ctLoading || (ct && ct.ok && ct.contactos.length > 0)) && (
+                                {ct && ct.ok && ct.contactos.length > 0 && (
                                 <div className="pt-5 lg:pt-0 lg:pl-6 space-y-3">
                                   <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-emerald-200">
                                     <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">👤</span>
                                     <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Contactos</span>
                                   </div>
 
-                                  {ctLoading && (
-                                    <div className="space-y-2">
-                                      {[1, 2].map(i => (
-                                        <div key={i} className="rounded-lg border border-gray-100 p-3 animate-pulse bg-gray-50">
-                                          <div className="h-3 bg-gray-200 rounded w-3/4 mb-2" />
-                                          <div className="h-2.5 bg-gray-100 rounded w-1/2" />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {ctLoading && null}
 
                                   {ct && ct.ok && ct.contactos.length > 0 && (
                                     <div className="space-y-2">

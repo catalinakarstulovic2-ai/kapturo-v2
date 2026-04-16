@@ -10,6 +10,26 @@ from app.modules.licitaciones.normalizer import LicitacionNormalizada
 from app.models.prospect import Prospect
 from app.models.pipeline import PipelineStage, PipelineCard
 
+# Mapeo de código de región → palabras clave para filtrar resultados
+REGION_CODE_TO_KEYWORDS: dict[str, list[str]] = {
+    "1":  ["tarapacá", "tarapaca"],
+    "2":  ["antofagasta"],
+    "3":  ["atacama"],
+    "4":  ["coquimbo"],
+    "5":  ["valparaíso", "valparaiso"],
+    "6":  ["o'higgins", "ohiggins", "libertador"],
+    "7":  ["maule"],
+    "8":  ["biobío", "biobio"],
+    "9":  ["araucanía", "araucania"],
+    "10": ["los lagos"],
+    "11": ["aysén", "aysen"],
+    "12": ["magallanes"],
+    "13": ["metropolitana", "santiago"],
+    "14": ["los ríos", "los rios"],
+    "15": ["arica", "parinacota"],
+    "16": ["ñuble", "nuble"],
+}
+
 ETAPAS_DEFAULT = [
     {"name": "Sin contactar",       "color": "#6B7280", "order": 0, "is_won": False, "is_lost": False},
     {"name": "Contactado",          "color": "#3B82F6", "order": 1, "is_won": False, "is_lost": False},
@@ -226,6 +246,8 @@ class AdjudicadasService:
 
     def _normalizar_lista(self, items: list, filtros: dict) -> list:
         monto_minimo = float(filtros.get("monto_minimo") or 0)
+        region_code  = (filtros.get("region") or "").strip()
+        region_keys  = REGION_CODE_TO_KEYWORDS.get(region_code, [])
         resultado = []
         for item in items:
             try:
@@ -233,6 +255,11 @@ class AdjudicadasService:
                 monto = n.monto_adjudicado or 0
                 if monto < monto_minimo:
                     continue
+                # Post-filtro de región sobre el texto devuelto por la API
+                if region_keys:
+                    reg_text = (n.region or "").lower()
+                    if not any(kw in reg_text for kw in region_keys):
+                        continue
                 resultado.append({
                     "codigo":              n.codigo,
                     "nombre":              n.nombre,
@@ -274,10 +301,14 @@ class AdjudicadasService:
         for kw in [k.strip() for k in keyword_raw.split(",") if k.strip()]:
             q = q.filter(LicitacionCache.nombre.ilike(f"%{kw}%"))
 
-        # Filtro región
+        # Filtro región — busca por palabras clave del nombre de región
         region = filtros.get("region")
         if region:
-            q = q.filter(LicitacionCache.region.ilike(f"%{region}%"))
+            from sqlalchemy import or_
+            region_keys = REGION_CODE_TO_KEYWORDS.get(region.strip(), [])
+            if region_keys:
+                q = q.filter(or_(*[LicitacionCache.region.ilike(f"%{kw}%") for kw in region_keys]))
+
 
         # Filtro monto mínimo
         monto_min = float(filtros.get("monto_minimo") or 0)
@@ -491,6 +522,14 @@ class AdjudicadasService:
 
         if monto_min:
             resultados_todos = [r for r in resultados_todos if (r["monto_estimado"] or 0) >= monto_min]
+
+        # Post-filtro de región
+        region_keys = REGION_CODE_TO_KEYWORDS.get((region or "").strip(), [])
+        if region_keys:
+            resultados_todos = [
+                r for r in resultados_todos
+                if any(kw in (r["region"] or "").lower() for kw in region_keys)
+            ]
 
         total  = len(resultados_todos)
         inicio = (pagina - 1) * POR_PAGINA

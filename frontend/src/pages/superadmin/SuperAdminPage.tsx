@@ -5,7 +5,7 @@ import api from '../../api/client'
 import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
-  Eye, Loader2, DollarSign, SlidersHorizontal, RotateCcw, ChevronDown,
+  Eye, EyeOff, Loader2, DollarSign, SlidersHorizontal, RotateCcw, ChevronDown, Search,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
@@ -683,12 +683,13 @@ const MODULE_ICONS: Record<string, string> = {
   kapturo_ventas: '💼',
 }
 
-function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
+function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: () => void; isExpanded: boolean; onToggle: () => void }) {
   const { startImpersonation } = useAuthStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const [expanded, setExpanded] = useState(false)
+  const expanded = isExpanded
+  const setExpanded = (_v: boolean | ((prev: boolean) => boolean)) => onToggle()
   const [loadingUser, setLoadingUser] = useState<string | null>(null)
 
   // Edición nombre
@@ -813,7 +814,7 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
       {/* ── Header siempre visible (clickeable para expandir) ── */}
       <div
         className="p-4 flex items-start justify-between cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => onToggle()}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -964,33 +965,61 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                           <div className="space-y-2 bg-violet-50/50 border border-violet-100 rounded-xl p-3">
                             <div>
                               <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Rubros habilitados</p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">Selecciona qué rubros verá este tenant en Mercado Público. Haz clic en un chip para activar/desactivar.</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">Activa/desactiva los rubros que verá este tenant en Mercado Público.</p>
                             </div>
                             {rubrosLoading ? (
                               <p className="text-xs text-gray-400 italic">cargando...</p>
                             ) : (
                               <>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(rubrosData?.todos ?? []).map((r: string) => {
-                                    const activo = rubrosSeleccionados.includes(r)
-                                    return (
-                                      <button
-                                        key={r}
-                                        onClick={() => setRubrosSeleccionados(prev =>
-                                          prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
-                                        )}
-                                        className={`px-2 py-0.5 text-xs rounded-full border capitalize transition-colors ${
-                                          activo
-                                            ? 'bg-violet-600 text-white border-violet-600 font-medium'
-                                            : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300 hover:text-violet-600'
-                                        }`}
-                                      >
-                                        {r}
-                                      </button>
-                                    )
-                                  })}
+                                {/* Buscador + acciones rápidas */}
+                                <div className="flex items-center gap-2">
+                                  <div className="relative flex-1">
+                                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Buscar rubro..."
+                                      value={buscarRubro}
+                                      onChange={e => setBuscarRubro(e.target.value)}
+                                      className="w-full text-xs pl-6 pr-2 py-1.5 rounded-lg border border-gray-200 bg-white outline-none focus:border-violet-300"
+                                    />
+                                  </div>
+                                  <button
+                                    className="text-xs text-violet-600 font-medium px-2 py-1 rounded-lg hover:bg-violet-100 whitespace-nowrap"
+                                    onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
+                                  >Todos</button>
+                                  <button
+                                    className="text-xs text-gray-400 px-2 py-1 rounded-lg hover:bg-gray-100 whitespace-nowrap"
+                                    onClick={() => setRubrosSeleccionados([])}
+                                  >Ninguno</button>
                                 </div>
-                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-1">
+                                {/* Grid de chips */}
+                                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+                                  {(rubrosData?.todos ?? [])
+                                    .filter((r: string) => !buscarRubro || r.toLowerCase().includes(buscarRubro.toLowerCase()))
+                                    .sort((a: string, b: string) => a.localeCompare(b))
+                                    .map((r: string) => {
+                                      const activo = rubrosSeleccionados.includes(r)
+                                      return (
+                                        <button
+                                          key={r}
+                                          onClick={() => setRubrosSeleccionados(prev =>
+                                            prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                                          )}
+                                          className={`flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-lg border text-left transition-colors ${
+                                            activo
+                                              ? 'bg-violet-600 text-white border-violet-600 font-medium'
+                                              : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                          }`}
+                                        >
+                                          <span className={`w-3 h-3 rounded-full border flex-shrink-0 flex items-center justify-center ${activo ? 'bg-white border-white' : 'border-gray-300'}`}>
+                                            {activo && <span className="block w-1.5 h-1.5 rounded-full bg-violet-600" />}
+                                          </span>
+                                          <span className="capitalize truncate">{r}</span>
+                                        </button>
+                                      )
+                                    })}
+                                </div>
+                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                                   <span className="text-xs text-gray-400">{rubrosSeleccionados.length} seleccionados</span>
                                   {JSON.stringify([...rubrosSeleccionados].sort()) !== JSON.stringify([...(rubrosData?.habilitados ?? [])].sort()) && (
                                     <button className="text-xs text-gray-400 hover:text-gray-600" onClick={() => setRubrosSeleccionados(rubrosData?.habilitados ?? [])}>
@@ -1154,6 +1183,7 @@ function TenantsTab() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ company_name: '', slug: '' })
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
+  const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null)
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/tenants/${id}`),
@@ -1232,6 +1262,8 @@ function TenantsTab() {
             key={t.id}
             t={t}
             onDelete={() => setConfirmDelete(t)}
+            isExpanded={expandedTenantId === t.id}
+            onToggle={() => setExpandedTenantId(prev => prev === t.id ? null : t.id)}
           />
         ))}
       </div>
@@ -1247,6 +1279,8 @@ function UsuariosTab() {
   const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'admin', tenant_id: '' })
   const [editUser, setEditUser] = useState<any>(null)
   const [editForm, setEditForm] = useState({ full_name: '', email: '', password: '', role: 'admin' })
+  const [showEditPass, setShowEditPass] = useState(false)
+  const [showCreatePass, setShowCreatePass] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -1305,10 +1339,15 @@ function UsuariosTab() {
             className="input" placeholder="Email" type="email" value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
           />
-          <input
-            className="input" placeholder="Contraseña" type="password" value={form.password}
-            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-          />
+          <div className="relative">
+            <input
+              className="input pr-10" placeholder="Contraseña" type={showCreatePass ? 'text' : 'password'} value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+            />
+            <button type="button" onClick={() => setShowCreatePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              {showCreatePass ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
           <select
             className="input" value={form.role}
             onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
@@ -1351,7 +1390,12 @@ function UsuariosTab() {
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Nueva contraseña <span className="text-gray-400">(dejar vacío para no cambiar)</span></label>
-              <input className="input" type="password" placeholder="••••••••" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} />
+              <div className="relative">
+                <input className="input pr-10" type={showEditPass ? 'text' : 'password'} placeholder="••••••••" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} />
+                <button type="button" onClick={() => setShowEditPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showEditPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Rol</label>
@@ -1433,7 +1477,7 @@ function UsuariosTab() {
                     {u.role !== 'super_admin' && (
                       <button
                         title="Editar usuario"
-                        onClick={() => { setEditUser(u); setEditForm({ full_name: u.full_name, email: u.email, password: '', role: u.role }) }}
+                        onClick={() => { setEditUser(u); setEditForm({ full_name: u.full_name, email: u.email, password: '', role: u.role }); setShowEditPass(false) }}
                         className="text-gray-400 hover:text-brand-600"
                       >
                         <Pencil size={15} />
