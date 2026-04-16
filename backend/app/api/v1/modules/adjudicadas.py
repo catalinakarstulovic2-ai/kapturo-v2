@@ -103,11 +103,23 @@ async def preview(
     db: Session = Depends(get_db),
 ):
     svc = AdjudicadasService(db, current_user.tenant_id)
+
+    # Si el usuario no mandó keyword, usar los rubros habilitados del tenant automáticamente
+    effective_keyword = keyword
+    if not effective_keyword:
+        tm = db.query(TenantModule).filter(
+            TenantModule.tenant_id == current_user.tenant_id,
+            TenantModule.module == ModuleType.adjudicadas,
+        ).first()
+        rubros_habilitados = ((tm.niche_config or {}).get("rubros_habilitados") if tm else None)
+        if rubros_habilitados:
+            effective_keyword = ",".join(rubros_habilitados)
+
     filtros = {
         "region": region,
         "periodo": periodo,
         "monto_minimo": monto_minimo,
-        "keyword": keyword,
+        "keyword": effective_keyword,
     }
     if pestana == "por_adjudicarse":
         result = svc.get_por_adjudicarse_cached(filtros, pagina)
