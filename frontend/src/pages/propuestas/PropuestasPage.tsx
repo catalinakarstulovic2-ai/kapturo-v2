@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
 import {
@@ -53,6 +53,14 @@ export default function PropuestasPage() {
   const [form, setForm] = useState<FormData>(INITIAL)
   const [resultado, setResultado] = useState('')
   const [copiado, setCopiado] = useState(false)
+  const [pipelineCardId, setPipelineCardId] = useState('')
+
+  // Cargar cards del pipeline para sugerir cliente
+  const { data: pipelineData } = useQuery({
+    queryKey: ['pipeline-cards-propuestas'],
+    queryFn: () => api.get('/modules/adjudicadas/pipeline').then(r => r.data),
+  })
+  const todasLasCards: any[] = (pipelineData?.etapas ?? []).flatMap((e: any) => e.cards ?? [])
 
   const generarMutation = useMutation({
     mutationFn: () => api.post('/modules/propuestas/generar', form).then(r => r.data),
@@ -117,7 +125,41 @@ export default function PropuestasPage() {
   // ─── Paso 1: Datos del cliente ────────────────────────────────────────────
   const renderCliente = () => (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500 mb-4">Datos de la empresa a quien le envías el documento.</p>
+      {/* Sugerencia desde pipeline */}
+      {todasLasCards.length > 0 && (
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3.5 space-y-2">
+          <p className="text-xs font-semibold text-violet-700 flex items-center gap-1.5">
+            <Sparkles size={13} /> Cargar desde Pipeline
+          </p>
+          <p className="text-[11px] text-violet-500">Selecciona una empresa de tu pipeline y pre-llenamos los datos automáticamente.</p>
+          <select
+            className="input text-xs py-1.5 border-violet-200 focus:ring-violet-300"
+            value={pipelineCardId}
+            onChange={e => {
+              const id = e.target.value
+              setPipelineCardId(id)
+              if (!id) return
+              const card = todasLasCards.find((c: any) => c.card_id === id)
+              if (!card) return
+              setForm(f => ({
+                ...f,
+                empresa_cliente: card.empresa || f.empresa_cliente,
+                contacto_nombre: card.contact_name || f.contacto_nombre,
+                licitacion_nombre: card.licitacion_nombre || card.nombre || f.licitacion_nombre,
+                monto_licitacion: card.monto_adjudicado ? String(card.monto_adjudicado) : f.monto_licitacion,
+                region: card.region || f.region,
+              }))
+            }}
+          >
+            <option value="">— Elegir empresa del pipeline —</option>
+            {todasLasCards.map((c: any) => (
+              <option key={c.card_id} value={c.card_id}>{c.empresa} {c.rut ? `· ${c.rut}` : ''}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <p className="text-sm text-gray-500">Datos de la empresa a quien le envías el documento.</p>
       <div>
         <label className="text-xs font-medium text-gray-600 mb-1 block">Empresa cliente *</label>
         <div className="relative">
@@ -228,7 +270,7 @@ export default function PropuestasPage() {
       { label: 'Empresa cliente', value: form.empresa_cliente },
       { label: 'Contacto', value: form.contacto_nombre || '—' },
       { label: 'Licitación', value: form.licitacion_nombre || '—' },
-      { label: 'Monto', value: form.monto_licitacion ? `$${Number(form.monto_licitacion).toLocaleString('es-CL')}` : '—' },
+      { label: 'Monto', value: form.monto_licitacion && !isNaN(Number(form.monto_licitacion)) ? `$${Number(form.monto_licitacion).toLocaleString('es-CL')}` : '—' },
       { label: 'Mi empresa', value: form.mi_empresa },
       { label: 'Servicio', value: form.mi_servicio || '—' },
     ]

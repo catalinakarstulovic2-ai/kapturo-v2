@@ -273,6 +273,8 @@ export default function AdjudicadasPage() {
     cargarBusqueda(b)
     setShowBusquedas(false)
     toast.success(`Cargada: ${b.nombre}`)
+    // Ejecutar la búsqueda automáticamente con los filtros cargados
+    setTimeout(() => buscarMutation.mutate(1), 50)
   }
 
   const exportCSV = () => {
@@ -363,6 +365,7 @@ export default function AdjudicadasPage() {
               setExpandedId(null)
               setContactoCache({})
               setShowRubrosDropdown(false)
+              storeSetResultados([], 0, 1)
             }}
           >
             {tab.label}
@@ -979,7 +982,8 @@ export default function AdjudicadasPage() {
                                   </div>
                                 </div>
 
-                                {/* ── Col 3: Contactos ── */}
+                                {/* ── Col 3: Contactos — solo si hay personas de contacto reales ── */}
+                                {(ctLoading || (ct && ct.ok && ct.contactos.length > 0)) && (
                                 <div className="pt-5 lg:pt-0 lg:pl-6 space-y-3">
                                   <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-emerald-200">
                                     <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">👤</span>
@@ -1051,6 +1055,7 @@ export default function AdjudicadasPage() {
                                     <p className="text-xs text-gray-400 italic">Cargando…</p>
                                   )}
                                 </div>
+                                )}
 
                               </div>
                             </div>
@@ -1336,44 +1341,75 @@ export default function AdjudicadasPage() {
                         {isExp && (
                           <tr key={`${item.codigo}-exp`}>
                             <td colSpan={6} className="p-0 border-b border-gray-100">
-                              <div className="bg-white border-t-2 border-gray-100 px-6 py-5">
-                                <div className="flex flex-wrap gap-6">
-                                  <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Código</p>
-                                    <p className="text-sm font-mono font-semibold text-gray-700">{item.codigo}</p>
-                                  </div>
-                                  <div className="flex-1 min-w-48">
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Nombre</p>
-                                    <p className="text-xs text-gray-800 font-medium leading-snug">{item.nombre}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Organismo</p>
-                                    <p className="text-xs text-gray-700">{item.organismo || '—'}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Región</p>
-                                    <p className="text-xs text-gray-700">{item.region || '—'}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Fecha cierre</p>
-                                    <p className="text-xs text-gray-700">{item.fecha_cierre || '—'}</p>
-                                  </div>
-                                  {!!item.monto_estimado && (
-                                    <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Monto estimado</p>
-                                      <p className="text-sm font-bold text-gray-900">{formatCLP(item.monto_estimado)}</p>
+                              <div className="bg-white border-t-2 border-violet-100 px-6 py-5">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 gap-6">
+
+                                  {/* Col 1: Detalles */}
+                                  <div className="space-y-3 lg:pr-6">
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-violet-200">
+                                      <span className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-sm">📋</span>
+                                      <span className="text-xs font-bold text-violet-700 uppercase tracking-wider">Licitación</span>
                                     </div>
-                                  )}
-                                  <div className="w-full">
+                                    <div>
+                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Código</p>
+                                      <p className="text-sm font-mono font-semibold text-gray-700">{item.codigo}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Nombre</p>
+                                      <p className="text-sm text-gray-800 leading-snug font-medium">{item.nombre}</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Organismo</p>
+                                        <p className="text-xs text-gray-700 font-medium leading-snug">{item.organismo || '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Región</p>
+                                        <p className="text-xs text-gray-700 font-medium">{item.region || '—'}</p>
+                                      </div>
+                                    </div>
                                     <a
                                       href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                       target="_blank" rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors"
+                                      className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors mt-1"
                                     >
                                       <ExternalLink size={11} /> Ver en Mercado Público
                                     </a>
                                   </div>
+
+                                  {/* Col 2: Plazos y montos */}
+                                  <div className="space-y-3 lg:pl-6">
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-gray-200">
+                                      <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-sm">📊</span>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Datos</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Fecha cierre</p>
+                                        <p className="text-sm font-semibold text-gray-900">{item.fecha_cierre || '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Monto estimado</p>
+                                        <p className="text-sm font-bold text-gray-900">
+                                          {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-gray-400 font-normal">No indicado</span>}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {!!(item.monto_estimado && item.monto_estimado > 0) && (
+                                      <div className="grid grid-cols-2 gap-3 bg-blue-50 rounded-xl p-3 border border-blue-100">
+                                        <div>
+                                          <p className="text-[10px] text-blue-400 uppercase font-medium mb-0.5">Póliza 1%</p>
+                                          <p className="text-sm font-bold text-blue-700">{formatCLP((item.monto_estimado ?? 0) * 0.01)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-[10px] text-green-500 uppercase font-medium mb-0.5">Póliza 5%</p>
+                                          <p className="text-sm font-bold text-green-700">{formatCLP((item.monto_estimado ?? 0) * 0.05)}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
                                 </div>
                               </div>
                             </td>
