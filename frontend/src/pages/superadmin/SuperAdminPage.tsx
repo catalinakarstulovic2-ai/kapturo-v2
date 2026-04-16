@@ -987,22 +987,21 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                                     )
                                   })}
                                 </div>
-                                {/* Guardar solo si hay cambios */}
-                                {JSON.stringify([...rubrosSeleccionados].sort()) !== JSON.stringify([...(rubrosData?.habilitados ?? [])].sort()) && (
-                                  <div className="flex items-center gap-2 pt-1">
-                                    <span className="text-xs text-gray-400">{rubrosSeleccionados.length} seleccionados</span>
-                                    <button
-                                      className="ml-auto btn-primary text-xs py-1 px-3 flex items-center gap-1 disabled:opacity-40"
-                                      onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
-                                      disabled={saveRubrosMutation.isPending}
-                                    >
-                                      <Save size={11} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar'}
-                                    </button>
+                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-1">
+                                  <span className="text-xs text-gray-400">{rubrosSeleccionados.length} seleccionados</span>
+                                  {JSON.stringify([...rubrosSeleccionados].sort()) !== JSON.stringify([...(rubrosData?.habilitados ?? [])].sort()) && (
                                     <button className="text-xs text-gray-400 hover:text-gray-600" onClick={() => setRubrosSeleccionados(rubrosData?.habilitados ?? [])}>
                                       Descartar
                                     </button>
-                                  </div>
-                                )}
+                                  )}
+                                  <button
+                                    className="ml-auto btn-primary text-xs py-1 px-3 flex items-center gap-1 disabled:opacity-40"
+                                    onClick={() => { if (!rubrosSeleccionados.length) { alert('Selecciona al menos 1 rubro'); return }; saveRubrosMutation.mutate(rubrosSeleccionados) }}
+                                    disabled={saveRubrosMutation.isPending}
+                                  >
+                                    <Save size={11} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
+                                  </button>
+                                </div>
                               </>
                             )}
                           </div>
@@ -1243,6 +1242,8 @@ function UsuariosTab() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'admin', tenant_id: '' })
+  const [editUser, setEditUser] = useState<any>(null)
+  const [editForm, setEditForm] = useState({ full_name: '', email: '', password: '', role: 'admin' })
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -1269,6 +1270,14 @@ function UsuariosTab() {
     mutationFn: ({ id, role }: { id: string; role: string }) =>
       api.put(`/admin/users/${id}`, { role }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+  })
+  const editarMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/admin/users/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      setEditUser(null)
+    },
+    onError: (err: any) => alert(err?.response?.data?.detail ?? 'Error al guardar'),
   })
 
   if (isLoading) return <p className="text-gray-500 text-sm">Cargando usuarios...</p>
@@ -1326,6 +1335,45 @@ function UsuariosTab() {
         </div>
       )}
 
+      {editUser && (
+        <Modal title={`Editar — ${editUser.full_name}`} onClose={() => setEditUser(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Nombre completo</label>
+              <input className="input" value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Email</label>
+              <input className="input" type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Nueva contraseña <span className="text-gray-400">(dejar vacío para no cambiar)</span></label>
+              <input className="input" type="password" placeholder="••••••••" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Rol</label>
+              <select className="input" value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                className="btn-primary text-sm flex-1"
+                onClick={() => {
+                  const payload: any = { full_name: editForm.full_name, email: editForm.email, role: editForm.role }
+                  if (editForm.password) payload.password = editForm.password
+                  editarMutation.mutate({ id: editUser.id, data: payload })
+                }}
+                disabled={editarMutation.isPending}
+              >
+                {editarMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+              <button className="btn-ghost text-sm" onClick={() => setEditUser(null)}>Cancelar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -1364,15 +1412,26 @@ function UsuariosTab() {
                 </td>
                 <td className="px-4 py-3 text-center"><Badge active={u.is_active} /></td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    title={u.is_active ? 'Desactivar' : 'Activar'}
-                    onClick={() => toggleMutation.mutate({ id: u.id, is_active: !u.is_active })}
-                    className="text-gray-400 hover:text-gray-700"
-                  >
-                    {u.is_active
-                      ? <ToggleRight size={18} className="text-emerald-500" />
-                      : <ToggleLeft size={18} />}
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    {u.role !== 'super_admin' && (
+                      <button
+                        title="Editar usuario"
+                        onClick={() => { setEditUser(u); setEditForm({ full_name: u.full_name, email: u.email, password: '', role: u.role }) }}
+                        className="text-gray-400 hover:text-brand-600"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    )}
+                    <button
+                      title={u.is_active ? 'Desactivar' : 'Activar'}
+                      onClick={() => toggleMutation.mutate({ id: u.id, is_active: !u.is_active })}
+                      className="text-gray-400 hover:text-gray-700"
+                    >
+                      {u.is_active
+                        ? <ToggleRight size={18} className="text-emerald-500" />
+                        : <ToggleLeft size={18} />}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
