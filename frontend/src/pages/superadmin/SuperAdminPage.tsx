@@ -415,17 +415,29 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
           {rubrosLoading ? (
             <p className="text-sm text-gray-400">Cargando rubros...</p>
           ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500">
-                Solo los rubros seleccionados aparecerán al cliente en los filtros de Mercado Público.
-                <button
-                  className="ml-2 text-violet-500 hover:text-violet-700 underline"
-                  onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
-                >
-                  Seleccionar todos
-                </button>
-              </p>
-              <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
+            <div className="space-y-4">
+              {/* Header info + acciones rápidas */}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Selecciona los rubros visibles para este cliente.</p>
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs text-violet-500 hover:text-violet-700 underline"
+                    onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
+                  >
+                    Seleccionar todos
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    className="text-xs text-gray-400 hover:text-gray-600 underline"
+                    onClick={() => setRubrosSeleccionados([])}
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid de rubros */}
+              <div className="grid grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
                 {(rubrosData?.todos ?? []).map((r: string) => {
                   const activo = rubrosSeleccionados.includes(r)
                   return (
@@ -434,10 +446,10 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                       onClick={() => setRubrosSeleccionados(prev =>
                         prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
                       )}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors capitalize text-left ${
                         activo
                           ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300'
+                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300 hover:bg-violet-50'
                       }`}
                     >
                       {r}
@@ -445,17 +457,21 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                   )
                 })}
               </div>
-              <p className="text-xs text-violet-600 font-medium">{rubrosSeleccionados.length} rubros seleccionados</p>
-              <div className="flex gap-2 pt-1">
-                <button
-                  className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5"
-                  onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
-                  disabled={rubrosSeleccionados.length === 0 || saveRubrosMutation.isPending}
-                >
-                  <Save size={13} />
-                  {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
-                </button>
-                <button className="btn-ghost text-sm" onClick={() => setShowRubros(false)}>Cancelar</button>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                <p className="text-xs text-violet-600 font-medium">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
+                <div className="flex gap-2">
+                  <button className="btn-ghost text-sm" onClick={() => setShowRubros(false)}>Cancelar</button>
+                  <button
+                    className="btn-primary text-sm flex items-center gap-1.5"
+                    onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
+                    disabled={rubrosSeleccionados.length === 0 || saveRubrosMutation.isPending}
+                  >
+                    <Save size={13} />
+                    {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
