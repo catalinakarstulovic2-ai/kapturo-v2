@@ -453,7 +453,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                     <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
                       {/* Cabecera del acordeón */}
                       <button
-                        className="w-full flex items-center justify-between px-4 py-3.5 bg-white active:bg-gray-50"
+                        className="w-full flex items-center justify-between px-3 py-2.5 bg-white active:bg-gray-50"
                         onClick={() => setCategoriaAbierta(abierta ? null : categoria)}
                       >
                         <div className="flex items-center gap-2">
@@ -471,9 +471,8 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                       {/* Checklist desplegable */}
                       {abierta && (
                         <div className="border-t border-gray-100 bg-gray-50">
-                          {/* Seleccionar todos los de esta categoría */}
-                          <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
-                            <span className="text-xs text-gray-500">Seleccionar categoría</span>
+                          <div className="px-3 py-1.5 border-b border-gray-100 flex justify-between items-center">
+                            <span className="text-xs text-gray-400">Categoría</span>
                             <button
                               className="text-xs text-violet-500 font-medium"
                               onClick={() => {
@@ -487,26 +486,27 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                               {todosSeleccionados ? 'Desmarcar todos' : 'Marcar todos'}
                             </button>
                           </div>
-                          {/* Items con checkbox */}
-                          {disponibles.map(r => {
-                            const activo = rubrosSeleccionados.includes(r)
-                            return (
-                              <button
-                                key={r}
-                                onClick={() => setRubrosSeleccionados(prev =>
-                                  prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
-                                )}
-                                className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-violet-50 border-b border-gray-100 last:border-0"
-                              >
-                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                  activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'
-                                }`}>
-                                  {activo && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                </div>
-                                <span className={`text-sm capitalize ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
-                              </button>
-                            )
-                          })}
+                          <div className="grid grid-cols-2">
+                            {disponibles.map(r => {
+                              const activo = rubrosSeleccionados.includes(r)
+                              return (
+                                <button
+                                  key={r}
+                                  onClick={() => setRubrosSeleccionados(prev =>
+                                    prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                                  )}
+                                  className="flex items-center gap-2 px-3 py-2 text-left active:bg-violet-50 border-b border-r border-gray-100"
+                                >
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                    activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'
+                                  }`}>
+                                    {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  </div>
+                                  <span className={`text-xs capitalize truncate ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
