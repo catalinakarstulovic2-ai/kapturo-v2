@@ -13,6 +13,7 @@ ENUM_MIGRATIONS = [
     ("moduletype", "prospector"),
     ("moduletype", "inmobiliaria"),
     ("moduletype", "licitador"),
+    ("moduletype", "kapturo_ventas"),
 ]
 
 print("Migrando enums...")

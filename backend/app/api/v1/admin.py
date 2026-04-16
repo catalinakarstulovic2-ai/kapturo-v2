@@ -66,8 +66,10 @@ class ActualizarPlanRequest(BaseModel):
 
 
 class AsignarModuloRequest(BaseModel):
-    module: ModuleType
+    module: str  # str para no depender del enum Python en producción
     config: Optional[str] = None  # JSON string con config específica del módulo
+
+VALID_MODULES = {'licitador', 'licitaciones', 'prospector', 'inmobiliaria', 'adjudicadas', 'kapturo_ventas'}
 
 
 # ── Tenants ────────────────────────────────────────────────────────────────────
@@ -303,29 +305,46 @@ def asignar_modulo(
     db: Session = Depends(get_db),
 ):
     """Activa un módulo para un tenant específico."""
+    module_str = data.module.strip().lower()
+    if module_str not in VALID_MODULES:
+        raise HTTPException(status_code=422, detail=f"Módulo '{module_str}' no válido. Opciones: {sorted(VALID_MODULES)}")
+
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
 
-    existente = db.query(TenantModule).filter(
-        TenantModule.tenant_id == tenant_id,
-        TenantModule.module == data.module,
-    ).first()
+    # Primero: asegurar que el valor exista en el enum PostgreSQL
+    try:
+        with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
+            from sqlalchemy import text as sqla_text
+            raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{module_str}'"))
+    except Exception:
+        pass  # Si ya existe o falla, seguir
 
-    if existente:
-        existente.is_active = True
-        existente.config = data.config
-    else:
-        modulo = TenantModule(
-            tenant_id=tenant_id,
-            module=data.module,
-            is_active=True,
-            config=data.config,
+    # Buscar si ya existe usando SQL para evitar validación de enum
+    from sqlalchemy import text as sqla_text
+    existente_row = db.execute(
+        sqla_text("SELECT id, is_active FROM tenant_modules WHERE tenant_id = :tid AND module::text = :mod"),
+        {"tid": tenant_id, "mod": module_str}
+    ).fetchone()
+
+    if existente_row:
+        db.execute(
+            sqla_text("UPDATE tenant_modules SET is_active = true WHERE id = :id"),
+            {"id": existente_row[0]}
         )
-        db.add(modulo)
+    else:
+        import uuid as _uuid
+        db.execute(
+            sqla_text(
+                "INSERT INTO tenant_modules (id, tenant_id, module, is_active, activated_at) "
+                "VALUES (:id, :tid, :mod::moduletype, true, now())"
+            ),
+            {"id": str(_uuid.uuid4()), "tid": tenant_id, "mod": module_str}
+        )
 
     db.commit()
-    return {"tenant_id": tenant_id, "module": data.module, "is_active": True}
+    return {"tenant_id": tenant_id, "module": module_str, "is_active": True}
 
 
 @router.put("/tenants/{tenant_id}/modules/{module_id}")
