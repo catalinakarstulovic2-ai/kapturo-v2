@@ -11,6 +11,20 @@ import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
 const MODULES = ['licitaciones', 'prospector', 'inmobiliaria', 'adjudicadas'] as const
+
+// Categorías de rubros para Mercado Público
+const RUBROS_CATEGORIAS: Record<string, string[]> = {
+  '🏥 Salud': ['salud', 'farmacéutico', 'médico', 'laboratorio', 'hospitalario', 'veterinario'],
+  '🏗️ Construcción': ['construcción', 'infraestructura', 'obras civiles', 'arquitectura'],
+  '💻 Tecnología': ['tecnología', 'informática', 'software', 'telecomunicaciones'],
+  '📚 Educación': ['educación', 'capacitación', 'deportes'],
+  '🚛 Logística': ['transporte', 'logística', 'vehículos'],
+  '🧹 Mantención': ['mantención', 'aseo', 'limpieza', 'residuos'],
+  '🏭 Industria': ['maquinaria', 'minería', 'agrícola', 'forestal', 'energía', 'combustible'],
+  '💼 Servicios': ['consultoría', 'jurídico', 'recursos humanos', 'seguros', 'marketing'],
+  '🍽️ Suministros': ['alimentos', 'vestuario', 'uniformes', 'mobiliario', 'hotelería', 'imprenta'],
+  '🔒 Seguridad': ['seguridad'],
+}
 const MODULE_LABELS: Record<string, string> = {
   licitaciones: 'Licitaciones',
   prospector:   'Prospección B2B',
@@ -32,7 +46,7 @@ function Badge({ active }: { active: boolean }) {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-base">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -416,50 +430,89 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             <p className="text-sm text-gray-400">Cargando rubros...</p>
           ) : (
             <div className="space-y-4">
-              {/* Header info + acciones rápidas */}
+              {/* Header */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Selecciona los rubros visibles para este cliente.</p>
-                <div className="flex gap-2">
-                  <button
-                    className="text-xs text-violet-500 hover:text-violet-700 underline"
-                    onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
-                  >
-                    Seleccionar todos
+                <p className="text-xs text-gray-500">
+                  Los rubros <span className="text-violet-600 font-medium">morados</span> ya están guardados para este cliente.
+                </p>
+                <div className="flex gap-3">
+                  <button className="text-xs text-violet-500 hover:text-violet-700 underline" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>
+                    Todos
                   </button>
-                  <span className="text-gray-300">|</span>
-                  <button
-                    className="text-xs text-gray-400 hover:text-gray-600 underline"
-                    onClick={() => setRubrosSeleccionados([])}
-                  >
-                    Limpiar
+                  <button className="text-xs text-gray-400 hover:text-gray-600 underline" onClick={() => setRubrosSeleccionados([])}>
+                    Ninguno
                   </button>
                 </div>
               </div>
 
-              {/* Grid de rubros */}
-              <div className="grid grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
-                {(rubrosData?.todos ?? []).map((r: string) => {
-                  const activo = rubrosSeleccionados.includes(r)
+              {/* Categorías */}
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
+                  // Solo mostrar categorías que tienen rubros en el catálogo
+                  const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
+                  if (disponibles.length === 0) return null
+                  const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
                   return (
-                    <button
-                      key={r}
-                      onClick={() => setRubrosSeleccionados(prev =>
-                        prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
-                      )}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors capitalize text-left ${
-                        activo
-                          ? 'bg-violet-600 text-white border-violet-600'
-                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-violet-300 hover:bg-violet-50'
-                      }`}
-                    >
-                      {r}
-                    </button>
+                    <div key={categoria}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs font-semibold text-gray-700">{categoria}</p>
+                        <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {disponibles.map(r => {
+                          const activo = rubrosSeleccionados.includes(r)
+                          const guardado = (rubrosData?.habilitados ?? []).includes(r)
+                          return (
+                            <button
+                              key={r}
+                              onClick={() => setRubrosSeleccionados(prev =>
+                                prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                              )}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+                                activo
+                                  ? 'bg-violet-600 text-white border-violet-600'
+                                  : guardado
+                                  ? 'bg-violet-50 text-violet-500 border-violet-300'
+                                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-violet-300'
+                              }`}
+                            >
+                              {r}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   )
                 })}
+                {/* Rubros sin categoría */}
+                {(() => {
+                  const categorizados = Object.values(RUBROS_CATEGORIAS).flat()
+                  const sinCategoria = (rubrosData?.todos ?? []).filter((r: string) => !categorizados.includes(r))
+                  if (sinCategoria.length === 0) return null
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs font-semibold text-gray-700">📦 Otros</p>
+                        <span className="text-xs text-gray-400">{sinCategoria.filter((r: string) => rubrosSeleccionados.includes(r)).length}/{sinCategoria.length}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sinCategoria.map((r: string) => {
+                          const activo = rubrosSeleccionados.includes(r)
+                          return (
+                            <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${activo ? 'bg-violet-600 text-white border-violet-600' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-violet-300'}`}>
+                              {r}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <p className="text-xs text-violet-600 font-medium">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
                 <div className="flex gap-2">
                   <button className="btn-ghost text-sm" onClick={() => setShowRubros(false)}>Cancelar</button>
