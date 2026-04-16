@@ -488,21 +488,24 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                   return (
                     <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
                       {/* Cabecera del acordeón */}
-                      <button
-                        className="w-full flex items-center justify-between px-3 py-2.5 bg-white active:bg-gray-50"
-                        onClick={() => setCategoriaAbierta(abierta ? null : categoria)}
-                      >
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center px-3 py-2.5 bg-white active:bg-gray-50">
+                        <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
                           <span className="text-sm font-medium text-gray-800">{categoria}</span>
                           {activosEnCategoria > 0 && (
                             <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>
                           )}
-                        </div>
+                        </button>
                         <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+                            onClick={() => { if (todosSeleccionados) { setRubrosSeleccionados(prev => prev.filter(r => !disponibles.includes(r))) } else { setRubrosSeleccionados(prev => Array.from(new Set([...prev, ...disponibles]))) } }}
+                          >
+                            {todosSeleccionados ? 'Desmarcar' : 'Seleccionar todos'}
+                          </button>
                           <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                          <ChevronDown size={16} className={`text-gray-400 transition-transform ${abierta ? 'rotate-180' : ''}`} />
+                          <ChevronDown size={16} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
                         </div>
-                      </button>
+                      </div>
 
                       {/* Checklist desplegable */}
                       {abierta && (
@@ -1017,16 +1020,22 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                             const abierta = categoriaAbierta === categoria
                             return (
                               <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                <button className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
-                                  <div className="flex items-center gap-2">
+                                <div className="flex items-center px-3 py-2 hover:bg-gray-50">
+                                  <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
                                     <span className="text-xs font-medium text-gray-800">{categoria}</span>
                                     {activosEnCategoria > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{activosEnCategoria}</span>}
-                                  </div>
-                                  <div className="flex items-center gap-1">
+                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+                                      onClick={e => { e.stopPropagation(); const todos = disponibles.filter(r => (rubrosData?.todos ?? []).includes(r)); const todosSelec = todos.every(r => rubrosSeleccionados.includes(r)); setRubrosSeleccionados(prev => todosSelec ? prev.filter(r => !todos.includes(r)) : Array.from(new Set([...prev, ...todos]))) }}
+                                    >
+                                      {disponibles.every(r => rubrosSeleccionados.includes(r)) ? 'Desmarcar' : 'Seleccionar todos'}
+                                    </button>
                                     <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${abierta ? 'rotate-180' : ''}`} />
+                                    <ChevronDown size={14} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
                                   </div>
-                                </button>
+                                </div>
                                 {abierta && (
                                   <div className="border-t border-gray-100 grid grid-cols-2 bg-gray-50">
                                     {disponibles.map(r => {
