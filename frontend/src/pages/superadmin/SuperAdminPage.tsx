@@ -723,7 +723,7 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
   const { data: rubrosData, isLoading: rubrosLoading } = useQuery({
     queryKey: ['admin-rubros', t.id],
     queryFn: () => api.get(`/admin/tenants/${t.id}/adjudicadas-rubros`).then(r => r.data),
-    enabled: showRubros,
+    enabled: expanded && (t.modulos_activos ?? []).includes('adjudicadas'),
   })
 
   useEffect(() => {
@@ -960,18 +960,35 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                   <div className="space-y-1.5">
                     {detail?.modulos?.length === 0 && <p className="text-xs text-gray-400 italic">Sin módulos</p>}
                     {detail?.modulos?.map((m: any) => (
-                      <div key={m.id} className="flex items-center gap-2">
-                        <span className="text-base">{MODULE_ICONS[m.module] ?? '📦'}</span>
-                        <span className="text-xs flex-1 text-gray-700">{MODULE_LABELS[m.module] ?? m.module}</span>
-                        {m.module === 'adjudicadas' && m.is_active && (
-                          <button onClick={() => { setShowRubros(v => !v); setBuscarRubro(''); setCategoriaAbierta(null) }} className="text-xs text-violet-500 hover:underline flex items-center gap-0.5">
-                            <SlidersHorizontal size={11} /> Rubros
+                      <>
+                        <div key={m.id} className="flex items-center gap-2">
+                          <span className="text-base">{MODULE_ICONS[m.module] ?? '📦'}</span>
+                          <span className="text-xs flex-1 text-gray-700">{MODULE_LABELS[m.module] ?? m.module}</span>
+                          {m.module === 'adjudicadas' && m.is_active && (
+                            <button onClick={() => { setShowRubros(v => !v); setBuscarRubro(''); setCategoriaAbierta(null) }} className="text-xs text-violet-500 hover:underline flex items-center gap-0.5">
+                              <SlidersHorizontal size={11} /> {showRubros ? 'Cerrar' : 'Editar rubros'}
+                            </button>
+                          )}
+                          <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
+                            {m.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
                           </button>
+                        </div>
+                        {m.module === 'adjudicadas' && m.is_active && (
+                          <div className="ml-6">
+                            {rubrosLoading && !rubrosData ? (
+                              <p className="text-xs text-gray-400 italic">Cargando rubros...</p>
+                            ) : rubrosData?.habilitados?.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {rubrosData.habilitados.map((r: string) => (
+                                  <span key={r} className="px-2 py-0.5 bg-violet-50 text-violet-600 text-xs rounded-full border border-violet-100 capitalize">{r}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-amber-500 italic">Sin rubros — haz click en "Editar rubros"</p>
+                            )}
+                          </div>
                         )}
-                        <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
-                          {m.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
-                        </button>
-                      </div>
+                      </>
                     ))}
                   </div>
                 </div>
