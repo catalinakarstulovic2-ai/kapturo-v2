@@ -950,35 +950,62 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                   <div className="divide-y divide-gray-100">
                     {!detail?.modulos?.length && <p className="text-xs text-gray-400 italic py-1">Sin módulos</p>}
                     {detail?.modulos?.map((m: any) => (
-                      <div key={m.id} className="py-1.5 space-y-1">
+                      <div key={m.id} className="py-2 space-y-2">
                         <div className="flex items-center gap-2">
                           <span>{MODULE_ICONS[m.module] ?? '📦'}</span>
                           <span className="text-xs flex-1 text-gray-700 font-medium">{MODULE_LABELS[m.module] ?? m.module}</span>
-                          {m.module === 'adjudicadas' && m.is_active && (
-                            <button
-                              onClick={() => { setShowRubros(true); setRubrosSeleccionados(rubrosData?.habilitados ?? []); setBuscarRubro(''); setCategoriaAbierta(null) }}
-                              className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-0.5 font-medium"
-                            >
-                              <SlidersHorizontal size={11} /> Rubros
-                            </button>
-                          )}
                           <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
                             {m.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
                           </button>
                         </div>
-                        {/* Rubros activos como chips debajo */}
+
+                        {/* ── Rubros seleccionables inline ── */}
                         {m.module === 'adjudicadas' && m.is_active && (
-                          rubrosLoading ? (
-                            <p className="text-xs text-gray-400 italic pl-1">cargando...</p>
-                          ) : rubrosData?.habilitados?.length > 0 ? (
-                            <div className="flex flex-wrap gap-1 pl-1">
-                              {rubrosData.habilitados.map((r: string) => (
-                                <span key={r} className="px-1.5 py-0.5 bg-violet-50 text-violet-600 text-xs rounded border border-violet-100 capitalize">{r}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-amber-400 italic pl-1">Sin rubros configurados</p>
-                          )
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rubros</p>
+                            {rubrosLoading ? (
+                              <p className="text-xs text-gray-400 italic">cargando...</p>
+                            ) : (
+                              <>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(rubrosData?.todos ?? []).map((r: string) => {
+                                    const activo = rubrosSeleccionados.includes(r)
+                                    return (
+                                      <button
+                                        key={r}
+                                        onClick={() => setRubrosSeleccionados(prev =>
+                                          prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                                        )}
+                                        className={`px-2 py-0.5 text-xs rounded-full border capitalize transition-colors ${
+                                          activo
+                                            ? 'bg-violet-600 text-white border-violet-600 font-medium'
+                                            : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                        }`}
+                                      >
+                                        {r}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                                {/* Guardar solo si hay cambios */}
+                                {JSON.stringify([...rubrosSeleccionados].sort()) !== JSON.stringify([...(rubrosData?.habilitados ?? [])].sort()) && (
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <span className="text-xs text-gray-400">{rubrosSeleccionados.length} seleccionados</span>
+                                    <button
+                                      className="ml-auto btn-primary text-xs py-1 px-3 flex items-center gap-1 disabled:opacity-40"
+                                      onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
+                                      disabled={saveRubrosMutation.isPending}
+                                    >
+                                      <Save size={11} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar'}
+                                    </button>
+                                    <button className="text-xs text-gray-400 hover:text-gray-600" onClick={() => setRubrosSeleccionados(rubrosData?.habilitados ?? [])}>
+                                      Descartar
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
