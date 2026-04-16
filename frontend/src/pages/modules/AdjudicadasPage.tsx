@@ -1061,7 +1061,7 @@ export default function AdjudicadasPage() {
       )}
 
       {/* Paginación — Adjudicadas */}
-      {pestana === 'adjudicadas' && totalResultados > 50 && (
+      {pestana === 'adjudicadas' && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
           <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
           <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
@@ -1254,7 +1254,7 @@ export default function AdjudicadasPage() {
       })()}
 
       {/* Paginación — Por adjudicarse */}
-      {pestana === 'por_adjudicarse' && totalResultados > 50 && (
+      {pestana === 'por_adjudicarse' && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
           <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
           <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
@@ -1415,7 +1415,7 @@ export default function AdjudicadasPage() {
       })()}
 
       {/* Paginación — Estados históricos */}
-      {(['cerrada', 'desierta', 'revocada', 'suspendida'] as Pestana[]).includes(pestana) && totalResultados > 50 && (
+      {(['cerrada', 'desierta', 'revocada', 'suspendida'] as Pestana[]).includes(pestana) && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
           <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
           <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
