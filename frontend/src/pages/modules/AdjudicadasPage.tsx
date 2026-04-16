@@ -1493,7 +1493,7 @@ export default function AdjudicadasPage() {
                             </td>
                           </tr>
                           )
-                        })()
+                        })()}
                       </>
                     )
                   })}
