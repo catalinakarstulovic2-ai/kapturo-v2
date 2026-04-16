@@ -680,16 +680,119 @@ const MODULE_ICONS: Record<string, string> = {
   kapturo_ventas: '💼',
 }
 
-function TenantCard({ t, onGestionar, onDelete }: { t: any; onGestionar: () => void; onDelete: () => void }) {
+function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
   const { startImpersonation } = useAuthStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
+
+  const [expanded, setExpanded] = useState(false)
   const [loadingUser, setLoadingUser] = useState<string | null>(null)
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.put(`/admin/tenants/${id}`, { is_active }),
+  // Edición nombre
+  const [editNombre, setEditNombre] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState(t.name)
+
+  // Modales internos
+  const [showCrearUser, setShowCrearUser] = useState(false)
+  const [showModulo, setShowModulo] = useState(false)
+  const [showPlan, setShowPlan] = useState(false)
+  const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'admin' })
+  const [selectedModulo, setSelectedModulo] = useState<string>(MODULES[0])
+  const [selectedPlanId, setSelectedPlanId] = useState('')
+
+  // Rubros inline
+  const [showRubros, setShowRubros] = useState(false)
+  const [rubrosSeleccionados, setRubrosSeleccionados] = useState<string[]>([])
+  const [buscarRubro, setBuscarRubro] = useState('')
+  const [categoriaAbierta, setCategoriaAbierta] = useState<string | null>(null)
+
+  // Fetch detalle cuando se expande
+  const { data: detail, isLoading: loadingDetail } = useQuery({
+    queryKey: ['admin-tenant', t.id],
+    queryFn: () => api.get(`/admin/tenants/${t.id}`).then(r => r.data),
+    enabled: expanded,
+  })
+  const { data: planesData } = useQuery({
+    queryKey: ['admin-plans'],
+    queryFn: () => api.get('/admin/plans').then(r => r.data),
+    enabled: expanded && showPlan,
+  })
+  const { data: rubrosData, isLoading: rubrosLoading } = useQuery({
+    queryKey: ['admin-rubros', t.id],
+    queryFn: () => api.get(`/admin/tenants/${t.id}/adjudicadas-rubros`).then(r => r.data),
+    enabled: showRubros,
+  })
+
+  useEffect(() => {
+    if (rubrosData?.habilitados) setRubrosSeleccionados(rubrosData.habilitados)
+  }, [rubrosData])
+
+  const modulosActivos: string[] = t.modulos_activos ?? []
+  const admins = (detail?.usuarios ?? t.usuarios ?? []).filter((u: any) => u.role === 'admin' && u.is_active)
+
+  // ── Mutations ──
+  const toggleTenantMutation = useMutation({
+    mutationFn: (is_active: boolean) => api.put(`/admin/tenants/${t.id}`, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenants'] }),
+  })
+  const renombrarMutation = useMutation({
+    mutationFn: (name: string) => api.put(`/admin/tenants/${t.id}`, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] })
+      qc.invalidateQueries({ queryKey: ['admin-tenants'] })
+      setEditNombre(false)
+    },
+  })
+  const asignarPlanMutation = useMutation({
+    mutationFn: (plan_id: string) => api.put(`/admin/tenants/${t.id}`, { plan_id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] })
+      qc.invalidateQueries({ queryKey: ['admin-tenants'] })
+      setShowPlan(false)
+    },
+  })
+  const crearUserMutation = useMutation({
+    mutationFn: (d: typeof userForm) => api.post('/admin/users', { ...d, tenant_id: t.id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] })
+      setShowCrearUser(false)
+      setUserForm({ email: '', full_name: '', password: '', role: 'admin' })
+    },
+  })
+  const toggleUserMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.put(`/admin/users/${id}`, { is_active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] }),
+  })
+  const asignarModuloMutation = useMutation({
+    mutationFn: (module: string) => api.post(`/admin/tenants/${t.id}/modules`, { module }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] })
+      qc.invalidateQueries({ queryKey: ['admin-tenants'] })
+      setShowModulo(false)
+    },
+    onError: (err: any) => {
+      const detail2 = err?.response?.data?.detail
+      const msg = !detail2 ? (err?.message ?? 'Error desconocido')
+        : typeof detail2 === 'string' ? detail2 : JSON.stringify(detail2)
+      alert(`Error al activar módulo:\n${msg}`)
+    },
+  })
+  const toggleModuloMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.put(`/admin/tenants/${t.id}/modules/${id}`, null, { params: { is_active } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tenant', t.id] })
+      qc.invalidateQueries({ queryKey: ['admin-tenants'] })
+    },
+  })
+  const saveRubrosMutation = useMutation({
+    mutationFn: (rubros: string[]) => api.put(`/admin/tenants/${t.id}/adjudicadas-rubros`, { rubros }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rubros', t.id] })
+      setShowRubros(false)
+    },
+    onError: (err: any) => alert(`Error: ${err?.response?.data?.detail ?? err?.message}`),
   })
 
   const verComo = async (userId: string, destino = '/dashboard') => {
@@ -702,114 +805,317 @@ function TenantCard({ t, onGestionar, onDelete }: { t: any; onGestionar: () => v
     finally { setLoadingUser(null) }
   }
 
-  const admins = t.usuarios?.filter((u: any) => u.role === 'admin' && u.is_active) ?? []
-  const modulosActivos: string[] = t.modulos_activos ?? []
-
   return (
-    <div className={`card p-5 space-y-4 border-l-4 ${t.is_active ? 'border-l-emerald-400' : 'border-l-gray-200'}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div className={`card border-l-4 transition-all ${t.is_active ? 'border-l-emerald-400' : 'border-l-gray-200'} ${expanded ? 'col-span-1 lg:col-span-2' : ''}`}>
+      {/* ── Header siempre visible (clickeable para expandir) ── */}
+      <div
+        className="p-4 flex items-start justify-between cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
+        onClick={() => setExpanded(e => !e)}
+      >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-gray-900 text-base truncate">{t.name}</h3>
             <Badge active={t.is_active} />
           </div>
           <p className="text-xs text-gray-400 mt-0.5">{t.slug} · {t.num_prospectos} prospectos</p>
-        </div>
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-          <button
-            title={t.is_active ? 'Desactivar tenant' : 'Activar tenant'}
-            onClick={() => toggleMutation.mutate({ id: t.id, is_active: !t.is_active })}
-            className="text-gray-300 hover:text-gray-600 p-1"
-          >
-            {t.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
-          </button>
-          <button onClick={onGestionar} title="Editar tenant" className="text-gray-300 hover:text-gray-600 p-1">
-            <Pencil size={15} />
-          </button>
-          <button onClick={onDelete} title="Eliminar" className="text-gray-300 hover:text-red-500 p-1">
-            <Trash2 size={15} />
-          </button>
-        </div>
-      </div>
-
-      {/* Módulos */}
-      <div>
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Módulos activos</p>
-        {modulosActivos.length === 0
-          ? <p className="text-xs text-gray-300 italic">Sin módulos asignados</p>
-          : (
-            <div className="flex flex-wrap gap-1.5">
+          {/* módulos como badges compactos */}
+          {modulosActivos.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
               {modulosActivos.map((m: string) => (
-                <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-medium rounded-full border border-violet-100">
-                  <span>{MODULE_ICONS[m] ?? '📦'}</span>
-                  {MODULE_LABELS[m] ?? m}
+                <span key={m} className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-100">
+                  {MODULE_ICONS[m] ?? '📦'} {MODULE_LABELS[m] ?? m}
                 </span>
               ))}
             </div>
-          )
-        }
+          )}
+        </div>
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <button
+            title={t.is_active ? 'Desactivar' : 'Activar'}
+            onClick={() => toggleTenantMutation.mutate(!t.is_active)}
+            className="p-1 text-gray-300 hover:text-gray-600"
+          >
+            {t.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
+          </button>
+          <button onClick={onDelete} className="p-1 text-gray-300 hover:text-red-500">
+            <Trash2 size={15} />
+          </button>
+          <ChevronDown size={16} className={`text-gray-400 transition-transform ml-1 ${expanded ? 'rotate-180' : ''}`} />
+        </div>
       </div>
 
-      {/* Acceso directo por admin */}
-      <div>
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Acceso directo</p>
-        {admins.length === 0
-          ? <p className="text-xs text-gray-300 italic">Sin admins disponibles</p>
-          : (
-            <div className="space-y-1.5">
-              {admins.map((u: any) => (
-                <div key={u.id} className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 truncate">{u.full_name}</p>
-                    <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    {modulosActivos.includes('adjudicadas') && (
-                      <button
-                        onClick={() => verComo(u.id, '/adjudicadas')}
-                        disabled={loadingUser === u.id}
-                        title="Ir a Mercado Público"
-                        className="flex items-center gap-1 px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg font-medium disabled:opacity-50"
-                      >
-                        {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : '🏆'}
-                      </button>
-                    )}
-                    {modulosActivos.includes('licitaciones') && (
-                      <button
-                        onClick={() => verComo(u.id, '/licitaciones')}
-                        disabled={loadingUser === u.id}
-                        title="Ir a Licitaciones"
-                        className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-medium disabled:opacity-50"
-                      >
-                        📄
-                      </button>
-                    )}
-                    {modulosActivos.includes('prospector') && (
-                      <button
-                        onClick={() => verComo(u.id, '/prospeccion')}
-                        disabled={loadingUser === u.id}
-                        title="Ir a Prospección"
-                        className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg font-medium disabled:opacity-50"
-                      >
-                        🔍
-                      </button>
-                    )}
-                    <button
-                      onClick={() => verComo(u.id, '/dashboard')}
-                      disabled={loadingUser === u.id}
-                      title="Ver como este admin"
-                      className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg font-medium disabled:opacity-50"
-                    >
-                      {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Ver</>}
+      {/* ── Panel expandido inline ── */}
+      {expanded && (
+        <div className="border-t border-gray-100 p-4 space-y-5">
+          {loadingDetail && !detail ? (
+            <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+              <Loader2 size={16} className="animate-spin" /> Cargando...
+            </div>
+          ) : (
+            <>
+              {/* Nombre */}
+              <div className="flex items-center gap-2">
+                {editNombre ? (
+                  <>
+                    <input
+                      className="input text-sm py-1.5 flex-1"
+                      value={nuevoNombre}
+                      onChange={e => setNuevoNombre(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && renombrarMutation.mutate(nuevoNombre)}
+                      autoFocus
+                    />
+                    <button className="btn-primary text-xs px-3" onClick={() => renombrarMutation.mutate(nuevoNombre)}>
+                      {renombrarMutation.isPending ? '...' : 'Guardar'}
+                    </button>
+                    <button className="btn-ghost text-xs" onClick={() => setEditNombre(false)}>Cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm text-gray-500">Nombre:</span>
+                    <span className="text-sm font-medium text-gray-900">{detail?.name ?? t.name}</span>
+                    <button onClick={() => { setNuevoNombre(detail?.name ?? t.name); setEditNombre(true) }} className="text-gray-400 hover:text-gray-600">
+                      <Pencil size={13} />
+                    </button>
+                  </>
+                )}
+                <span className="ml-auto text-xs text-gray-400">Plan: <strong className="text-gray-700">{detail?.plan?.name ?? 'Sin plan'}</strong></span>
+                <button className="text-xs text-brand-600 hover:underline" onClick={() => { setSelectedPlanId(detail?.plan?.id ?? ''); setShowPlan(true) }}>
+                  Cambiar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* ── Usuarios ── */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuarios ({detail?.usuarios?.length ?? 0})</p>
+                    <button onClick={() => setShowCrearUser(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                      <UserPlus size={12} /> Crear
                     </button>
                   </div>
+                  {showCrearUser && (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <input className="input text-xs py-1.5" placeholder="Nombre completo" value={userForm.full_name} onChange={e => setUserForm(f => ({ ...f, full_name: e.target.value }))} />
+                      <input className="input text-xs py-1.5" placeholder="Email" type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} />
+                      <input className="input text-xs py-1.5" placeholder="Contraseña" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
+                      <select className="input text-xs py-1.5" value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
+                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <div className="flex gap-2">
+                        <button className="btn-primary text-xs px-3 py-1.5 flex-1" onClick={() => crearUserMutation.mutate(userForm)} disabled={!userForm.email || !userForm.full_name || !userForm.password || crearUserMutation.isPending}>
+                          {crearUserMutation.isPending ? 'Creando...' : 'Crear usuario'}
+                        </button>
+                        <button className="btn-ghost text-xs" onClick={() => setShowCrearUser(false)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {detail?.usuarios?.length === 0 && <p className="text-xs text-gray-400 italic">Sin usuarios</p>}
+                    {detail?.usuarios?.map((u: any) => (
+                      <div key={u.id} className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{u.full_name}</p>
+                          <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="badge bg-gray-100 text-gray-500 capitalize text-xs">{u.role}</span>
+                          {u.role === 'admin' && (
+                            <button onClick={() => verComo(u.id)} disabled={loadingUser === u.id} title="Ver como" className="text-purple-400 hover:text-purple-600 disabled:opacity-40">
+                              {loadingUser === u.id ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
+                            </button>
+                          )}
+                          <button onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })} className="text-gray-300 hover:text-gray-600">
+                            {u.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )
-        }
-      </div>
+
+                {/* ── Módulos ── */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Módulos</p>
+                    <button onClick={() => setShowModulo(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                      <Package size={12} /> Activar
+                    </button>
+                  </div>
+                  {showModulo && (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <select className="input text-xs py-1.5" value={selectedModulo} onChange={e => setSelectedModulo(e.target.value)}>
+                        {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
+                      </select>
+                      <div className="flex gap-2">
+                        <button className="btn-primary text-xs px-3 py-1.5 flex-1" onClick={() => asignarModuloMutation.mutate(selectedModulo)} disabled={asignarModuloMutation.isPending}>
+                          {asignarModuloMutation.isPending ? 'Activando...' : 'Activar módulo'}
+                        </button>
+                        <button className="btn-ghost text-xs" onClick={() => setShowModulo(false)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {detail?.modulos?.length === 0 && <p className="text-xs text-gray-400 italic">Sin módulos</p>}
+                    {detail?.modulos?.map((m: any) => (
+                      <div key={m.id} className="flex items-center gap-2">
+                        <span className="text-base">{MODULE_ICONS[m.module] ?? '📦'}</span>
+                        <span className="text-xs flex-1 text-gray-700">{MODULE_LABELS[m.module] ?? m.module}</span>
+                        {m.module === 'adjudicadas' && m.is_active && (
+                          <button onClick={() => { setShowRubros(v => !v); setBuscarRubro(''); setCategoriaAbierta(null) }} className="text-xs text-violet-500 hover:underline flex items-center gap-0.5">
+                            <SlidersHorizontal size={11} /> Rubros
+                          </button>
+                        )}
+                        <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
+                          {m.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Rubros inline (adjudicadas) ── */}
+              {showRubros && (
+                <div className="border border-violet-200 rounded-xl p-4 bg-violet-50/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-violet-800">Rubros habilitados</p>
+                    <button onClick={() => setShowRubros(false)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+                  </div>
+                  {rubrosLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 size={14} className="animate-spin" /> Cargando rubros...</div>
+                  ) : (
+                    <>
+                      <input type="text" placeholder="Buscar rubro..." value={buscarRubro} onChange={e => { setBuscarRubro(e.target.value); setCategoriaAbierta(null) }} className="input text-xs py-1.5" />
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
+                        <div className="flex gap-3">
+                          <button className="text-xs text-violet-500 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Todos</button>
+                          <button className="text-xs text-gray-400" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                        {buscarRubro.trim() ? (
+                          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                            {(rubrosData?.todos ?? []).filter((r: string) => r.toLowerCase().includes(buscarRubro.toLowerCase())).map((r: string) => {
+                              const activo = rubrosSeleccionados.includes(r)
+                              return (
+                                <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-left border-b border-gray-100 last:border-0 hover:bg-violet-50">
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                                    {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  </div>
+                                  <span className={`text-xs capitalize ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
+                            const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
+                            if (disponibles.length === 0) return null
+                            const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
+                            const abierta = categoriaAbierta === categoria
+                            return (
+                              <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                <button className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-800">{categoria}</span>
+                                    {activosEnCategoria > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{activosEnCategoria}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
+                                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${abierta ? 'rotate-180' : ''}`} />
+                                  </div>
+                                </button>
+                                {abierta && (
+                                  <div className="border-t border-gray-100 grid grid-cols-2 bg-gray-50">
+                                    {disponibles.map(r => {
+                                      const activo = rubrosSeleccionados.includes(r)
+                                      return (
+                                        <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                                          className="flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 border-b border-r border-gray-100">
+                                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                                            {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                          </div>
+                                          <span className={`text-xs capitalize truncate ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button className="btn-ghost text-xs flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
+                        <button className="btn-primary text-xs flex-1 flex items-center justify-center gap-1 disabled:opacity-40"
+                          onClick={() => { if (rubrosSeleccionados.length === 0) { alert('Selecciona al menos 1 rubro'); return }; saveRubrosMutation.mutate(rubrosSeleccionados) }}
+                          disabled={saveRubrosMutation.isPending}>
+                          <Save size={12} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Acceso directo ── */}
+              {admins.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Acceso directo</p>
+                  <div className="space-y-1.5">
+                    {admins.map((u: any) => (
+                      <div key={u.id} className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-700 truncate">{u.full_name}</p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {modulosActivos.includes('adjudicadas') && (
+                            <button onClick={() => verComo(u.id, '/adjudicadas')} disabled={loadingUser === u.id} title="Mercado Público" className="px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg disabled:opacity-50">
+                              {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : '🏆'}
+                            </button>
+                          )}
+                          {modulosActivos.includes('licitaciones') && (
+                            <button onClick={() => verComo(u.id, '/licitaciones')} disabled={loadingUser === u.id} title="Licitaciones" className="px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg disabled:opacity-50">📄</button>
+                          )}
+                          {modulosActivos.includes('prospector') && (
+                            <button onClick={() => verComo(u.id, '/prospeccion')} disabled={loadingUser === u.id} title="Prospección" className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg disabled:opacity-50">🔍</button>
+                          )}
+                          <button onClick={() => verComo(u.id, '/dashboard')} disabled={loadingUser === u.id} className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                            {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Ver</>}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Modales secundarios (plan, asignar módulo, crear usuario) */}
+              {showPlan && (
+                <Modal title="Asignar plan" onClose={() => setShowPlan(false)}>
+                  <div className="space-y-3">
+                    <select className="input" value={selectedPlanId} onChange={e => setSelectedPlanId(e.target.value)}>
+                      <option value="">Sin plan</option>
+                      {planesData?.planes?.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name} — ${p.price_usd}/mes</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2 pt-1">
+                      <button className="btn-primary text-sm flex-1" onClick={() => asignarPlanMutation.mutate(selectedPlanId)} disabled={asignarPlanMutation.isPending}>
+                        {asignarPlanMutation.isPending ? 'Guardando...' : 'Guardar plan'}
+                      </button>
+                      <button className="btn-ghost text-sm" onClick={() => setShowPlan(false)}>Cancelar</button>
+                    </div>
+                  </div>
+                </Modal>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -818,7 +1124,6 @@ function TenantsTab() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ company_name: '', slug: '' })
-  const [detalle, setDetalle] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
 
   const deleteMutation = useMutation({
@@ -843,7 +1148,6 @@ function TenantsTab() {
   })
 
   if (isLoading) return <p className="text-gray-500 text-sm">Cargando tenants...</p>
-  if (detalle) return <TenantDetalle tenantId={detalle} onBack={() => setDetalle(null)} />
 
   return (
     <div className="space-y-4">
@@ -898,7 +1202,6 @@ function TenantsTab() {
           <TenantCard
             key={t.id}
             t={t}
-            onGestionar={() => setDetalle(t.id)}
             onDelete={() => setConfirmDelete(t)}
           />
         ))}
