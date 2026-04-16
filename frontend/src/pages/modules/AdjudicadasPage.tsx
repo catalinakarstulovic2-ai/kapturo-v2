@@ -159,10 +159,10 @@ export default function AdjudicadasPage() {
   const setF = (k: string) => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>
     storeFiltros({ [k]: e.target.value })
 
-  // Catálogo de rubros
+  // Catálogo de rubros — usa endpoint de adjudicadas que ya filtra por tenant
   const { data: catalogo } = useQuery<Catalogo>({
-    queryKey: ['licitaciones-catalogos'],
-    queryFn: () => api.get('/modules/licitaciones/catalogos').then(r => r.data),
+    queryKey: ['adjudicadas-catalogos'],
+    queryFn: () => api.get('/modules/adjudicadas/catalogos').then(r => r.data),
     staleTime: Infinity,
   })
 
@@ -319,13 +319,15 @@ export default function AdjudicadasPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <button
-            onClick={() => setMostrarConfig(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-          >
-            <Sparkles size={14} />
-            <span className="hidden sm:inline">Configurar módulo</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setMostrarConfig(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              <Sparkles size={14} />
+              <span className="hidden sm:inline">Configurar módulo</span>
+            </button>
+          )}
           <button
             onClick={() => navigate('/pipeline')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
