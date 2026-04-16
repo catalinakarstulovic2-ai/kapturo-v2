@@ -847,165 +847,177 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
         </div>
       </div>
 
-      {/* ── Panel expandido inline ── */}
+      {/* ── Panel expandido ── */}
       {expanded && (
-        <div className="border-t border-gray-100 p-4 space-y-5">
+        <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50/50">
           {loadingDetail && !detail ? (
-            <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
-              <Loader2 size={16} className="animate-spin" /> Cargando...
+            <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+              <Loader2 size={14} className="animate-spin" /> Cargando...
             </div>
           ) : (
             <>
-              {/* Nombre */}
-              <div className="flex items-center gap-2">
+              {/* ── Fila: nombre + plan ── */}
+              <div className="flex items-center gap-3 flex-wrap">
                 {editNombre ? (
                   <>
-                    <input
-                      className="input text-sm py-1.5 flex-1"
-                      value={nuevoNombre}
-                      onChange={e => setNuevoNombre(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && renombrarMutation.mutate(nuevoNombre)}
-                      autoFocus
-                    />
-                    <button className="btn-primary text-xs px-3" onClick={() => renombrarMutation.mutate(nuevoNombre)}>
-                      {renombrarMutation.isPending ? '...' : 'Guardar'}
-                    </button>
-                    <button className="btn-ghost text-xs" onClick={() => setEditNombre(false)}>Cancelar</button>
+                    <input className="input text-xs py-1 flex-1 min-w-0" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} onKeyDown={e => e.key === 'Enter' && renombrarMutation.mutate(nuevoNombre)} autoFocus />
+                    <button className="btn-primary text-xs px-2 py-1" onClick={() => renombrarMutation.mutate(nuevoNombre)}>{renombrarMutation.isPending ? '...' : 'Guardar'}</button>
+                    <button className="btn-ghost text-xs py-1" onClick={() => setEditNombre(false)}>Cancelar</button>
                   </>
                 ) : (
-                  <>
-                    <span className="text-sm text-gray-500">Nombre:</span>
-                    <span className="text-sm font-medium text-gray-900">{detail?.name ?? t.name}</span>
-                    <button onClick={() => { setNuevoNombre(detail?.name ?? t.name); setEditNombre(true) }} className="text-gray-400 hover:text-gray-600">
-                      <Pencil size={13} />
-                    </button>
-                  </>
+                  <button onClick={() => { setNuevoNombre(detail?.name ?? t.name); setEditNombre(true) }} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                    <Pencil size={11} /> Renombrar
+                  </button>
                 )}
-                <span className="ml-auto text-xs text-gray-400">Plan: <strong className="text-gray-700">{detail?.plan?.name ?? 'Sin plan'}</strong></span>
+                <span className="text-xs text-gray-400 ml-auto">
+                  Plan: <strong className="text-gray-700">{detail?.plan?.name ?? 'Sin plan'}</strong>
+                </span>
                 <button className="text-xs text-brand-600 hover:underline" onClick={() => { setSelectedPlanId(detail?.plan?.id ?? ''); setShowPlan(true) }}>
-                  Cambiar
+                  Cambiar plan
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* ── Usuarios ── */}
-                <div className="space-y-2">
+              {/* ── Grid: usuarios + módulos ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+                {/* Usuarios */}
+                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuarios ({detail?.usuarios?.length ?? 0})</p>
-                    <button onClick={() => setShowCrearUser(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-                      <UserPlus size={12} /> Crear
+                    <p className="text-xs font-semibold text-gray-600">👤 Usuarios ({detail?.usuarios?.length ?? 0})</p>
+                    <button onClick={() => setShowCrearUser(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5">
+                      <UserPlus size={11} /> Crear
                     </button>
                   </div>
                   {showCrearUser && (
-                    <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                      <input className="input text-xs py-1.5" placeholder="Nombre completo" value={userForm.full_name} onChange={e => setUserForm(f => ({ ...f, full_name: e.target.value }))} />
-                      <input className="input text-xs py-1.5" placeholder="Email" type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} />
-                      <input className="input text-xs py-1.5" placeholder="Contraseña" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
-                      <select className="input text-xs py-1.5" value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
+                    <div className="space-y-1.5 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <input className="input text-xs py-1" placeholder="Nombre" value={userForm.full_name} onChange={e => setUserForm(f => ({ ...f, full_name: e.target.value }))} />
+                      <input className="input text-xs py-1" placeholder="Email" type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} />
+                      <input className="input text-xs py-1" placeholder="Contraseña" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
+                      <select className="input text-xs py-1" value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
                         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
-                      <div className="flex gap-2">
-                        <button className="btn-primary text-xs px-3 py-1.5 flex-1" onClick={() => crearUserMutation.mutate(userForm)} disabled={!userForm.email || !userForm.full_name || !userForm.password || crearUserMutation.isPending}>
-                          {crearUserMutation.isPending ? 'Creando...' : 'Crear usuario'}
+                      <div className="flex gap-1.5">
+                        <button className="btn-primary text-xs py-1 px-2 flex-1" onClick={() => crearUserMutation.mutate(userForm)} disabled={!userForm.email || !userForm.full_name || !userForm.password || crearUserMutation.isPending}>
+                          {crearUserMutation.isPending ? '...' : 'Crear'}
                         </button>
-                        <button className="btn-ghost text-xs" onClick={() => setShowCrearUser(false)}>Cancelar</button>
+                        <button className="btn-ghost text-xs py-1" onClick={() => setShowCrearUser(false)}>Cancelar</button>
                       </div>
                     </div>
                   )}
-                  <div className="space-y-1.5">
-                    {detail?.usuarios?.length === 0 && <p className="text-xs text-gray-400 italic">Sin usuarios</p>}
+                  <div className="divide-y divide-gray-100">
+                    {!detail?.usuarios?.length && <p className="text-xs text-gray-400 italic py-1">Sin usuarios</p>}
                     {detail?.usuarios?.map((u: any) => (
-                      <div key={u.id} className="flex items-center gap-2">
+                      <div key={u.id} className="flex items-center gap-2 py-1.5">
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-gray-800 truncate">{u.full_name}</p>
                           <p className="text-xs text-gray-400 truncate">{u.email}</p>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="badge bg-gray-100 text-gray-500 capitalize text-xs">{u.role}</span>
-                          {u.role === 'admin' && (
-                            <button onClick={() => verComo(u.id)} disabled={loadingUser === u.id} title="Ver como" className="text-purple-400 hover:text-purple-600 disabled:opacity-40">
-                              {loadingUser === u.id ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
-                            </button>
-                          )}
-                          <button onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })} className="text-gray-300 hover:text-gray-600">
-                            {u.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
+                        <span className="text-xs text-gray-400 capitalize">{u.role}</span>
+                        {u.role === 'admin' && (
+                          <button onClick={() => verComo(u.id)} disabled={loadingUser === u.id} className="text-purple-400 hover:text-purple-600 disabled:opacity-40">
+                            {loadingUser === u.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
                           </button>
-                        </div>
+                        )}
+                        <button onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })} className="text-gray-300 hover:text-gray-600">
+                          {u.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
+                        </button>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* ── Módulos ── */}
-                <div className="space-y-2">
+                {/* Módulos */}
+                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Módulos</p>
-                    <button onClick={() => setShowModulo(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-                      <Package size={12} /> Activar
+                    <p className="text-xs font-semibold text-gray-600">📦 Módulos ({detail?.modulos?.length ?? 0})</p>
+                    <button onClick={() => setShowModulo(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5">
+                      <Package size={11} /> Activar
                     </button>
                   </div>
                   {showModulo && (
-                    <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                      <select className="input text-xs py-1.5" value={selectedModulo} onChange={e => setSelectedModulo(e.target.value)}>
+                    <div className="space-y-1.5 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <select className="input text-xs py-1" value={selectedModulo} onChange={e => setSelectedModulo(e.target.value)}>
                         {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
                       </select>
-                      <div className="flex gap-2">
-                        <button className="btn-primary text-xs px-3 py-1.5 flex-1" onClick={() => asignarModuloMutation.mutate(selectedModulo)} disabled={asignarModuloMutation.isPending}>
-                          {asignarModuloMutation.isPending ? 'Activando...' : 'Activar módulo'}
+                      <div className="flex gap-1.5">
+                        <button className="btn-primary text-xs py-1 px-2 flex-1" onClick={() => asignarModuloMutation.mutate(selectedModulo)} disabled={asignarModuloMutation.isPending}>
+                          {asignarModuloMutation.isPending ? '...' : 'Activar'}
                         </button>
-                        <button className="btn-ghost text-xs" onClick={() => setShowModulo(false)}>Cancelar</button>
+                        <button className="btn-ghost text-xs py-1" onClick={() => setShowModulo(false)}>Cancelar</button>
                       </div>
                     </div>
                   )}
-                  <div className="space-y-1.5">
-                    {detail?.modulos?.length === 0 && <p className="text-xs text-gray-400 italic">Sin módulos</p>}
+                  <div className="divide-y divide-gray-100">
+                    {!detail?.modulos?.length && <p className="text-xs text-gray-400 italic py-1">Sin módulos</p>}
                     {detail?.modulos?.map((m: any) => (
-                      <>
-                        <div key={m.id} className="flex items-center gap-2">
-                          <span className="text-base">{MODULE_ICONS[m.module] ?? '📦'}</span>
-                          <span className="text-xs flex-1 text-gray-700">{MODULE_LABELS[m.module] ?? m.module}</span>
+                      <div key={m.id} className="py-1.5 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span>{MODULE_ICONS[m.module] ?? '📦'}</span>
+                          <span className="text-xs flex-1 text-gray-700 font-medium">{MODULE_LABELS[m.module] ?? m.module}</span>
                           {m.module === 'adjudicadas' && m.is_active && (
-                            <button onClick={() => { setShowRubros(v => !v); setBuscarRubro(''); setCategoriaAbierta(null) }} className="text-xs text-violet-500 hover:underline flex items-center gap-0.5">
-                              <SlidersHorizontal size={11} /> {showRubros ? 'Cerrar' : 'Editar rubros'}
+                            <button
+                              onClick={() => { setShowRubros(true); setRubrosSeleccionados(rubrosData?.habilitados ?? []); setBuscarRubro(''); setCategoriaAbierta(null) }}
+                              className="text-xs text-violet-500 hover:text-violet-700 flex items-center gap-0.5 font-medium"
+                            >
+                              <SlidersHorizontal size={11} /> Rubros
                             </button>
                           )}
                           <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
-                            {m.is_active ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
+                            {m.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
                           </button>
                         </div>
+                        {/* Rubros activos como chips debajo */}
                         {m.module === 'adjudicadas' && m.is_active && (
-                          <div className="ml-6">
-                            {rubrosLoading && !rubrosData ? (
-                              <p className="text-xs text-gray-400 italic">Cargando rubros...</p>
-                            ) : rubrosData?.habilitados?.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {rubrosData.habilitados.map((r: string) => (
-                                  <span key={r} className="px-2 py-0.5 bg-violet-50 text-violet-600 text-xs rounded-full border border-violet-100 capitalize">{r}</span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-amber-500 italic">Sin rubros — haz click en "Editar rubros"</p>
-                            )}
-                          </div>
+                          rubrosLoading ? (
+                            <p className="text-xs text-gray-400 italic pl-1">cargando...</p>
+                          ) : rubrosData?.habilitados?.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 pl-1">
+                              {rubrosData.habilitados.map((r: string) => (
+                                <span key={r} className="px-1.5 py-0.5 bg-violet-50 text-violet-600 text-xs rounded border border-violet-100 capitalize">{r}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-amber-400 italic pl-1">Sin rubros configurados</p>
+                          )
                         )}
-                      </>
+                      </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* ── Rubros inline (adjudicadas) ── */}
+              {/* ── Acceso directo ── */}
+              {admins.length > 0 && (
+                <div className="flex items-center gap-3 flex-wrap pt-1">
+                  <span className="text-xs text-gray-400 font-medium">Entrar como:</span>
+                  {admins.map((u: any) => (
+                    <div key={u.id} className="flex items-center gap-1">
+                      <span className="text-xs text-gray-600 mr-1">{u.full_name}</span>
+                      {modulosActivos.includes('adjudicadas') && (
+                        <button onClick={() => verComo(u.id, '/adjudicadas')} disabled={loadingUser === u.id} title="Mercado Público" className="px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg disabled:opacity-50">🏆</button>
+                      )}
+                      {modulosActivos.includes('licitaciones') && (
+                        <button onClick={() => verComo(u.id, '/licitaciones')} disabled={loadingUser === u.id} title="Licitaciones" className="px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg disabled:opacity-50">📄</button>
+                      )}
+                      {modulosActivos.includes('prospector') && (
+                        <button onClick={() => verComo(u.id, '/prospeccion')} disabled={loadingUser === u.id} title="Prospección" className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg disabled:opacity-50">🔍</button>
+                      )}
+                      <button onClick={() => verComo(u.id, '/dashboard')} disabled={loadingUser === u.id} className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                        {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Dashboard</>}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Modales secundarios (plan, rubros) */}
               {showRubros && (
-                <div className="border border-violet-200 rounded-xl p-4 bg-violet-50/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-violet-800">Rubros habilitados</p>
-                    <button onClick={() => setShowRubros(false)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-                  </div>
+                <Modal title={`Rubros — ${t.name}`} onClose={() => setShowRubros(false)}>
                   {rubrosLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 size={14} className="animate-spin" /> Cargando rubros...</div>
+                    <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Cargando...</div>
                   ) : (
-                    <>
-                      <input type="text" placeholder="Buscar rubro..." value={buscarRubro} onChange={e => { setBuscarRubro(e.target.value); setCategoriaAbierta(null) }} className="input text-xs py-1.5" />
+                    <div className="space-y-3">
+                      <input type="text" placeholder="Buscar rubro..." value={buscarRubro} onChange={e => { setBuscarRubro(e.target.value); setCategoriaAbierta(null) }} className="input text-sm py-2" />
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
                         <div className="flex gap-3">
@@ -1013,14 +1025,14 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                           <button className="text-xs text-gray-400" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
                         </div>
                       </div>
-                      <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
                         {buscarRubro.trim() ? (
-                          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                          <div className="border border-gray-200 rounded-xl overflow-hidden">
                             {(rubrosData?.todos ?? []).filter((r: string) => r.toLowerCase().includes(buscarRubro.toLowerCase())).map((r: string) => {
                               const activo = rubrosSeleccionados.includes(r)
                               return (
                                 <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-left border-b border-gray-100 last:border-0 hover:bg-violet-50">
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-b border-gray-100 last:border-0 hover:bg-violet-50">
                                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
                                     {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                   </div>
@@ -1029,97 +1041,59 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
                               )
                             })}
                           </div>
-                        ) : (
-                          Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
-                            const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
-                            if (disponibles.length === 0) return null
-                            const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
-                            const abierta = categoriaAbierta === categoria
-                            return (
-                              <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                <div className="flex items-center px-3 py-2 hover:bg-gray-50">
-                                  <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
-                                    <span className="text-xs font-medium text-gray-800">{categoria}</span>
-                                    {activosEnCategoria > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{activosEnCategoria}</span>}
+                        ) : Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
+                          const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
+                          if (disponibles.length === 0) return null
+                          const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
+                          const abierta = categoriaAbierta === categoria
+                          return (
+                            <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
+                              <div className="flex items-center px-3 py-2.5 bg-white hover:bg-gray-50">
+                                <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
+                                  <span className="text-sm font-medium text-gray-800">{categoria}</span>
+                                  {activosEnCategoria > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>}
+                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+                                    onClick={e => { e.stopPropagation(); const todosSelec = disponibles.every(r => rubrosSeleccionados.includes(r)); setRubrosSeleccionados(prev => todosSelec ? prev.filter(r => !disponibles.includes(r)) : Array.from(new Set([...prev, ...disponibles]))) }}>
+                                    {disponibles.every(r => rubrosSeleccionados.includes(r)) ? 'Desmarcar' : 'Seleccionar todos'}
                                   </button>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
-                                      onClick={e => { e.stopPropagation(); const todos = disponibles.filter(r => (rubrosData?.todos ?? []).includes(r)); const todosSelec = todos.every(r => rubrosSeleccionados.includes(r)); setRubrosSeleccionados(prev => todosSelec ? prev.filter(r => !todos.includes(r)) : Array.from(new Set([...prev, ...todos]))) }}
-                                    >
-                                      {disponibles.every(r => rubrosSeleccionados.includes(r)) ? 'Desmarcar' : 'Seleccionar todos'}
-                                    </button>
-                                    <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                                    <ChevronDown size={14} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
-                                  </div>
+                                  <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
+                                  <ChevronDown size={14} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
                                 </div>
-                                {abierta && (
-                                  <div className="border-t border-gray-100 grid grid-cols-2 bg-gray-50">
-                                    {disponibles.map(r => {
-                                      const activo = rubrosSeleccionados.includes(r)
-                                      return (
-                                        <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
-                                          className="flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 border-b border-r border-gray-100">
-                                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
-                                            {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                          </div>
-                                          <span className={`text-xs capitalize truncate ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                )}
                               </div>
-                            )
-                          })
-                        )}
+                              {abierta && (
+                                <div className="border-t border-gray-100 grid grid-cols-2 bg-gray-50">
+                                  {disponibles.map(r => {
+                                    const activo = rubrosSeleccionados.includes(r)
+                                    return (
+                                      <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                                        className="flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 border-b border-r border-gray-100">
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                                          {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                        </div>
+                                        <span className={`text-xs capitalize truncate ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
-                      <div className="flex gap-2 pt-1">
-                        <button className="btn-ghost text-xs flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
-                        <button className="btn-primary text-xs flex-1 flex items-center justify-center gap-1 disabled:opacity-40"
-                          onClick={() => { if (rubrosSeleccionados.length === 0) { alert('Selecciona al menos 1 rubro'); return }; saveRubrosMutation.mutate(rubrosSeleccionados) }}
+                      <div className="flex gap-2 pt-2 border-t border-gray-100">
+                        <button className="btn-ghost text-sm flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
+                        <button className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
+                          onClick={() => { if (!rubrosSeleccionados.length) { alert('Selecciona al menos 1 rubro'); return }; saveRubrosMutation.mutate(rubrosSeleccionados) }}
                           disabled={saveRubrosMutation.isPending}>
-                          <Save size={12} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
+                          <Save size={13} /> {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
                         </button>
                       </div>
-                    </>
+                    </div>
                   )}
-                </div>
+                </Modal>
               )}
-
-              {/* ── Acceso directo ── */}
-              {admins.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Acceso directo</p>
-                  <div className="space-y-1.5">
-                    {admins.map((u: any) => (
-                      <div key={u.id} className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-700 truncate">{u.full_name}</p>
-                        </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {modulosActivos.includes('adjudicadas') && (
-                            <button onClick={() => verComo(u.id, '/adjudicadas')} disabled={loadingUser === u.id} title="Mercado Público" className="px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg disabled:opacity-50">
-                              {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : '🏆'}
-                            </button>
-                          )}
-                          {modulosActivos.includes('licitaciones') && (
-                            <button onClick={() => verComo(u.id, '/licitaciones')} disabled={loadingUser === u.id} title="Licitaciones" className="px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg disabled:opacity-50">📄</button>
-                          )}
-                          {modulosActivos.includes('prospector') && (
-                            <button onClick={() => verComo(u.id, '/prospeccion')} disabled={loadingUser === u.id} title="Prospección" className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg disabled:opacity-50">🔍</button>
-                          )}
-                          <button onClick={() => verComo(u.id, '/dashboard')} disabled={loadingUser === u.id} className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg disabled:opacity-50">
-                            {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Ver</>}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Modales secundarios (plan, asignar módulo, crear usuario) */}
               {showPlan && (
                 <Modal title="Asignar plan" onClose={() => setShowPlan(false)}>
                   <div className="space-y-3">
