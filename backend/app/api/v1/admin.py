@@ -338,7 +338,7 @@ def asignar_modulo(
         db.execute(
             sqla_text(
                 "INSERT INTO tenant_modules (id, tenant_id, module, is_active, activated_at) "
-                "VALUES (:id, :tid, :mod::moduletype, true, now())"
+                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, now())"
             ),
             {"id": str(_uuid.uuid4()), "tid": tenant_id, "mod": module_str}
         )
