@@ -43,76 +43,234 @@ const formatCLP = (n?: number | null) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n)
 }
 
-function KanbanCard({ card, isDragging, onClick, onDragStart, onDragEnd }: {
-  card: AdjCard; isDragging: boolean; onClick: () => void
+function KanbanCard({ card, isExpanded, isDragging, onToggle, onDragStart, onDragEnd, stages, onMoved }: {
+  card: AdjCard; isExpanded: boolean; isDragging: boolean
+  onToggle: () => void
   onDragStart: (e: React.DragEvent) => void; onDragEnd: () => void
+  stages: AdjStage[]; onMoved: () => void
 }) {
-  const numRaw = (card.whatsapp || card.phone || '').replace(/\D/g, '')
+  const [buscandoContacto, setBuscandoContacto] = useState(false)
+  const [contactoLocal, setContactoLocal] = useState({
+    contact_name: card.contact_name,
+    email: card.email,
+    phone: card.phone,
+    whatsapp: card.whatsapp,
+    tiene_contacto: card.tiene_contacto,
+  })
+
+  const numRaw = (contactoLocal.whatsapp || contactoLocal.phone || '').replace(/\D/g, '')
   const numWA = numRaw.startsWith('56') ? numRaw : `56${numRaw}`
   const msgWA = encodeURIComponent(
     `Hola, somos de Kapturo. Felicitamos a ${card.empresa} por la adjudicacion de "${card.licitacion_nombre}". Nos gustaria presentarles nuestra propuesta de polizas de garantia. Tienen un momento para conversar?`
   )
+  const mailSubject = `Poliza de garantia — ${card.licitacion_nombre}`
+  const mailBody = `Estimado equipo de ${card.empresa},%0A%0AHemos visto que han sido adjudicados en el proyecto "${card.licitacion_nombre}".%0A%0AQuisieramos presentarles nuestra propuesta de polizas de garantia.%0A%0ASaludos`
+
+  const moverMutation = useMutation({
+    mutationFn: (etapaId: string) =>
+      api.patch(`/modules/adjudicadas/cards/${card.card_id}/etapa`, { etapa_id: etapaId }),
+    onSuccess: () => { onMoved(); toast.success('Etapa actualizada') },
+    onError: () => toast.error('Error al mover'),
+  })
+
+  const buscarContacto = async () => {
+    if (!card.empresa) return
+    setBuscandoContacto(true)
+    try {
+      const res = await api.get(`/modules/adjudicadas/contacto?nombre=${encodeURIComponent(card.empresa)}`)
+      const ct = res.data
+      if (ct.ok) {
+        const primer = ct.contactos?.[0]
+        await api.post(`/modules/adjudicadas/guardar/${card.codigo}`, {
+          contact_name: primer?.nombre || undefined,
+          email: primer?.email || undefined,
+          phone: ct.telefono || primer?.telefono || undefined,
+          whatsapp: ct.telefono || primer?.telefono || undefined,
+        })
+        setContactoLocal({
+          contact_name: primer?.nombre || null,
+          email: primer?.email || null,
+          phone: ct.telefono || primer?.telefono || null,
+          whatsapp: ct.telefono || primer?.telefono || null,
+          tiene_contacto: true,
+        })
+        onMoved()
+        toast.success('Contacto encontrado')
+      } else {
+        toast.error('No se encontraron datos de contacto')
+      }
+    } catch {
+      toast.error('Error buscando contacto')
+    } finally {
+      setBuscandoContacto(false)
+    }
+  }
+
+  const stageList = stages.map(s => ({ id: s.etapa_id, name: s.etapa_nombre, color: s.etapa_color }))
+  const monto = card.monto_adjudicado || 0
+
   return (
     <div
-      draggable
-      onDragStart={e => { e.stopPropagation(); onDragStart(e) }}
+      draggable={!isExpanded}
+      onDragStart={e => { if (!isExpanded) { e.stopPropagation(); onDragStart(e) } }}
       onDragEnd={onDragEnd}
-      onClick={onClick}
       className={clsx(
-        'bg-white rounded-xl border border-gray-200 p-3 cursor-grab select-none',
-        'hover:shadow-sm hover:border-violet-200 transition-all duration-150',
+        'bg-white rounded-xl border transition-all duration-200 select-none',
+        isExpanded
+          ? 'border-violet-300 shadow-md ring-1 ring-violet-100'
+          : 'border-gray-200 cursor-grab hover:shadow-sm hover:border-violet-200',
         isDragging && 'opacity-30 scale-95 cursor-grabbing ring-2 ring-violet-300'
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{card.empresa}</p>
-          {card.rut && <p className="text-[11px] text-gray-400 font-mono mt-0.5">{card.rut}</p>}
+      {/* Header siempre visible — click para expandir */}
+      <div className="p-3 cursor-pointer" onClick={onToggle}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{card.empresa}</p>
+            {card.rut && <p className="text-[11px] text-gray-400 font-mono mt-0.5">{card.rut}</p>}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className={clsx('w-2 h-2 rounded-full border',
+                card.tiene_contacto ? 'bg-emerald-400 border-emerald-300' : 'bg-gray-200 border-gray-100'
+              )}
+            />
+            <ChevronRight size={13} className={clsx('text-gray-400 transition-transform duration-200', isExpanded && 'rotate-90')} />
+          </div>
         </div>
-        <span
-          className={clsx('w-2.5 h-2.5 rounded-full shrink-0 mt-1 border',
-            card.tiene_contacto ? 'bg-emerald-400 border-emerald-300' : 'bg-gray-200 border-gray-100'
-          )}
-          title={card.tiene_contacto ? 'Con contacto' : 'Sin contacto'}
-        />
-      </div>
-      {(card.licitacion_nombre || card.nombre) && (
-        <p className="text-[11px] text-gray-500 line-clamp-2 mt-1.5 leading-relaxed">
-          {card.licitacion_nombre || card.nombre}
-        </p>
-      )}
-      {card.monto_adjudicado > 0 && (
-        <div className="flex items-center gap-2 mt-2 text-[11px]">
-          <span className="font-semibold text-gray-700">{formatCLP(card.monto_adjudicado)}</span>
-          <span className="text-blue-500">S: {formatCLP(card.poliza_seriedad)}</span>
-        </div>
-      )}
-      <div className="flex gap-1.5 mt-2 pt-2 border-t border-gray-50">
-        {numRaw ? (
-          <a
-            href={`https://wa.me/${numWA}?text=${msgWA}`}
-            target="_blank" rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-medium transition-colors"
-          >
-            <MessageCircle size={9} /> WA
-          </a>
-        ) : null}
-        {card.email ? (
-          <a
-            href={`mailto:${card.email}`}
-            onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-medium transition-colors"
-          >
-            <Mail size={9} /> Mail
-          </a>
-        ) : null}
-        {!numRaw && !card.email && (
-          <span className="text-[10px] text-gray-300 flex items-center gap-1 italic">
-            <Phone size={8} /> Sin contacto
-          </span>
+        {(card.licitacion_nombre || card.nombre) && (
+          <p className="text-[11px] text-gray-500 line-clamp-2 mt-1.5 leading-relaxed">
+            {card.licitacion_nombre || card.nombre}
+          </p>
+        )}
+        {monto > 0 && (
+          <div className="flex items-center gap-2 mt-1.5 text-[11px]">
+            <span className="font-semibold text-gray-700">{formatCLP(monto)}</span>
+            <span className="text-blue-500">S: {formatCLP(card.poliza_seriedad)}</span>
+          </div>
         )}
       </div>
+
+      {/* Detalle expandido */}
+      {isExpanded && (
+        <div className="border-t border-violet-100 px-3 pb-3 pt-3 space-y-3">
+
+          {/* Contactar */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Contactar</p>
+            <div className="flex gap-2">
+              {numRaw ? (
+                <a
+                  href={`https://wa.me/${numWA}?text=${msgWA}`}
+                  target="_blank" rel="noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+                >
+                  <MessageCircle size={12} /> WhatsApp
+                </a>
+              ) : (
+                <div className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 text-xs py-2 rounded-lg">
+                  <Phone size={12} /> Sin tel.
+                </div>
+              )}
+              {contactoLocal.email ? (
+                <a
+                  href={`mailto:${contactoLocal.email}?subject=${mailSubject}&body=${mailBody}`}
+                  onClick={e => e.stopPropagation()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold py-2 rounded-lg transition-colors"
+                >
+                  <Mail size={12} /> Email
+                </a>
+              ) : (
+                <div className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 text-xs py-2 rounded-lg">
+                  <Mail size={12} /> Sin email
+                </div>
+              )}
+            </div>
+            {contactoLocal.contact_name && (
+              <p className="text-[10px] text-gray-400 mt-1.5">👤 {contactoLocal.contact_name}</p>
+            )}
+            {!contactoLocal.tiene_contacto && (
+              <button
+                onClick={e => { e.stopPropagation(); buscarContacto() }}
+                disabled={buscandoContacto}
+                className="mt-1.5 w-full flex items-center justify-center gap-1.5 text-xs text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-60"
+              >
+                {buscandoContacto
+                  ? <><Loader2 size={11} className="animate-spin" /> Buscando…</>
+                  : <><Search size={11} /> Buscar contacto</>}
+              </button>
+            )}
+          </div>
+
+          {/* Licitación */}
+          <div className="bg-gray-50 rounded-lg p-2.5 space-y-1.5">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Licitación</p>
+            <p className="text-xs font-semibold text-gray-800 leading-snug">
+              {card.licitacion_nombre || card.nombre}
+            </p>
+            {card.organismo && (
+              <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                <Building2 size={9} className="text-gray-300 shrink-0" /> {card.organismo}
+              </p>
+            )}
+            {card.region && (
+              <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                <MapPin size={9} className="text-gray-300 shrink-0" /> {card.region}
+              </p>
+            )}
+            {card.fecha_adjudicacion && (
+              <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                <Calendar size={9} className="text-gray-300 shrink-0" /> {card.fecha_adjudicacion}
+              </p>
+            )}
+            {monto > 0 && (
+              <div className="grid grid-cols-3 gap-1.5 pt-1">
+                <div className="bg-white rounded-lg p-1.5 text-center border border-gray-100">
+                  <p className="text-[9px] text-gray-400">Monto</p>
+                  <p className="text-[10px] font-bold text-gray-700">{formatCLP(monto)}</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-1.5 text-center">
+                  <p className="text-[9px] text-blue-400">Seriedad</p>
+                  <p className="text-[10px] font-bold text-blue-700">{formatCLP(card.poliza_seriedad)}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-1.5 text-center">
+                  <p className="text-[9px] text-emerald-400">Cumpl.</p>
+                  <p className="text-[10px] font-bold text-emerald-700">{formatCLP(card.poliza_cumplimiento)}</p>
+                </div>
+              </div>
+            )}
+            {card.codigo && (
+              <a
+                href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${card.codigo}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[10px] text-violet-500 hover:text-violet-700 font-medium pt-0.5"
+              >
+                <ExternalLink size={9} /> Ver en Mercado Público
+              </a>
+            )}
+          </div>
+
+          {/* Cambiar etapa */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Mover a</p>
+            <div className="flex flex-wrap gap-1">
+              {stageList.map(s => (
+                <button
+                  key={s.id}
+                  onClick={e => { e.stopPropagation(); moverMutation.mutate(s.id) }}
+                  disabled={moverMutation.isPending}
+                  className="text-[10px] px-2 py-1 rounded-lg font-medium border transition-all disabled:opacity-50"
+                  style={{ backgroundColor: `${s.color}18`, borderColor: `${s.color}60`, color: s.color }}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -378,7 +536,7 @@ export default function PipelinePage() {
   const [rutFiltro, setRutFiltro] = useState('')
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
-  const [selectedCard, setSelectedCard] = useState<{ card: AdjCard; stageId: string } | null>(null)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   const { data: stages = [], isPending, isError, refetch } = useQuery<AdjStage[]>({
     queryKey: ['adjudicadas-pipeline', rutFiltro],
@@ -498,9 +656,8 @@ export default function PipelinePage() {
         </div>
       </div>
 
-      {/* Kanban + Panel — flex row solo aquí */}
-      <div className={selectedCard ? 'flex flex-col md:flex-row gap-4 md:items-start' : ''}>
-        <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-w-0 items-start">
+      {/* Kanban board */}
+      <div className="flex gap-4 overflow-x-auto pb-4 items-start">
           {stages.map(stage => {
           const isDragOver = dragOverStageId === stage.etapa_id
           const totalMonto = stage.cards.reduce((a, c) => a + (c.monto_adjudicado || 0), 0)
@@ -544,8 +701,11 @@ export default function PipelinePage() {
                   <KanbanCard
                     key={card.card_id}
                     card={card}
+                    isExpanded={expandedCardId === card.card_id}
                     isDragging={draggingCardId === card.card_id}
-                    onClick={() => setSelectedCard({ card, stageId: stage.etapa_id })}
+                    onToggle={() => setExpandedCardId(id => id === card.card_id ? null : card.card_id)}
+                    stages={stages}
+                    onMoved={() => qc.invalidateQueries({ queryKey: ['adjudicadas-pipeline'] })}
                     onDragStart={e => {
                       e.dataTransfer.setData('cardId', card.card_id)
                       setDraggingCardId(card.card_id)
@@ -563,17 +723,6 @@ export default function PipelinePage() {
           )
         })}
         </div>
-
-        {selectedCard && (
-          <CardPanel
-            card={selectedCard.card}
-            stages={stages}
-            currentStageId={selectedCard.stageId}
-            onClose={() => setSelectedCard(null)}
-            onRefresh={() => qc.invalidateQueries({ queryKey: ['adjudicadas-pipeline'] })}
-          />
-        )}
-      </div>
     </div>
   )
 }

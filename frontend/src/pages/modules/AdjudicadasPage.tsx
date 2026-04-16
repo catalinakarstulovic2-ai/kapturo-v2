@@ -464,7 +464,7 @@ export default function AdjudicadasPage() {
                     >
                       Todos
                     </button>
-                    {RUBRO_GRUPOS.map(g => {
+                    {RUBRO_GRUPOS.filter(g => g.rubros.filter(r => (catalogo?.rubros ?? []).includes(r)).length > 0).map(g => {
                       const disponibles = g.rubros.filter(r => (catalogo?.rubros ?? []).includes(r))
                       const sel = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
                       return (
@@ -843,9 +843,9 @@ export default function AdjudicadasPage() {
 
                                 {/* ── Col 1: Licitación ── */}
                                 <div className="pb-5 lg:pb-0 lg:pr-6 space-y-3">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-base">📄</span>
-                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Licitación</span>
+                                  <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-amber-200">
+                                    <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-sm">📄</span>
+                                    <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Licitación</span>
                                   </div>
 
                                   <div>
@@ -888,9 +888,9 @@ export default function AdjudicadasPage() {
 
                                 {/* ── Col 2: Empresa ── */}
                                 <div className="py-5 lg:py-0 lg:px-6 space-y-3">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-base">🏢</span>
-                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa adjudicada</span>
+                                  <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-violet-200">
+                                    <span className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-sm">🏢</span>
+                                    <span className="text-xs font-bold text-violet-700 uppercase tracking-wider">Empresa adjudicada</span>
                                   </div>
 
                                   <div>
@@ -969,9 +969,9 @@ export default function AdjudicadasPage() {
 
                                 {/* ── Col 3: Contactos ── */}
                                 <div className="pt-5 lg:pt-0 lg:pl-6 space-y-3">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-base">👤</span>
-                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Contactos</span>
+                                  <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-emerald-200">
+                                    <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">👤</span>
+                                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Contactos</span>
                                   </div>
 
                                   {ctLoading && (
