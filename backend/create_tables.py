@@ -16,16 +16,15 @@ ENUM_MIGRATIONS = [
 ]
 
 print("Migrando enums...")
-with engine.connect() as conn:
+with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
     for enum_name, value in ENUM_MIGRATIONS:
         try:
             conn.execute(text(
                 f"ALTER TYPE {enum_name} ADD VALUE IF NOT EXISTS '{value}'"
             ))
-            conn.commit()
+            print(f"  OK: {enum_name}.{value}")
         except Exception as e:
-            print(f"  (enum {enum_name}.{value}: {e})")
-            conn.rollback()
+            print(f"  SKIP: {enum_name}.{value}: {e}")
 print("Enums OK.")
 
 print("Creando tablas...")

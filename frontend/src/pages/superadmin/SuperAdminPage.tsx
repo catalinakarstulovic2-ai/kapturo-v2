@@ -178,7 +178,11 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       setShowModulo(false)
     },
     onError: (err: any) => {
-      alert(`Error al activar módulo: ${err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'}`)
+      const detail = err?.response?.data?.detail
+      const msg = !detail ? (err?.message ?? 'Error desconocido')
+        : typeof detail === 'string' ? detail
+        : JSON.stringify(detail)
+      alert(`Error al activar módulo:\n${msg}`)
     },
   })
   const toggleModuloMutation = useMutation({
@@ -186,7 +190,11 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       api.put(`/admin/tenants/${tenantId}/modules/${id}`, null, { params: { is_active } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenant', tenantId] }),
     onError: (err: any) => {
-      alert(`Error al cambiar estado del módulo: ${err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'}`)
+      const detail = err?.response?.data?.detail
+      const msg = !detail ? (err?.message ?? 'Error desconocido')
+        : typeof detail === 'string' ? detail
+        : JSON.stringify(detail)
+      alert(`Error al cambiar estado del módulo:\n${msg}`)
     },
   })
   const eliminarTenantMutation = useMutation({
