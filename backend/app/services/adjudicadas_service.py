@@ -454,12 +454,15 @@ class AdjudicadasService:
         """
         Búsqueda live para cualquier estado de licitación.
         Usado para: cerrada, desierta, revocada, suspendida.
-        Devuelve el mismo formato que get_por_adjudicarse_cached.
+
+        Fase 1: recolecta todos los códigos del listado (rápido).
+        Fase 2: carga detalles completos solo para la página actual (~50 llamadas).
+        Esto garantiza que organismo, región, monto y fechas estén completos.
         """
         from datetime import datetime as dt, timedelta
 
         POR_PAGINA  = 50
-        periodo     = min(int(filtros.get("periodo") or 30), 30)
+        periodo     = min(int(filtros.get("periodo") or 30), 180)
         region      = filtros.get("region")
         keyword_raw = (filtros.get("keyword") or "").lower().strip()
         keywords    = [k.strip() for k in keyword_raw.split(",") if k.strip()]
@@ -468,7 +471,8 @@ class AdjudicadasService:
         hoy   = dt.now()
         fechas = [(hoy - timedelta(days=i)).strftime("%d%m%Y") for i in range(1, periodo + 1)]
 
-        sem = asyncio.Semaphore(8)
+        # ── Fase 1: recolectar lista de ítems (sin detalle) ──────────────
+        sem = asyncio.Semaphore(10)
 
         async def fetch_dia(fecha: str) -> list[dict]:
             async with sem:
@@ -489,56 +493,67 @@ class AdjudicadasService:
                     vistos.add(cod)
                     todos.append(item)
 
+        # Filtro keyword sobre Nombre del listado (ligero, sin cargar detalle)
         if keywords:
             todos = [i for i in todos if any(kw in (i.get("Nombre") or "").lower() for kw in keywords)]
 
-        def _normalizar(item: dict) -> dict:
-            from datetime import datetime as dtt
-            fecha_raw = item.get("FechaCierre") or item.get("FechaPublicacion") or ""
-            fecha_cierre = None
-            for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y"):
-                try:
-                    fecha_cierre = dtt.strptime(fecha_raw, fmt).date().isoformat()
-                    break
-                except Exception:
-                    pass
-            monto_raw = 0
-            try:
-                monto_raw = float(item.get("Montos", {}).get("Total") or item.get("Monto") or 0)
-            except Exception:
-                pass
-            return {
-                "codigo":           item.get("CodigoExterno", ""),
-                "nombre":           item.get("Nombre", ""),
-                "organismo":        item.get("Comprador", {}).get("NombreOrganismo", ""),
-                "region":           item.get("Comprador", {}).get("Region", ""),
-                "fecha_cierre":     fecha_cierre,
-                "monto_estimado":   monto_raw,
-                "ofertantes":       [],
-                "ofertantes_count": 0,
-            }
-
-        resultados_todos = [r for r in (_normalizar(i) for i in todos) if r["codigo"]]
-
-        if monto_min:
-            resultados_todos = [r for r in resultados_todos if (r["monto_estimado"] or 0) >= monto_min]
-
-        # Post-filtro de región
-        region_keys = REGION_CODE_TO_KEYWORDS.get((region or "").strip(), [])
-        if region_keys:
-            resultados_todos = [
-                r for r in resultados_todos
-                if any(kw in (r["region"] or "").lower() for kw in region_keys)
-            ]
-
-        total  = len(resultados_todos)
+        total  = len(todos)
         inicio = (pagina - 1) * POR_PAGINA
+        codigos_pagina = [i["CodigoExterno"] for i in todos[inicio:inicio + POR_PAGINA]]
+
+        # ── Fase 2: cargar detalles completos para la página actual ──────
+        sem2 = asyncio.Semaphore(5)
+
+        async def fetch_detalle(codigo: str):
+            async with sem2:
+                for intento in range(3):
+                    try:
+                        return await self.client.obtener_detalle(codigo)
+                    except Exception:
+                        if intento < 2:
+                            await asyncio.sleep(0.8 * (intento + 1))
+                            continue
+                return None
+
+        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
+        detalles_ok = [d for d in detalles if d is not None]
+
+        # Normalizar con LicitacionNormalizada para extraer organismo, región,
+        # monto, fecha_estimada_adjudicacion, etc.
+        region_keys = REGION_CODE_TO_KEYWORDS.get((region or "").strip(), [])
+        resultados_pagina = []
+        for det in detalles_ok:
+            try:
+                n = LicitacionNormalizada(det, tipo_busqueda="licitador_a")
+                # Post-filtro región sobre texto real devuelto por la API
+                if region_keys:
+                    reg_text = (n.region or "").lower()
+                    if not any(kw in reg_text for kw in region_keys):
+                        continue
+                monto = n.monto or 0
+                if monto_min and monto < monto_min:
+                    continue
+                resultados_pagina.append({
+                    "codigo":                       n.codigo,
+                    "nombre":                       n.nombre,
+                    "organismo":                    n.organismo_nombre,
+                    "organismo_rut":                n.organismo_rut,
+                    "region":                       n.region,
+                    "fecha_cierre":                 n.fecha_cierre,
+                    "fecha_estimada_adjudicacion":  n.fecha_estimada_adjudicacion,
+                    "fecha_publicacion":            n.fecha_publicacion,
+                    "monto_estimado":               monto if monto else None,
+                    "ofertantes":                   [],
+                    "ofertantes_count":             0,
+                })
+            except Exception:
+                continue
 
         return {
             "total":      total,
             "pagina":     pagina,
             "por_pagina": POR_PAGINA,
-            "resultados": resultados_todos[inicio:inicio + POR_PAGINA],
+            "resultados": resultados_pagina,
         }
 
     async def guardar(self, codigo: str, contacto: dict | None = None):

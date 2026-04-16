@@ -61,8 +61,11 @@ interface PorAdjudicarsItem {
   codigo: string
   nombre: string
   organismo: string
+  organismo_rut?: string
   region: string
   fecha_cierre: string
+  fecha_estimada_adjudicacion?: string
+  fecha_publicacion?: string
   monto_estimado: number | null
   ofertantes: { rut?: string; nombre?: string; monto_oferta?: number }[]
   ofertantes_count: number
@@ -1309,7 +1312,11 @@ export default function AdjudicadasPage() {
                       <>
                         <tr key={item.codigo}
                           className={clsx('hover:bg-gray-50 cursor-pointer transition-colors', isExp && 'bg-gray-50/50')}
-                          onClick={() => setExpandedId(isExp ? null : item.codigo)}
+                          onClick={() => {
+                            const nuevoId = expandedId === item.codigo ? null : item.codigo
+                            setExpandedId(nuevoId)
+                            if (nuevoId && item.organismo) buscarContacto(item.codigo, item.organismo)
+                          }}
                         >
                           <td className="px-4 py-3 max-w-xs">
                             <div className="font-medium text-gray-900 line-clamp-2 leading-snug">{item.nombre}</div>
@@ -1327,14 +1334,18 @@ export default function AdjudicadasPage() {
                             {isExp ? <ChevronUp size={15} className="text-gray-400 ml-auto" /> : <ChevronDown size={15} className="text-gray-400 ml-auto" />}
                           </td>
                         </tr>
-                        {isExp && (
+                        {isExp && (() => {
+                          const ctData = contactoCache[item.codigo]
+                          const ctLoading = ctData === 'loading'
+                          const ct = (ctData && ctData !== 'loading') ? ctData as ContactoData : null
+                          return (
                           <tr key={`${item.codigo}-exp`}>
                             <td colSpan={6} className="p-0 border-b border-gray-100">
                               <div className="bg-white border-t-2 border-violet-100 px-6 py-5">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
 
                                   {/* Col 1: Detalles */}
-                                  <div className="space-y-3 lg:pr-6">
+                                  <div className="space-y-3 lg:pr-6 pb-5 lg:pb-0">
                                     <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-violet-200">
                                       <span className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-sm">📋</span>
                                       <span className="text-xs font-bold text-violet-700 uppercase tracking-wider">Licitación</span>
@@ -1368,7 +1379,7 @@ export default function AdjudicadasPage() {
                                   </div>
 
                                   {/* Col 2: Plazos y montos */}
-                                  <div className="space-y-3 lg:pl-6">
+                                  <div className="space-y-3 lg:px-6 py-5 lg:py-0">
                                     <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-gray-200">
                                       <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-sm">📊</span>
                                       <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Datos</span>
@@ -1385,6 +1396,12 @@ export default function AdjudicadasPage() {
                                         </p>
                                       </div>
                                     </div>
+                                    {item.fecha_estimada_adjudicacion && (
+                                      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                                        <p className="text-[10px] text-amber-500 uppercase font-medium mb-0.5">📅 Fecha estimada de adjudicación</p>
+                                        <p className="text-sm font-bold text-amber-700">{item.fecha_estimada_adjudicacion}</p>
+                                      </div>
+                                    )}
                                     {!!(item.monto_estimado && item.monto_estimado > 0) && (
                                       <div className="grid grid-cols-2 gap-3 bg-blue-50 rounded-xl p-3 border border-blue-100">
                                         <div>
@@ -1399,11 +1416,84 @@ export default function AdjudicadasPage() {
                                     )}
                                   </div>
 
+                                  {/* Col 3: Contacto del organismo */}
+                                  <div className="space-y-3 lg:pl-6 pt-5 lg:pt-0">
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-emerald-200">
+                                      <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏛️</span>
+                                      <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Contacto organismo</span>
+                                    </div>
+
+                                    {ctLoading && (
+                                      <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                                        <Loader2 size={11} className="animate-spin" /> Buscando información…
+                                      </div>
+                                    )}
+
+                                    {ct && ct.ok && (
+                                      <div className="space-y-2">
+                                        {ct.telefono && (
+                                          <a href={`tel:${ct.telefono}`} onClick={e => e.stopPropagation()}
+                                            className="flex items-center gap-2 text-xs text-gray-800 hover:text-brand-700 font-medium transition-colors">
+                                            <Phone size={12} className="text-gray-400 shrink-0" /> {ct.telefono}
+                                          </a>
+                                        )}
+                                        {ct.website && (
+                                          <a href={ct.website.startsWith('http') ? ct.website : `https://${ct.website}`} target="_blank" rel="noopener noreferrer"
+                                            onClick={e => e.stopPropagation()}
+                                            className="flex items-center gap-2 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+                                            <Globe size={12} className="shrink-0" /> {ct.website}
+                                          </a>
+                                        )}
+                                        {ct.direccion && (
+                                          <p className="flex items-start gap-2 text-xs text-gray-500">
+                                            <span className="shrink-0 mt-0.5 text-gray-400">📍</span> {ct.direccion}
+                                          </p>
+                                        )}
+                                        {ct.contactos && ct.contactos.length > 0 && (
+                                          <div className="space-y-2 pt-1 border-t border-gray-100">
+                                            {ct.contactos.map((c, i) => (
+                                              <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
+                                                <p className="text-xs font-semibold text-gray-900">{c.nombre || '—'}</p>
+                                                {c.cargo && <p className="text-[11px] text-gray-500">{c.cargo}</p>}
+                                                {c.email && (
+                                                  <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()}
+                                                    className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700">
+                                                    <Mail size={10} /> {c.email}
+                                                  </a>
+                                                )}
+                                                {c.telefono && (
+                                                  <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()}
+                                                    className="flex items-center gap-1.5 text-xs text-gray-600">
+                                                    <Phone size={10} /> {c.telefono}
+                                                  </a>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {ct && !ct.ok && (
+                                      <p className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</p>
+                                    )}
+
+                                    {!ctLoading && !ct && item.organismo && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); buscarContacto(item.codigo, item.organismo) }}
+                                        className="text-xs text-brand-600 hover:underline"
+                                      >
+                                        Buscar contacto
+                                      </button>
+                                    )}
+                                  </div>
+
                                 </div>
                               </div>
                             </td>
                           </tr>
-                        )}
+                          )
+                        })()
                       </>
                     )
                   })}

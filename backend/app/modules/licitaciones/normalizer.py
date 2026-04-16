@@ -68,6 +68,9 @@ class LicitacionNormalizada:
         self.fecha_adjudicacion = self._fmt_fecha(
             fechas.get("FechaAdjudicacion") or licitacion.get("FechaAdjudicacion", "")
         )
+        self.fecha_estimada_adjudicacion = self._fmt_fecha(
+            fechas.get("FechaEstimadaAdjudicacion") or licitacion.get("FechaEstimadaAdjudicacion", "")
+        )
 
         # ── Comprador / Organismo ──────────────────────────────────────────
         # En el detalle: licitacion["Comprador"] dict
@@ -172,6 +175,7 @@ class LicitacionNormalizada:
             "tipo": self.tipo,
             "fecha_cierre": self.fecha_cierre,
             "fecha_adjudicacion": self.fecha_adjudicacion,
+            "fecha_estimada_adjudicacion": self.fecha_estimada_adjudicacion,
             "fecha_publicacion": self.fecha_publicacion,
             # Contacto vacío por defecto (se llena si ya fue guardado)
             "prospect_id": None,
