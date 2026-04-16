@@ -115,6 +115,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   const [showRubros, setShowRubros] = useState(false)
   const [rubrosSeleccionados, setRubrosSeleccionados] = useState<string[]>([])
   const [categoriaAbierta, setCategoriaAbierta] = useState<string | null>(null)
+  const [buscarRubro, setBuscarRubro] = useState('')
 
   const { data: rubrosData, isLoading: rubrosLoading } = useQuery({
     queryKey: ['admin-rubros', tenantId],
@@ -431,6 +432,15 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             <p className="text-sm text-gray-400 py-4 text-center">Cargando rubros...</p>
           ) : (
             <div className="space-y-3">
+              {/* Buscador */}
+              <input
+                type="text"
+                placeholder="Buscar rubro..."
+                value={buscarRubro}
+                onChange={e => { setBuscarRubro(e.target.value); setCategoriaAbierta(null) }}
+                className="input text-sm py-2"
+              />
+
               {/* Header acciones rápidas */}
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
@@ -441,9 +451,32 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                 </div>
               </div>
 
-              {/* Accordion de categorías */}
-              <div className="space-y-1.5 max-h-[65vh] overflow-y-auto">
-                {Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
+              {/* Accordion de categorías / resultados búsqueda */}
+              <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
+                {buscarRubro.trim() ? (
+                  // Vista búsqueda: lista plana filtrada
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    {(rubrosData?.todos ?? [])
+                      .filter((r: string) => r.toLowerCase().includes(buscarRubro.toLowerCase()))
+                      .map((r: string) => {
+                        const activo = rubrosSeleccionados.includes(r)
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => setRubrosSeleccionados(prev =>
+                              prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                            )}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left active:bg-violet-50 border-b border-gray-100 last:border-0"
+                          >
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                              {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                            </div>
+                            <span className={`text-xs capitalize ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
+                          </button>
+                        )
+                      })}
+                  </div>
+                ) : (Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
                   const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
                   if (disponibles.length === 0) return null
                   const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
@@ -511,7 +544,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                       )}
                     </div>
                   )
-                })}
+                }))}
               </div>
 
               {/* Footer sticky */}
