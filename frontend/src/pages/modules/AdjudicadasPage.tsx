@@ -118,6 +118,7 @@ export default function AdjudicadasPage() {
 
   // Estado solo-UI (no necesita persistir)
   const [expandedId, setExpandedId]         = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const [showRubrosDropdown, setShowRubrosDropdown] = useState(false)
   const [buscarRubroQuery, setBuscarRubroQuery]     = useState('')
   const [categoriaActiva, setCategoriaActiva]       = useState<string | null>(null)
@@ -173,13 +174,16 @@ export default function AdjudicadasPage() {
   // Búsqueda
   const buscarMutation = useMutation({
     mutationFn: (pagina: number) => {
+      // Cancelar cualquier búsqueda anterior en vuelo
+      abortRef.current?.abort()
+      abortRef.current = new AbortController()
       const params = new URLSearchParams({ pestana, pagina: String(pagina) })
       if (filtros.region)       params.set('region', filtros.region)
       if (filtros.periodo)      params.set('periodo', filtros.periodo)
       if (filtros.monto_minimo) params.set('monto_minimo', filtros.monto_minimo)
       const kw = rubrosSeleccionados.length > 0 ? rubrosSeleccionados.join(',') : filtros.keyword
       if (kw) params.set('keyword', kw)
-      return api.get(`/modules/adjudicadas/preview?${params}`)
+      return api.get(`/modules/adjudicadas/preview?${params}`, { signal: abortRef.current.signal })
     },
     onSuccess: (res, pagina) => {
       const data  = res.data
@@ -191,6 +195,8 @@ export default function AdjudicadasPage() {
       toast.success(`${total.toLocaleString('es-CL')} licitaciones encontradas`)
     },
     onError: (err: any) => {
+      // Ignorar errores de cancelación (AbortController)
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
       const detail = err.response?.data?.detail
       const msg = Array.isArray(detail)
         ? detail[0]?.msg ?? 'Error de validación'

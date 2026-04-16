@@ -15,6 +15,10 @@ from app.modules.licitaciones.client import MercadoPublicoClient
 
 router = APIRouter(prefix="/modules/adjudicadas", tags=["adjudicadas"])
 
+# Lock por tenant: evita que el mismo tenant lance búsquedas simultáneas
+# que dispararían cientos de llamadas a la API de Mercado Público.
+_BUSQUEDAS_EN_VUELO: set[str] = set()
+
 
 class MoverEtapaRequest(BaseModel):
     etapa_id: str
@@ -102,37 +106,50 @@ async def preview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    svc = AdjudicadasService(db, current_user.tenant_id)
+    tenant_id = str(current_user.tenant_id)
 
-    # Si el usuario no mandó keyword, usar los rubros habilitados del tenant automáticamente
-    effective_keyword = keyword
-    if not effective_keyword:
-        tm = db.query(TenantModule).filter(
-            TenantModule.tenant_id == current_user.tenant_id,
-            TenantModule.module == ModuleType.adjudicadas,
-        ).first()
-        rubros_habilitados = ((tm.niche_config or {}).get("rubros_habilitados") if tm else None)
-        if rubros_habilitados:
-            effective_keyword = ",".join(rubros_habilitados)
+    # Rechazar si ya hay una búsqueda corriendo para este tenant
+    if tenant_id in _BUSQUEDAS_EN_VUELO:
+        raise HTTPException(
+            status_code=429,
+            detail="Ya hay una búsqueda en curso. Espera a que termine antes de lanzar otra."
+        )
 
-    filtros = {
-        "region": region,
-        "periodo": periodo,
-        "monto_minimo": monto_minimo,
-        "keyword": effective_keyword,
-    }
-    if pestana == "por_adjudicarse":
-        result = svc.get_por_adjudicarse_cached(filtros, pagina)
-        if result["total"] == 0:
-            live = await svc.buscar_por_adjudicarse_live(filtros, pagina)
-            live["_cache_empty"] = True
-            return live
-        return result
+    _BUSQUEDAS_EN_VUELO.add(tenant_id)
+    try:
+        svc = AdjudicadasService(db, tenant_id)
 
-    if pestana in ("cerrada", "desierta", "revocada", "suspendida"):
-        return await svc.buscar_por_estado_live(pestana, filtros, pagina)
+        # Si el usuario no mandó keyword, usar los rubros habilitados del tenant automáticamente
+        effective_keyword = keyword
+        if not effective_keyword:
+            tm = db.query(TenantModule).filter(
+                TenantModule.tenant_id == tenant_id,
+                TenantModule.module == ModuleType.adjudicadas,
+            ).first()
+            rubros_habilitados = ((tm.niche_config or {}).get("rubros_habilitados") if tm else None)
+            if rubros_habilitados:
+                effective_keyword = ",".join(rubros_habilitados)
 
-    return await svc.buscar_adjudicadas(filtros, pagina)
+        filtros = {
+            "region": region,
+            "periodo": periodo,
+            "monto_minimo": monto_minimo,
+            "keyword": effective_keyword,
+        }
+        if pestana == "por_adjudicarse":
+            result = svc.get_por_adjudicarse_cached(filtros, pagina)
+            if result["total"] == 0:
+                live = await svc.buscar_por_adjudicarse_live(filtros, pagina)
+                live["_cache_empty"] = True
+                return live
+            return result
+
+        if pestana in ("cerrada", "desierta", "revocada", "suspendida"):
+            return await svc.buscar_por_estado_live(pestana, filtros, pagina)
+
+        return await svc.buscar_adjudicadas(filtros, pagina)
+    finally:
+        _BUSQUEDAS_EN_VUELO.discard(tenant_id)
 
 
 @router.post("/guardar/{codigo}")
