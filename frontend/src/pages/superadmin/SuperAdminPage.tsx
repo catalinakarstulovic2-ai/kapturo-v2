@@ -5,7 +5,7 @@ import api from '../../api/client'
 import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
-  Eye, Loader2, DollarSign, SlidersHorizontal, RotateCcw,
+  Eye, Loader2, DollarSign, SlidersHorizontal, RotateCcw, ChevronDown,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
@@ -114,6 +114,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   const [impersonateLoading, setImpersonateLoading] = useState<Record<string, boolean>>({})
   const [showRubros, setShowRubros] = useState(false)
   const [rubrosSeleccionados, setRubrosSeleccionados] = useState<string[]>([])
+  const [categoriaAbierta, setCategoriaAbierta] = useState<string | null>(null)
 
   const { data: rubrosData, isLoading: rubrosLoading } = useQuery({
     queryKey: ['admin-rubros', tenantId],
@@ -427,104 +428,103 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       {showRubros && (
         <Modal title={`Rubros habilitados — ${t.name}`} onClose={() => setShowRubros(false)}>
           {rubrosLoading ? (
-            <p className="text-sm text-gray-400">Cargando rubros...</p>
+            <p className="text-sm text-gray-400 py-4 text-center">Cargando rubros...</p>
           ) : (
-            <div className="space-y-4">
-              {/* Header */}
+            <div className="space-y-3">
+              {/* Header acciones rápidas */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
-                  Los rubros <span className="text-violet-600 font-medium">morados</span> ya están guardados para este cliente.
-                </p>
+                <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
                 <div className="flex gap-3">
-                  <button className="text-xs text-violet-500 hover:text-violet-700 underline" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>
-                    Todos
-                  </button>
-                  <button className="text-xs text-gray-400 hover:text-gray-600 underline" onClick={() => setRubrosSeleccionados([])}>
-                    Ninguno
-                  </button>
+                  <button className="text-xs text-violet-500 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Seleccionar todos</button>
+                  <span className="text-gray-300">|</span>
+                  <button className="text-xs text-gray-400" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
                 </div>
               </div>
 
-              {/* Categorías */}
-              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {/* Accordion de categorías */}
+              <div className="space-y-1.5 max-h-[65vh] overflow-y-auto">
                 {Object.entries(RUBROS_CATEGORIAS).map(([categoria, rubrosDeCategoria]) => {
-                  // Solo mostrar categorías que tienen rubros en el catálogo
                   const disponibles = rubrosDeCategoria.filter(r => (rubrosData?.todos ?? []).includes(r))
                   if (disponibles.length === 0) return null
                   const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
+                  const abierta = categoriaAbierta === categoria
+                  const todosSeleccionados = activosEnCategoria === disponibles.length
                   return (
-                    <div key={categoria}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-xs font-semibold text-gray-700">{categoria}</p>
-                        <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {disponibles.map(r => {
-                          const activo = rubrosSeleccionados.includes(r)
-                          const guardado = (rubrosData?.habilitados ?? []).includes(r)
-                          return (
+                    <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
+                      {/* Cabecera del acordeón */}
+                      <button
+                        className="w-full flex items-center justify-between px-4 py-3.5 bg-white active:bg-gray-50"
+                        onClick={() => setCategoriaAbierta(abierta ? null : categoria)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-800">{categoria}</span>
+                          {activosEnCategoria > 0 && (
+                            <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
+                          <ChevronDown size={16} className={`text-gray-400 transition-transform ${abierta ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {/* Checklist desplegable */}
+                      {abierta && (
+                        <div className="border-t border-gray-100 bg-gray-50">
+                          {/* Seleccionar todos los de esta categoría */}
+                          <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                            <span className="text-xs text-gray-500">Seleccionar categoría</span>
                             <button
-                              key={r}
-                              onClick={() => setRubrosSeleccionados(prev =>
-                                prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
-                              )}
-                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
-                                activo
-                                  ? 'bg-violet-600 text-white border-violet-600'
-                                  : guardado
-                                  ? 'bg-violet-50 text-violet-500 border-violet-300'
-                                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-violet-300'
-                              }`}
+                              className="text-xs text-violet-500 font-medium"
+                              onClick={() => {
+                                if (todosSeleccionados) {
+                                  setRubrosSeleccionados(prev => prev.filter(r => !disponibles.includes(r)))
+                                } else {
+                                  setRubrosSeleccionados(prev => Array.from(new Set([...prev, ...disponibles])))
+                                }
+                              }}
                             >
-                              {r}
+                              {todosSeleccionados ? 'Desmarcar todos' : 'Marcar todos'}
                             </button>
-                          )
-                        })}
-                      </div>
+                          </div>
+                          {/* Items con checkbox */}
+                          {disponibles.map(r => {
+                            const activo = rubrosSeleccionados.includes(r)
+                            return (
+                              <button
+                                key={r}
+                                onClick={() => setRubrosSeleccionados(prev =>
+                                  prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                                )}
+                                className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-violet-50 border-b border-gray-100 last:border-0"
+                              >
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                  activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'
+                                }`}>
+                                  {activo && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </div>
+                                <span className={`text-sm capitalize ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
-                {/* Rubros sin categoría */}
-                {(() => {
-                  const categorizados = Object.values(RUBROS_CATEGORIAS).flat()
-                  const sinCategoria = (rubrosData?.todos ?? []).filter((r: string) => !categorizados.includes(r))
-                  if (sinCategoria.length === 0) return null
-                  return (
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-xs font-semibold text-gray-700">📦 Otros</p>
-                        <span className="text-xs text-gray-400">{sinCategoria.filter((r: string) => rubrosSeleccionados.includes(r)).length}/{sinCategoria.length}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {sinCategoria.map((r: string) => {
-                          const activo = rubrosSeleccionados.includes(r)
-                          return (
-                            <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
-                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${activo ? 'bg-violet-600 text-white border-violet-600' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-violet-300'}`}>
-                              {r}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })()}
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <p className="text-xs text-violet-600 font-medium">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
-                <div className="flex gap-2">
-                  <button className="btn-ghost text-sm" onClick={() => setShowRubros(false)}>Cancelar</button>
-                  <button
-                    className="btn-primary text-sm flex items-center gap-1.5"
-                    onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
-                    disabled={rubrosSeleccionados.length === 0 || saveRubrosMutation.isPending}
-                  >
-                    <Save size={13} />
-                    {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
-                  </button>
-                </div>
+              {/* Footer sticky */}
+              <div className="flex gap-2 pt-2 border-t border-gray-100">
+                <button className="btn-ghost text-sm flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
+                <button
+                  className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5"
+                  onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
+                  disabled={saveRubrosMutation.isPending}
+                >
+                  <Save size={13} />
+                  {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar'}
+                </button>
               </div>
             </div>
           )}
