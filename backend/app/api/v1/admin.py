@@ -259,14 +259,17 @@ def get_rubros_tenant(
 ):
     """Obtiene los rubros habilitados del módulo adjudicadas de un tenant."""
     from app.modules.licitaciones.client import MercadoPublicoClient
-    tm = db.query(TenantModule).filter(
-        TenantModule.tenant_id == tenant_id,
-        TenantModule.module == ModuleType.adjudicadas,
-    ).first()
+    from sqlalchemy import text as sqla_text
+    row = db.execute(
+        sqla_text("SELECT id, niche_config FROM tenant_modules WHERE tenant_id = :tid AND module::text = 'adjudicadas' AND is_active = true"),
+        {"tid": tenant_id}
+    ).fetchone()
     todos = MercadoPublicoClient().obtener_catalogo()["rubros"]
-    if not tm:
+    if not row:
         return {"todos": todos, "habilitados": todos, "personalizado": False}
-    rubros = (tm.niche_config or {}).get("rubros_habilitados")
+    import json as _json
+    niche = row[1] if isinstance(row[1], dict) else (_json.loads(row[1]) if row[1] else {})
+    rubros = niche.get("rubros_habilitados")
     return {
         "todos": todos,
         "habilitados": rubros if rubros is not None else todos,
@@ -282,15 +285,20 @@ def set_rubros_tenant(
     db: Session = Depends(get_db),
 ):
     """Guarda los rubros habilitados del módulo adjudicadas de un tenant."""
-    tm = db.query(TenantModule).filter(
-        TenantModule.tenant_id == tenant_id,
-        TenantModule.module == ModuleType.adjudicadas,
-    ).first()
-    if not tm:
+    from sqlalchemy import text as sqla_text
+    import json as _json
+    row = db.execute(
+        sqla_text("SELECT id, niche_config FROM tenant_modules WHERE tenant_id = :tid AND module::text = 'adjudicadas' AND is_active = true"),
+        {"tid": tenant_id}
+    ).fetchone()
+    if not row:
         raise HTTPException(status_code=404, detail="Módulo adjudicadas no activo para este tenant")
-    config = dict(tm.niche_config or {})
-    config["rubros_habilitados"] = body.rubros
-    tm.niche_config = config
+    niche = row[1] if isinstance(row[1], dict) else (_json.loads(row[1]) if row[1] else {})
+    niche["rubros_habilitados"] = body.rubros
+    db.execute(
+        sqla_text("UPDATE tenant_modules SET niche_config = :cfg WHERE id = :id"),
+        {"cfg": _json.dumps(niche), "id": row[0]}
+    )
     db.commit()
     return {"ok": True, "rubros_guardados": len(body.rubros)}
 

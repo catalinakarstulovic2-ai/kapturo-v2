@@ -671,6 +671,149 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
 
 // ── Tab: Tenants ──────────────────────────────────────────────────────────────
 
+const MODULE_ICONS: Record<string, string> = {
+  adjudicadas:  '🏆',
+  licitaciones: '📄',
+  prospector:   '🔍',
+  inmobiliaria: '🏠',
+  licitador:    '📋',
+  kapturo_ventas: '💼',
+}
+
+function TenantCard({ t, onGestionar, onDelete }: { t: any; onGestionar: () => void; onDelete: () => void }) {
+  const { startImpersonation } = useAuthStore()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const [loadingUser, setLoadingUser] = useState<string | null>(null)
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.put(`/admin/tenants/${id}`, { is_active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenants'] }),
+  })
+
+  const verComo = async (userId: string, destino = '/dashboard') => {
+    setLoadingUser(userId)
+    try {
+      const res = await api.post(`/admin/impersonate/${userId}`)
+      startImpersonation(res.data.access_token, res.data.user)
+      navigate(destino)
+    } catch { alert('Error al acceder como usuario') }
+    finally { setLoadingUser(null) }
+  }
+
+  const admins = t.usuarios?.filter((u: any) => u.role === 'admin' && u.is_active) ?? []
+  const modulosActivos: string[] = t.modulos_activos ?? []
+
+  return (
+    <div className={`card p-5 space-y-4 border-l-4 ${t.is_active ? 'border-l-emerald-400' : 'border-l-gray-200'}`}>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 text-base truncate">{t.name}</h3>
+            <Badge active={t.is_active} />
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">{t.slug} · {t.num_prospectos} prospectos</p>
+        </div>
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          <button
+            title={t.is_active ? 'Desactivar tenant' : 'Activar tenant'}
+            onClick={() => toggleMutation.mutate({ id: t.id, is_active: !t.is_active })}
+            className="text-gray-300 hover:text-gray-600 p-1"
+          >
+            {t.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
+          </button>
+          <button onClick={onGestionar} title="Editar tenant" className="text-gray-300 hover:text-gray-600 p-1">
+            <Pencil size={15} />
+          </button>
+          <button onClick={onDelete} title="Eliminar" className="text-gray-300 hover:text-red-500 p-1">
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Módulos */}
+      <div>
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Módulos activos</p>
+        {modulosActivos.length === 0
+          ? <p className="text-xs text-gray-300 italic">Sin módulos asignados</p>
+          : (
+            <div className="flex flex-wrap gap-1.5">
+              {modulosActivos.map((m: string) => (
+                <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-medium rounded-full border border-violet-100">
+                  <span>{MODULE_ICONS[m] ?? '📦'}</span>
+                  {MODULE_LABELS[m] ?? m}
+                </span>
+              ))}
+            </div>
+          )
+        }
+      </div>
+
+      {/* Acceso directo por admin */}
+      <div>
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Acceso directo</p>
+        {admins.length === 0
+          ? <p className="text-xs text-gray-300 italic">Sin admins disponibles</p>
+          : (
+            <div className="space-y-1.5">
+              {admins.map((u: any) => (
+                <div key={u.id} className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-700 truncate">{u.full_name}</p>
+                    <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {modulosActivos.includes('adjudicadas') && (
+                      <button
+                        onClick={() => verComo(u.id, '/adjudicadas')}
+                        disabled={loadingUser === u.id}
+                        title="Ir a Mercado Público"
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : '🏆'}
+                      </button>
+                    )}
+                    {modulosActivos.includes('licitaciones') && (
+                      <button
+                        onClick={() => verComo(u.id, '/licitaciones')}
+                        disabled={loadingUser === u.id}
+                        title="Ir a Licitaciones"
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        📄
+                      </button>
+                    )}
+                    {modulosActivos.includes('prospector') && (
+                      <button
+                        onClick={() => verComo(u.id, '/prospeccion')}
+                        disabled={loadingUser === u.id}
+                        title="Ir a Prospección"
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        🔍
+                      </button>
+                    )}
+                    <button
+                      onClick={() => verComo(u.id, '/dashboard')}
+                      disabled={loadingUser === u.id}
+                      title="Ver como este admin"
+                      className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Ver</>}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
+    </div>
+  )
+}
+
 function TenantsTab() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -698,11 +841,6 @@ function TenantsTab() {
       setForm({ company_name: '', slug: '' })
     },
   })
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.put(`/admin/tenants/${id}`, { is_active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenants'] }),
-  })
 
   if (isLoading) return <p className="text-gray-500 text-sm">Cargando tenants...</p>
   if (detalle) return <TenantDetalle tenantId={detalle} onBack={() => setDetalle(null)} />
@@ -724,11 +862,12 @@ function TenantsTab() {
             </button>
             <button className="btn-ghost text-sm flex-1" onClick={() => setConfirmDelete(null)}>Cancelar</button>
           </div>
-          {deleteMutation.isError && <p className="text-xs text-red-600">Error al eliminar. Intenta de nuevo.</p>}
+          {deleteMutation.isError && <p className="text-xs text-red-600">Error al eliminar.</p>}
         </Modal>
       )}
+
       <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">{data?.total} tenants en total</p>
+        <p className="text-sm text-gray-500">{data?.total ?? 0} tenants en total</p>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={14} /> Nuevo tenant
         </button>
@@ -746,11 +885,7 @@ function TenantsTab() {
             onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
           />
           <div className="flex gap-2">
-            <button
-              className="btn-primary text-sm"
-              onClick={() => crearMutation.mutate(form)}
-              disabled={!form.company_name || crearMutation.isPending}
-            >
+            <button className="btn-primary text-sm" onClick={() => crearMutation.mutate(form)} disabled={!form.company_name || crearMutation.isPending}>
               {crearMutation.isPending ? 'Creando...' : 'Crear'}
             </button>
             <button className="btn-ghost text-sm" onClick={() => setShowForm(false)}>Cancelar</button>
@@ -758,61 +893,15 @@ function TenantsTab() {
         </div>
       )}
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Empresa</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Plan</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Usuarios</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Prospectos</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Módulos</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Estado</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {data?.tenants?.map((t: any) => (
-              <tr key={t.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{t.name}</p>
-                  <p className="text-xs text-gray-400">{t.slug}</p>
-                </td>
-                <td className="px-4 py-3 text-gray-600 capitalize">{t.plan ?? '—'}</td>
-                <td className="px-4 py-3 text-center text-gray-700">{t.num_usuarios}</td>
-                <td className="px-4 py-3 text-center text-gray-700">{t.num_prospectos}</td>
-                <td className="px-4 py-3 text-center text-gray-500 text-xs">
-                  {t.modulos_activos?.map((m: string) => MODULE_LABELS[m] ?? m).join(', ') || '—'}
-                </td>
-                <td className="px-4 py-3 text-center"><Badge active={t.is_active} /></td>
-                <td className="px-4 py-3 flex items-center gap-2 justify-end">
-                  <button
-                    title={t.is_active ? 'Desactivar' : 'Activar'}
-                    onClick={() => toggleMutation.mutate({ id: t.id, is_active: !t.is_active })}
-                    className="text-gray-400 hover:text-gray-700"
-                  >
-                    {t.is_active
-                      ? <ToggleRight size={18} className="text-emerald-500" />
-                      : <ToggleLeft size={18} />}
-                  </button>
-                  <button
-                    onClick={() => setDetalle(t.id)}
-                    className="text-xs text-brand-600 hover:underline flex items-center gap-1"
-                  >
-                    <Pencil size={13} /> Gestionar
-                  </button>
-                  <button
-                    title="Eliminar tenant"
-                    onClick={() => setConfirmDelete(t)}
-                    className="text-red-400 hover:text-red-600"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {data?.tenants?.map((t: any) => (
+          <TenantCard
+            key={t.id}
+            t={t}
+            onGestionar={() => setDetalle(t.id)}
+            onDelete={() => setConfirmDelete(t)}
+          />
+        ))}
       </div>
     </div>
   )
