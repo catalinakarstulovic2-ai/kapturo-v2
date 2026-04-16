@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Trophy } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Trophy, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -9,7 +9,8 @@ const nav = [
   { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null,            hideSuperAdmin: false, onlySuperAdmin: false },
   { to: '/adjudicadas',     icon: Trophy,          label: 'Mercado Público',  module: 'adjudicadas',   hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospectos',      icon: Users,           label: 'Prospectos',       module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/propuestas',      icon: Sparkles,        label: 'Propuestas IA',    module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospectos',      icon: Users,           label: 'Clientes',         module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones',  hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector',    hideSuperAdmin: true,  onlySuperAdmin: false },
   { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },

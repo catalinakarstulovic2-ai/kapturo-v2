@@ -961,8 +961,11 @@ function TenantCard({ t, onDelete }: { t: any; onDelete: () => void }) {
 
                         {/* ── Rubros seleccionables inline ── */}
                         {m.module === 'adjudicadas' && m.is_active && (
-                          <div className="space-y-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Rubros</p>
+                          <div className="space-y-2 bg-violet-50/50 border border-violet-100 rounded-xl p-3">
+                            <div>
+                              <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Rubros habilitados</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">Selecciona qué rubros verá este tenant en Mercado Público. Haz clic en un chip para activar/desactivar.</p>
+                            </div>
                             {rubrosLoading ? (
                               <p className="text-xs text-gray-400 italic">cargando...</p>
                             ) : (
@@ -1410,7 +1413,21 @@ function UsuariosTab() {
                 <td className="px-4 py-3 text-center text-gray-500 text-xs">
                   {u.last_login ? new Date(u.last_login).toLocaleDateString('es-CL') : 'Nunca'}
                 </td>
-                <td className="px-4 py-3 text-center"><Badge active={u.is_active} /></td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    title={u.is_active ? 'Desactivar usuario' : 'Activar usuario'}
+                    onClick={() => toggleMutation.mutate({ id: u.id, is_active: !u.is_active })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80"
+                    style={{
+                      background: u.is_active ? '#d1fae5' : '#fee2e2',
+                      color: u.is_active ? '#065f46' : '#991b1b',
+                    }}
+                  >
+                    {u.is_active
+                      ? <><ToggleRight size={13} className="text-emerald-500" /> Activo</>
+                      : <><ToggleLeft size={13} className="text-red-400" /> Inactivo</>}
+                  </button>
+                </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
                     {u.role !== 'super_admin' && (

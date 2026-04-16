@@ -14,6 +14,7 @@ import {
 import clsx from 'clsx'
 import { useAdjudicadasStore, type BusquedaGuardada, type Pestana } from '../../store/adjudicadasStore'
 import { useAuthStore } from '../../store/authStore'
+import SearchingPopup from '../../components/ui/SearchingPopup'
 
 interface Contacto {
   nombre: string
@@ -306,6 +307,17 @@ export default function AdjudicadasPage() {
 
   return (
     <div className="space-y-5">
+      <SearchingPopup
+        visible={buscarMutation.isPending}
+        title="Buscando licitaciones"
+        messages={[
+          'Conectando con Mercado Público...',
+          'Aplicando filtros de búsqueda...',
+          'Procesando resultados...',
+          'Ordenando por relevancia...',
+          'Preparando la información...',
+        ]}
+      />
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">

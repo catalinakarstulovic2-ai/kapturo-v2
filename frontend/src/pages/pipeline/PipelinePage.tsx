@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
+import SearchingPopup from '../../components/ui/SearchingPopup'
 
 interface AdjCard {
   card_id: string
@@ -110,6 +111,17 @@ function KanbanCard({ card, isExpanded, isDragging, onToggle, onDragStart, onDra
   const monto = card.monto_adjudicado || 0
 
   return (
+    <>
+      <SearchingPopup
+        visible={buscandoContacto}
+        title={`Buscando contacto de ${card.empresa}`}
+        messages={[
+          'Buscando empresa en registros públicos...',
+          'Verificando información de contacto...',
+          'Obteniendo teléfono y email...',
+          'Guardando datos...',
+        ]}
+      />
     <div
       draggable={!isExpanded}
       onDragStart={e => { if (!isExpanded) { e.stopPropagation(); onDragStart(e) } }}
@@ -269,9 +281,19 @@ function KanbanCard({ card, isExpanded, isDragging, onToggle, onDragStart, onDra
               ))}
             </div>
           </div>
+
+          {/* Generar propuesta */}
+          <a
+            href="/propuestas"
+            onClick={e => e.stopPropagation()}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Sparkles size={11} /> Generar propuesta IA
+          </a>
         </div>
       )}
     </div>
+    </>
   )
 }
 
@@ -516,12 +538,12 @@ function CardPanel({ card, stages, currentStageId, onClose, onRefresh }: {
 
           <section>
             <a
-              href="/adjudicadas"
-              className="w-full flex items-center justify-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 py-2.5 rounded-xl font-medium transition-colors"
+              href="/propuestas"
+              className="w-full flex items-center justify-center gap-2 text-sm text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 py-2.5 rounded-xl font-medium transition-colors"
             >
               <Sparkles size={14} /> Generar propuesta IA
             </a>
-            <p className="text-[10px] text-gray-400 text-center mt-1">Disponible en Adjudicadas</p>
+            <p className="text-[10px] text-gray-400 text-center mt-1">Crea cotizaciones y propuestas personalizadas</p>
           </section>
         </div>
     </div>
