@@ -429,7 +429,10 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       {showRubros && (
         <Modal title={`Rubros habilitados — ${t.name}`} onClose={() => setShowRubros(false)}>
           {rubrosLoading ? (
-            <p className="text-sm text-gray-400 py-4 text-center">Cargando rubros...</p>
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <Loader2 size={24} className="text-violet-500 animate-spin" />
+              <p className="text-sm text-gray-500">Cargando rubros...</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {/* Buscador */}
@@ -551,8 +554,11 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
               <div className="flex gap-2 pt-2 border-t border-gray-100">
                 <button className="btn-ghost text-sm flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
                 <button
-                  className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5"
-                  onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
+                  className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
+                  onClick={() => {
+                    if (rubrosSeleccionados.length === 0) { alert('Debes seleccionar al menos 1 rubro.'); return }
+                    saveRubrosMutation.mutate(rubrosSeleccionados)
+                  }}
                   disabled={saveRubrosMutation.isPending}
                 >
                   <Save size={13} />

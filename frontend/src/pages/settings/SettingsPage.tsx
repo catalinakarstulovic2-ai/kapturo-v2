@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
-import { User, Building2, Key, CheckCircle, AlertCircle, Eye, EyeOff, Save, Bot, Tag, RotateCcw } from 'lucide-react'
+import { User, Building2, Key, CheckCircle, AlertCircle, Eye, EyeOff, Save, Bot, Tag, RotateCcw, Loader2 } from 'lucide-react'
 import api from '../../api/client'
 
 const API_KEY_LABELS: Record<string, string> = {
@@ -379,14 +379,24 @@ export default function SettingsPage() {
           )}
 
           {rubrosLoading ? (
-            <p className="text-sm text-gray-400">Cargando...</p>
+            <div className="flex items-center gap-2 py-6 justify-center">
+              <Loader2 size={18} className="text-violet-500 animate-spin" />
+              <p className="text-sm text-gray-500">Cargando rubros...</p>
+            </div>
           ) : (
             <>
               <div className="flex flex-wrap gap-2">
                 {(rubrosData?.todos ?? []).map((r: string) => {
                   const activo = rubrosSeleccionados.includes(r)
                   return (
-                    <button key={r} onClick={() => toggleRubro(r)}
+                    <button key={r} onClick={() => {
+                      const nuevos = activo
+                        ? rubrosSeleccionados.filter(x => x !== r)
+                        : [...rubrosSeleccionados, r]
+                      if (nuevos.length === 0) { alert('Debes tener al menos 1 rubro habilitado.'); return }
+                      setRubrosSeleccionados(nuevos)
+                      saveRubrosMutation.mutate({ rubros: nuevos, resetear: false })
+                    }}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
                         activo
                           ? 'bg-violet-600 text-white border-violet-600'
@@ -397,14 +407,9 @@ export default function SettingsPage() {
                   )
                 })}
               </div>
-              <button
-                onClick={() => saveRubrosMutation.mutate({ rubros: rubrosSeleccionados, resetear: false })}
-                disabled={rubrosSeleccionados.length === 0 || saveRubrosMutation.isPending}
-                className="btn-primary flex items-center gap-2 text-sm disabled:opacity-40"
-              >
-                <Save size={14} />
-                {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar selección'}
-              </button>
+              {saveRubrosMutation.isPending && (
+                <p className="text-xs text-violet-500 flex items-center gap-1"><Loader2 size={11} className="animate-spin" /> Guardando...</p>
+              )}
             </>
           )}
             </>
