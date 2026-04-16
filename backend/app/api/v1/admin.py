@@ -243,6 +243,56 @@ def eliminar_tenant(
     return None
 
 
+# ── Rubros Adjudicadas por tenant (super admin) ───────────────────────────────
+
+class RubrosAdjudicadasRequest(BaseModel):
+    rubros: list[str]
+
+
+@router.get("/tenants/{tenant_id}/adjudicadas-rubros")
+def get_rubros_tenant(
+    tenant_id: str,
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Obtiene los rubros habilitados del módulo adjudicadas de un tenant."""
+    from app.modules.licitaciones.client import MercadoPublicoClient
+    tm = db.query(TenantModule).filter(
+        TenantModule.tenant_id == tenant_id,
+        TenantModule.module == ModuleType.adjudicadas,
+    ).first()
+    todos = MercadoPublicoClient().obtener_catalogo()["rubros"]
+    if not tm:
+        return {"todos": todos, "habilitados": todos, "personalizado": False}
+    rubros = (tm.niche_config or {}).get("rubros_habilitados")
+    return {
+        "todos": todos,
+        "habilitados": rubros if rubros is not None else todos,
+        "personalizado": rubros is not None,
+    }
+
+
+@router.put("/tenants/{tenant_id}/adjudicadas-rubros")
+def set_rubros_tenant(
+    tenant_id: str,
+    body: RubrosAdjudicadasRequest,
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Guarda los rubros habilitados del módulo adjudicadas de un tenant."""
+    tm = db.query(TenantModule).filter(
+        TenantModule.tenant_id == tenant_id,
+        TenantModule.module == ModuleType.adjudicadas,
+    ).first()
+    if not tm:
+        raise HTTPException(status_code=404, detail="Módulo adjudicadas no activo para este tenant")
+    config = dict(tm.niche_config or {})
+    config["rubros_habilitados"] = body.rubros
+    tm.niche_config = config
+    db.commit()
+    return {"ok": True, "rubros_guardados": len(body.rubros)}
+
+
 # ── Módulos por tenant ─────────────────────────────────────────────────────────
 
 @router.post("/tenants/{tenant_id}/modules", status_code=201)

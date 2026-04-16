@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
-  Eye, Loader2, DollarSign,
+  Eye, Loader2, DollarSign, SlidersHorizontal, RotateCcw,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
@@ -98,6 +98,22 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   const [selectedModulo, setSelectedModulo] = useState<string>(MODULES[0])
   const [selectedPlanId, setSelectedPlanId] = useState('')
   const [impersonateLoading, setImpersonateLoading] = useState<Record<string, boolean>>({})
+  const [showRubros, setShowRubros] = useState(false)
+  const [rubrosSeleccionados, setRubrosSeleccionados] = useState<string[]>([])
+
+  const { data: rubrosData, isLoading: rubrosLoading } = useQuery({
+    queryKey: ['admin-rubros', tenantId],
+    queryFn: () => api.get(`/admin/tenants/${tenantId}/adjudicadas-rubros`).then(r => r.data),
+    enabled: showRubros,
+  })
+  const saveRubrosMutation = useMutation({
+    mutationFn: (rubros: string[]) => api.put(`/admin/tenants/${tenantId}/adjudicadas-rubros`, { rubros }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rubros', tenantId] })
+      setShowRubros(false)
+    },
+    onError: (err: any) => alert(`Error: ${err?.response?.data?.detail ?? err?.message}`),
+  })
 
   const verComo = async (userId: string) => {
     setImpersonateLoading(p => ({ ...p, [userId]: true }))
@@ -120,6 +136,11 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
     queryKey: ['admin-plans'],
     queryFn: () => api.get('/admin/plans').then(r => r.data),
   })
+
+  // Sincronizar rubrosSeleccionados cuando cargan
+  useEffect(() => {
+    if (rubrosData?.habilitados) setRubrosSeleccionados(rubrosData.habilitados)
+  }, [rubrosData])
 
   const renombrarMutation = useMutation({
     mutationFn: (name: string) => api.put(`/admin/tenants/${tenantId}`, { name }),
@@ -156,11 +177,17 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       qc.invalidateQueries({ queryKey: ['admin-tenant', tenantId] })
       setShowModulo(false)
     },
+    onError: (err: any) => {
+      alert(`Error al activar módulo: ${err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'}`)
+    },
   })
   const toggleModuloMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
       api.put(`/admin/tenants/${tenantId}/modules/${id}`, null, { params: { is_active } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-tenant', tenantId] }),
+    onError: (err: any) => {
+      alert(`Error al cambiar estado del módulo: ${err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'}`)
+    },
   })
   const eliminarTenantMutation = useMutation({
     mutationFn: () => api.delete(`/admin/tenants/${tenantId}`),
@@ -284,12 +311,22 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-700 text-sm">Módulos</h3>
-            <button
-              className="text-brand-600 hover:text-brand-700 flex items-center gap-1 text-xs font-medium"
-              onClick={() => setShowModulo(true)}
-            >
-              <Package size={13} /> Activar módulo
-            </button>
+            <div className="flex items-center gap-2">
+              {t.modulos?.some((m: any) => m.module === 'adjudicadas' && m.is_active) && (
+                <button
+                  className="text-violet-600 hover:text-violet-700 flex items-center gap-1 text-xs font-medium"
+                  onClick={() => { setRubrosSeleccionados([]); setShowRubros(true) }}
+                >
+                  <SlidersHorizontal size={13} /> Rubros
+                </button>
+              )}
+              <button
+                className="text-brand-600 hover:text-brand-700 flex items-center gap-1 text-xs font-medium"
+                onClick={() => setShowModulo(true)}
+              >
+                <Package size={13} /> Activar módulo
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             {t.modulos?.length === 0 && <p className="text-xs text-gray-400">Sin módulos asignados</p>}
@@ -365,6 +402,58 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
         </button>
       </div>
 
+      {showRubros && (
+        <Modal title={`Rubros habilitados — ${t.name}`} onClose={() => setShowRubros(false)}>
+          {rubrosLoading ? (
+            <p className="text-sm text-gray-400">Cargando rubros...</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">
+                Solo los rubros seleccionados aparecerán al cliente en los filtros de Mercado Público.
+                <button
+                  className="ml-2 text-violet-500 hover:text-violet-700 underline"
+                  onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
+                >
+                  Seleccionar todos
+                </button>
+              </p>
+              <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
+                {(rubrosData?.todos ?? []).map((r: string) => {
+                  const activo = rubrosSeleccionados.includes(r)
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => setRubrosSeleccionados(prev =>
+                        prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                      )}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+                        activo
+                          ? 'bg-violet-600 text-white border-violet-600'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-violet-600 font-medium">{rubrosSeleccionados.length} rubros seleccionados</p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5"
+                  onClick={() => saveRubrosMutation.mutate(rubrosSeleccionados)}
+                  disabled={rubrosSeleccionados.length === 0 || saveRubrosMutation.isPending}
+                >
+                  <Save size={13} />
+                  {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar rubros'}
+                </button>
+                <button className="btn-ghost text-sm" onClick={() => setShowRubros(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
       {showCrearUser && (
         <Modal title={`Crear usuario en ${t.name}`} onClose={() => setShowCrearUser(false)}>
           <div className="space-y-3">
@@ -410,6 +499,14 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             >
               {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
             </select>
+            <p className="text-xs text-gray-400">
+              Si el módulo ya existe, se reactivará automáticamente.
+            </p>
+            {asignarModuloMutation.isError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                Error al activar módulo. Intenta de nuevo.
+              </p>
+            )}
             <div className="flex gap-2 pt-1">
               <button
                 className="btn-primary text-sm flex-1"

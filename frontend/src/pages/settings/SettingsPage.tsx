@@ -161,14 +161,21 @@ export default function SettingsPage() {
 
   // ── Tabs config ────────────────────────────────────────────────────────
   const allTabs = [
-    { id: 'general'       as const, label: 'General',          icon: User     },
-    { id: 'agente'        as const, label: 'Agente IA',        icon: Bot,  adminOnly: true  },
-    { id: 'mercado'       as const, label: 'Mercado Público',  icon: Tag,  adminOnly: true  },
-    { id: 'integraciones' as const, label: 'Integraciones',    icon: Key,  superOnly: true  },
+    { id: 'general'       as const, label: 'General',          icon: User                                          },
+    { id: 'agente'        as const, label: 'Agente IA',        icon: Bot,  adminOnly: true, requiresTenant: true   },
+    { id: 'mercado'       as const, label: 'Mercado Público',  icon: Tag,  adminOnly: true, requiresTenant: true   },
+    { id: 'integraciones' as const, label: 'Integraciones',    icon: Key,  superOnly: true                         },
   ]
   const visibleTabs = allTabs.filter(t =>
-    (!t.adminOnly || isAdmin) && (!t.superOnly || isSuperAdmin)
+    (!t.adminOnly || isAdmin) &&
+    (!t.superOnly || isSuperAdmin) &&
+    (!(t as any).requiresTenant || !!user?.tenant_id)
   )
+
+  // Si el tab activo queda oculto, volver a general
+  useEffect(() => {
+    if (!visibleTabs.find(t => t.id === tab)) setTab('general')
+  }, [user?.tenant_id])
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -329,6 +336,16 @@ export default function SettingsPage() {
       {/* ── MERCADO PÚBLICO ──────────────────────────────────── */}
       {tab === 'mercado' && isAdmin && (
         <div className="card p-5 space-y-4">
+          {!user?.modules?.some(m => m.tipo === 'adjudicadas') ? (
+            <div className="text-center py-8">
+              <Tag size={28} className="mx-auto text-gray-200 mb-3" />
+              <p className="text-sm font-medium text-gray-600">Módulo Mercado Público no activado</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Este módulo no está habilitado para tu empresa. Contacta al administrador de Kapturo para activarlo.
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Tag size={15} /> Rubros habilitados</h2>
@@ -388,6 +405,8 @@ export default function SettingsPage() {
                 <Save size={14} />
                 {saveRubrosMutation.isPending ? 'Guardando...' : 'Guardar selección'}
               </button>
+            </>
+          )}
             </>
           )}
         </div>
