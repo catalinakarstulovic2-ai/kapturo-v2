@@ -10,7 +10,7 @@ import {
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
-const MODULES = ['licitaciones', 'prospector', 'inmobiliaria', 'adjudicadas'] as const
+const MODULES = ['adjudicadas', 'licitaciones', 'prospector', 'inmobiliaria'] as const
 
 // Categorías de rubros para Mercado Público
 const RUBROS_CATEGORIAS: Record<string, string[]> = {
@@ -743,7 +743,7 @@ function TenantsTab() {
                 <td className="px-4 py-3 text-center text-gray-700">{t.num_usuarios}</td>
                 <td className="px-4 py-3 text-center text-gray-700">{t.num_prospectos}</td>
                 <td className="px-4 py-3 text-center text-gray-500 text-xs">
-                  {t.modulos_activos?.join(', ') || '—'}
+                  {t.modulos_activos?.map((m: string) => MODULE_LABELS[m] ?? m).join(', ') || '—'}
                 </td>
                 <td className="px-4 py-3 text-center"><Badge active={t.is_active} /></td>
                 <td className="px-4 py-3 flex items-center gap-2 justify-end">
