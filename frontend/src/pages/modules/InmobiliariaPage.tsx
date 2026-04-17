@@ -10,7 +10,7 @@ import {
   Loader2, MapPin, Mail, Linkedin, ArrowRight, X,
   RefreshCw, Search, Phone, ChevronDown, ChevronUp,
   Home, Star, Users, Globe, MessageCircle, Instagram,
-  TrendingUp, UserCheck, UserX, Building2, Zap,
+  TrendingUp, UserCheck, UserX, Building2, Zap, ExternalLink,
 } from 'lucide-react'
 
 // Parsea "razón | tipo: X | accion: Y" de score_reason
@@ -532,10 +532,22 @@ export default function InmobiliariaPage() {
                             <Linkedin size={12} /> Ver LinkedIn
                           </a>
                         )}
-                        {!p.email && !p.phone && !p.linkedin_url && (
+                        {p.source_url && (
+                          <a href={p.source_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-violet-600 hover:underline font-medium">
+                            <ExternalLink size={12} /> Ver publicación original
+                          </a>
+                        )}
+                        {!p.email && !p.phone && !p.linkedin_url && !p.source_url && (
                           <span className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</span>
                         )}
                       </div>
+                      {/* Texto del comentario/post */}
+                      {p.notes && (
+                        <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
+                          "{p.notes.slice(0, 200)}{p.notes.length > 200 ? '…' : ''}"
+                        </div>
+                      )}
                       {/* Razón del score */}
                       {razon && (
                         <div className="flex items-start gap-1.5 text-xs text-gray-400 italic">
