@@ -9,8 +9,11 @@ Pipeline:
 No requiere PDL ni Apify. Solo GOOGLE_MAPS_API_KEY + HUNTER_API_KEY + ANTHROPIC_API_KEY.
 """
 import asyncio
+import logging
 from sqlalchemy.orm import Session
 from app.modules.prospector.gmaps_client import GoogleMapsProspectorClient
+
+logger = logging.getLogger(__name__)
 from app.modules.prospector.hunter_client import HunterClient
 from app.modules.prospector.normalizer import normalizar_gmaps
 from app.modules.inmobiliaria.scorer import InmobiliariaScorer, SCORE_THRESHOLD
@@ -83,8 +86,8 @@ class InmobiliariaService:
                             stats[query]["calificados"] += 1
                         if resultado["enriquecido"]:
                             stats[query]["enriquecidos"] += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error procesando item de Google Maps: {e}")
 
         self.db.commit()
 
@@ -175,7 +178,9 @@ class InmobiliariaService:
         # Deduplicación para leads sociales: por contact_name + source
         contact_name = p_dict.get("contact_name", "")
         source = p_dict.get("source")
-        if contact_name and source == ProspectSource.apify_social:
+        # source puede llegar como string o como enum — normalizamos a string
+        source_val = source.value if isinstance(source, ProspectSource) else str(source or "")
+        if contact_name and source_val == ProspectSource.apify_social.value:
             existe = self.db.query(Prospect).filter(
                 Prospect.tenant_id == self.tenant_id,
                 Prospect.contact_name == contact_name,
