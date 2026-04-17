@@ -265,6 +265,7 @@ class InmobiliariaService:
                 "notes": c["texto"],
                 "source": ProspectSource.apify_social,
                 "source_url": c["post_url"],
+                "source_module": "inmobiliaria",
                 "tenant_id": self.tenant_id,
             }
 
@@ -450,6 +451,7 @@ class InmobiliariaService:
                 "notes": c["texto"],
                 "source": ProspectSource.apify_social,
                 "source_url": c["post_url"],
+                "source_module": "inmobiliaria",
                 "tenant_id": self.tenant_id,
             }
             if not await self._es_nuevo(p_dict):
