@@ -83,6 +83,24 @@ def run_migrations():
     except Exception as e:
         print(f"⚠️  Error en migraciones: {e}")
 
+    # Inyectar niche_config por defecto en módulos que tienen config vacía
+    try:
+        import json as _json
+        from app.api.v1.admin import DEFAULT_NICHE_CONFIGS
+        with engine.begin() as conn:
+            for mod_name, cfg in DEFAULT_NICHE_CONFIGS.items():
+                conn.execute(
+                    text(
+                        "UPDATE tenant_modules SET niche_config = :cfg::jsonb "
+                        "WHERE module::text = :mod "
+                        "AND (niche_config IS NULL OR niche_config::text = '{}' OR niche_config::text = 'null')"
+                    ),
+                    {"cfg": _json.dumps(cfg), "mod": mod_name},
+                )
+        print("✅ niche_config por defecto inyectado en módulos vacíos")
+    except Exception as e:
+        print(f"⚠️  Error inyectando niche_config: {e}")
+
 
 @app.get("/")
 def root():
