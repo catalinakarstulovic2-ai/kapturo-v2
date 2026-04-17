@@ -98,5 +98,3 @@ app.conf.update(
         },
     },
 )
-    },
-)
