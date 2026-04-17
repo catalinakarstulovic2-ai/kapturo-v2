@@ -185,7 +185,7 @@ def obtener_tenant(
         "created_at": tenant.created_at,
         "total_prospectos": total_prospectos,
         "usuarios": [{"id": u.id, "email": u.email, "full_name": u.full_name, "role": u.role, "is_active": u.is_active} for u in usuarios],
-        "modulos": [{"id": m.id, "module": m.module, "is_active": m.is_active, "activated_at": m.activated_at} for m in modulos],
+        "modulos": [{"id": m.id, "module": m.module, "is_active": m.is_active, "activated_at": m.activated_at, "niche_config": m.niche_config} for m in modulos],
         "apis": apis_info,
         "costo_estimado_usd": costo_total,
     }
@@ -305,6 +305,31 @@ def set_rubros_tenant(
 
 # ── Módulos por tenant ─────────────────────────────────────────────────────────
 
+# ── Configs por defecto según módulo ─────────────────────────────────────────
+# Cuando se activa un módulo por primera vez, se pre-carga con esta config.
+# Cada nuevo cliente puede editarla desde el modal en Super Admin.
+DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
+    "inmobiliaria": {
+        "nicho": "terrenos en Florida para latinoamericanos",
+        "empresa": "Uperland",
+        "producto": "terrenos urbanizados de 1,000 m2 en Inverness, Florida desde USD $14,990, con financiamiento directo sin banco, sin necesidad de ser residente ni tener licencia USA",
+        "comprador_ideal": "latinoamericano con capital propio o capacidad de ahorro, que busca dolarizar su patrimonio o hacer su primera inversión en EE.UU.",
+        "paises_objetivo": ["chile","argentina","mexico","peru","colombia","venezuela","ecuador","uruguay","panama","costa rica","estados unidos","eeuu","usa","espana","miami","florida"],
+        "tipos_lead": ["comprador_directo","potencial_referido","agente_latam"],
+        "hashtags_instagram": ["invertirenusa","terrenosflorida","propiedadesenusa","comprarenusa","bienesraicesusa","floridarealestate","inversionesflorida","terrenoenusa","dolarizatusahorros","patrimonioenusa","realtorchile","realtorlatino","FirstLandUSA"],
+        "cuentas_instagram": ["terrenoenflorida","uperland.us","realtordeflorida","enidizquierdorealtor","realtorannelice"],
+        "paginas_facebook": [],
+        "grupos_facebook": [
+            "https://www.facebook.com/groups/invertirenusadesdechile",
+            "https://www.facebook.com/groups/inversioninmobiliariainternacional",
+            "https://www.facebook.com/groups/bienesraicesusalatam"
+        ],
+        "videos_youtube": [],
+        "competidores": ["terrenoenflorida","firstlandusa","inversionenflorida"],
+    },
+}
+
+
 @router.post("/tenants/{tenant_id}/modules", status_code=201)
 def asignar_modulo(
     tenant_id: str,
@@ -332,23 +357,35 @@ def asignar_modulo(
     # Buscar si ya existe usando SQL para evitar validación de enum
     from sqlalchemy import text as sqla_text
     existente_row = db.execute(
-        sqla_text("SELECT id, is_active FROM tenant_modules WHERE tenant_id = :tid AND module::text = :mod"),
+        sqla_text("SELECT id, is_active, niche_config FROM tenant_modules WHERE tenant_id = :tid AND module::text = :mod"),
         {"tid": tenant_id, "mod": module_str}
     ).fetchone()
 
     if existente_row:
-        db.execute(
-            sqla_text("UPDATE tenant_modules SET is_active = true WHERE id = :id"),
-            {"id": existente_row[0]}
-        )
+        # Reactivar — si niche_config estaba vacío, inyectar el default
+        update_sql = "UPDATE tenant_modules SET is_active = true"
+        params: dict = {"id": existente_row[0]}
+        existing_config = existente_row[2]  # niche_config column
+        if not existing_config and module_str in DEFAULT_NICHE_CONFIGS:
+            import json as _json
+            update_sql += ", niche_config = :cfg::jsonb"
+            params["cfg"] = _json.dumps(DEFAULT_NICHE_CONFIGS[module_str])
+        update_sql += " WHERE id = :id"
+        db.execute(sqla_text(update_sql), params)
     else:
-        import uuid as _uuid
+        import uuid as _uuid, json as _json
+        default_cfg = DEFAULT_NICHE_CONFIGS.get(module_str)
         db.execute(
             sqla_text(
-                "INSERT INTO tenant_modules (id, tenant_id, module, is_active, activated_at) "
-                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, now())"
+                "INSERT INTO tenant_modules (id, tenant_id, module, is_active, niche_config, activated_at) "
+                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, :cfg::jsonb, now())"
             ),
-            {"id": str(_uuid.uuid4()), "tid": tenant_id, "mod": module_str}
+            {
+                "id": str(_uuid.uuid4()),
+                "tid": tenant_id,
+                "mod": module_str,
+                "cfg": _json.dumps(default_cfg) if default_cfg else "{}",
+            }
         )
 
     db.commit()
@@ -374,6 +411,29 @@ def actualizar_modulo(
     modulo.is_active = is_active
     db.commit()
     return {"module_id": module_id, "is_active": is_active}
+
+
+@router.patch("/tenants/{tenant_id}/modules/{module_id}/config")
+def actualizar_niche_config(
+    tenant_id: str,
+    module_id: str,
+    body: dict,
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    modulo = db.query(TenantModule).filter(
+        TenantModule.id == module_id,
+        TenantModule.tenant_id == tenant_id,
+    ).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    modulo.niche_config = body
+    flag_modified(modulo, "niche_config")
+    db.commit()
+    db.refresh(modulo)
+    return {"ok": True, "niche_config": modulo.niche_config}
 
 
 # ── Usuarios ──────────────────────────────────────────────────────────────────
