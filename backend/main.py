@@ -53,8 +53,18 @@ app.include_router(cron.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
-def run_migrations():
-    """Aplica migraciones de columnas faltantes de forma segura al arrancar."""
+async def run_migrations():
+    """Aplica migraciones en background — no bloquea el health check."""
+    import asyncio
+    asyncio.create_task(_run_migrations_sync())
+
+
+async def _run_migrations_sync():
+    import asyncio
+    await asyncio.to_thread(_do_migrations)
+
+
+def _do_migrations():
     from app.core.database import engine
     from sqlalchemy import text
     migrations = [
