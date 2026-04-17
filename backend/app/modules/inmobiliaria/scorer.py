@@ -64,8 +64,10 @@ class InmobiliariaScorer:
             if agent_word in title_lower:
                 return 5.0, f"Descartado: '{prospect.get('contact_title')}' es intermediario, no comprador directo.", "descartado", "descartar"
 
+        import asyncio
         prompt = self._construir_prompt(prospect, config)
-        message = self.client.messages.create(
+        message = await asyncio.to_thread(
+            self.client.messages.create,
             model="claude-haiku-4-5-20251001",
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
