@@ -216,19 +216,21 @@ class SocialCommentsClient:
             return []
 
     async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
+        # 2 posts por hashtag (antes 5) — reduce costo Apify ~60%
         posts = await self._run_actor("clockworks~tiktok-scraper", {
             "hashtags": [hashtag],
-            "resultsPerPage": 5,
-            "maxResultsPerQuery": 5,
-            "commentsPerPost": 30,
+            "resultsPerPage": 2,
+            "maxResultsPerQuery": 2,
+            "commentsPerPost": 20,
             "scrapeComments": True,
         })
-        # Buscar comentarios reales desde commentsDatasetUrl de cada post
         resultado = []
         for post in posts:
             post_url = post.get("webVideoUrl") or post.get("videoUrl", "")
             dataset_url = post.get("commentsDatasetUrl") or post.get("commentDatasetUrl")
-            if dataset_url:
+            # Solo fetch comentarios si el post tiene al menos 5 comentarios
+            comment_count = post.get("commentCount") or 0
+            if dataset_url and comment_count >= 5:
                 comentarios = await self._fetch_comments_dataset(dataset_url, post_url, f"tiktok_hashtag_{hashtag}")
                 resultado.extend(comentarios)
         logger.info(f"TikTok hashtag #{hashtag}: {len(posts)} posts → {len(resultado)} comentarios reales")
@@ -237,16 +239,17 @@ class SocialCommentsClient:
     async def tiktok_cuenta(self, username: str) -> list[dict]:
         posts = await self._run_actor("clockworks~tiktok-scraper", {
             "profiles": [username],
-            "resultsPerPage": 5,
-            "maxResultsPerQuery": 5,
-            "commentsPerPost": 30,
+            "resultsPerPage": 2,
+            "maxResultsPerQuery": 2,
+            "commentsPerPost": 20,
             "scrapeComments": True,
         })
         resultado = []
         for post in posts:
             post_url = post.get("webVideoUrl") or post.get("videoUrl", "")
             dataset_url = post.get("commentsDatasetUrl") or post.get("commentDatasetUrl")
-            if dataset_url:
+            comment_count = post.get("commentCount") or 0
+            if dataset_url and comment_count >= 5:
                 comentarios = await self._fetch_comments_dataset(dataset_url, post_url, f"tiktok_cuenta_{username}")
                 resultado.extend(comentarios)
         logger.info(f"TikTok cuenta @{username}: {len(posts)} posts → {len(resultado)} comentarios reales")

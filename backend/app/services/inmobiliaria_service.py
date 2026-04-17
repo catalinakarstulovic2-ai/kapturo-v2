@@ -417,9 +417,9 @@ class InmobiliariaService:
         cfg = modulo.niche_config
         client = SocialCommentsClient()
 
-        # Las mejores fuentes: top 4 TikTok hashtags + top 2 cuentas TikTok
-        hashtags_tt = cfg.get("hashtags_tiktok", [])[:4]
-        cuentas_tt = cfg.get("cuentas_tiktok", [])[:2]
+        # 2 hashtags + 1 cuenta TikTok por run — reduce costo Apify ~60%
+        hashtags_tt = cfg.get("hashtags_tiktok", [])[:2]
+        cuentas_tt = cfg.get("cuentas_tiktok", [])[:1]
 
         tareas = []
         etiquetas = []
