@@ -94,16 +94,14 @@ class SocialCommentsClient:
                 "directUrls": [f"https://www.instagram.com/{username}/"],
                 "resultsLimit": 50,
             })
-            return [self.normalizar(r, f"ig_{username}") for r in raw if self.tiene_intencion(
-                r.get("text") or r.get("comment") or ""
-            )]
+            return [self.normalizar(r, f"ig_{username}") for r in raw
+                    if (r.get("text") or r.get("comment") or "").strip()]
         comentarios = await self._run_actor("apify~instagram-comment-scraper", {
             "directUrls": post_urls[:6],
             "resultsLimit": 100,
         })
-        return [self.normalizar(r, f"ig_{username}") for r in comentarios if self.tiene_intencion(
-            r.get("text") or r.get("comment") or ""
-        )]
+        return [self.normalizar(r, f"ig_{username}") for r in comentarios
+                if (r.get("text") or r.get("comment") or "").strip()]
 
     async def facebook_pagina(self, url: str) -> list[dict]:
         raw = await self._run_actor("apify~facebook-posts-scraper", {
@@ -111,9 +109,8 @@ class SocialCommentsClient:
             "maxPosts": 15,
             "maxPostComments": 100,
         })
-        return [self.normalizar(r, "facebook_pagina") for r in raw if self.tiene_intencion(
-            r.get("text") or r.get("comment") or ""
-        )]
+        return [self.normalizar(r, "facebook_pagina") for r in raw
+                if (r.get("text") or r.get("comment") or "").strip()]
 
     async def facebook_anuncio(self, post_url: str) -> list[dict]:
         raw = await self._run_actor("apify~facebook-posts-scraper", {
@@ -121,9 +118,8 @@ class SocialCommentsClient:
             "maxPosts": 1,
             "maxPostComments": 200,
         })
-        return [self.normalizar(r, "meta_anuncio") for r in raw if self.tiene_intencion(
-            r.get("text") or r.get("comment") or ""
-        )]
+        return [self.normalizar(r, "meta_anuncio") for r in raw
+                if (r.get("text") or r.get("comment") or "").strip()]
 
     async def facebook_grupo(self, url: str) -> list[dict]:
         raw = await self._run_actor("apify~facebook-groups-scraper", {
@@ -131,33 +127,28 @@ class SocialCommentsClient:
             "maxPosts": 30,
             "maxPostComments": 50,
         })
-        return [self.normalizar(r, "facebook_grupo") for r in raw if self.tiene_intencion(
-            r.get("text") or r.get("comment") or ""
-        )]
+        return [self.normalizar(r, "facebook_grupo") for r in raw
+                if (r.get("text") or r.get("comment") or "").strip()]
 
     async def hashtag_instagram(self, hashtag: str) -> list[dict]:
-        # Paso 1: obtener posts del hashtag
         posts = await self._run_actor("apify~instagram-hashtag-scraper", {
             "hashtags": [hashtag],
             "resultsLimit": 10,
         })
-        # Paso 2: scrapear comentarios de cada post
         post_urls = [p.get("url") or p.get("postUrl") for p in posts if p.get("url") or p.get("postUrl")]
         if not post_urls:
             return []
         comentarios = await self._run_actor("apify~instagram-comment-scraper", {
-            "directUrls": post_urls[:8],  # max 8 posts por hashtag
+            "directUrls": post_urls[:8],
             "resultsLimit": 100,
         })
-        return [self.normalizar(r, f"hashtag_{hashtag}") for r in comentarios if self.tiene_intencion(
-            r.get("text") or r.get("comment") or ""
-        )]
+        return [self.normalizar(r, f"hashtag_{hashtag}") for r in comentarios
+                if (r.get("text") or r.get("comment") or "").strip()]
 
     async def youtube(self, video_url: str) -> list[dict]:
         raw = await self._run_actor("apify~youtube-comment-scraper", {
             "videoUrls": [video_url],
             "maxComments": 200,
         })
-        return [self.normalizar(r, "youtube") for r in raw if self.tiene_intencion(
-            r.get("textDisplay") or r.get("text") or ""
-        )]
+        return [self.normalizar(r, "youtube") for r in raw
+                if (r.get("textDisplay") or r.get("text") or "").strip()]
