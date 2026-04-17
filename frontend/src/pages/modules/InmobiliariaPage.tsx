@@ -125,6 +125,28 @@ export default function InmobiliariaPage() {
         if (resultado.error) { toast.error(resultado.error); return }
         toast.success(`${resultado.calificados} calificados de ${resultado.guardados} nuevos leads`)
         qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+      } else {
+        // Background asyncio — pollear prospectos cada 30s hasta que aparezcan o pasen 5 min
+        toast('Buscando en redes sociales... puede tardar 2-3 minutos ☕', { icon: '🔍' })
+        setJobId('background')
+        let elapsed = 0
+        pollRef.current = setInterval(async () => {
+          elapsed += 30
+          try {
+            const r = await api.get('/inmobiliaria/prospectos', { params: { por_pagina: 1 } })
+            if ((r.data?.total ?? 0) > 0) {
+              stopPolling(); setJobId(null)
+              if (timer) clearInterval(timer)
+              toast.success('Leads encontrados')
+              qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+            } else if (elapsed >= 300) {
+              stopPolling(); setJobId(null)
+              if (timer) clearInterval(timer)
+              toast('Búsqueda completada. Revisa los resultados.', { icon: '✅' })
+              qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+            }
+          } catch { stopPolling(); setJobId(null); if (timer) clearInterval(timer) }
+        }, 30000)
       }
     },
     onError: (err: any) => {
