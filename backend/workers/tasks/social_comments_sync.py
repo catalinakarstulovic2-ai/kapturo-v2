@@ -60,15 +60,23 @@ def sync_social_comments(self, tenant_id: str = None, batch_index: int = None, o
                         todas_fuentes.append(("fb_pagina", p))
                     for v in cfg.get("videos_youtube", []):
                         todas_fuentes.append(("youtube", v))
+                    for h in cfg.get("hashtags_tiktok", []):
+                        todas_fuentes.append(("tiktok_hashtag", h))
+                    for c in cfg.get("cuentas_tiktok", []):
+                        todas_fuentes.append(("tiktok_cuenta", c))
+                    for c in cfg.get("competidores_instagram", []):
+                        todas_fuentes.append(("ig_seguidores", c))
 
-                    # Determinar qué batch correr hoy
-                    idx = batch_index
-                    if idx is None:
-                        n_batches = math.ceil(len(todas_fuentes) / BATCH_SIZE) or 1
-                        # offset diferencia el run de mañana (0) del de noche (1)
-                        idx = (date.today().timetuple().tm_yday + offset) % n_batches
-
-                    fuentes_hoy = todas_fuentes[idx * BATCH_SIZE : (idx + 1) * BATCH_SIZE]
+                    # Si es trigger manual (tenant_id explícito), correr TODAS las fuentes
+                    # Si es cron automático, rotar por batch para no saturar
+                    if tenant_id:
+                        fuentes_hoy = todas_fuentes
+                    else:
+                        idx = batch_index
+                        if idx is None:
+                            n_batches = math.ceil(len(todas_fuentes) / BATCH_SIZE) or 1
+                            idx = (date.today().timetuple().tm_yday + offset) % n_batches
+                        fuentes_hoy = todas_fuentes[idx * BATCH_SIZE : (idx + 1) * BATCH_SIZE]
                     logger.info(
                         f"Tenant {modulo.tenant_id}: batch {idx}, "
                         f"{len(fuentes_hoy)}/{len(todas_fuentes)} fuentes"
