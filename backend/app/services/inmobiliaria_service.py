@@ -226,10 +226,13 @@ class InmobiliariaService:
         todos = []
 
         for i, (tipo, valor) in enumerate(fuentes):
-            # Delay aleatorio entre fuentes: 3-10s para parecer humano
+            # Para cron: delay aleatorio 3-10s anti-ban
+            # Para manual (pocos fuentes): delay mínimo 1s
             if i > 0:
-                await asyncio.sleep(random.uniform(3, 10))
+                delay = random.uniform(1, 3) if len(fuentes) <= 10 else random.uniform(3, 10)
+                await asyncio.sleep(delay)
             try:
+                antes = len(todos)
                 if tipo == "hashtag":
                     todos.extend(await client.hashtag_instagram(valor))
                 elif tipo == "cuenta":
@@ -246,10 +249,10 @@ class InmobiliariaService:
                     todos.extend(await client.tiktok_cuenta(valor))
                 elif tipo == "ig_seguidores":
                     todos.extend(await client.instagram_seguidores(valor))
+                nuevos = len(todos) - antes
+                logger.info(f"Fuente {tipo}:{valor} → {nuevos} items (total acumulado: {len(todos)})")
             except Exception as e:
-                # No abortar todo el run si una fuente falla
-                import logging
-                logging.getLogger(__name__).warning(f"Fuente {tipo}:{valor} fallo: {e}")
+                logger.warning(f"Fuente {tipo}:{valor} falló: {e}")
                 continue
 
         guardados = calificados = duplicados = 0
@@ -287,13 +290,15 @@ class InmobiliariaService:
                 calificados += 1
 
         self.db.commit()
-        return {
+        resultado = {
             "fuentes_corridas": len(fuentes),
             "total_encontrados": len(todos),
             "guardados": guardados,
             "calificados": calificados,
             "duplicados": duplicados,
         }
+        logger.info(f"buscar_fuentes finalizado: {resultado}")
+        return resultado
 
     async def buscar_linkedin_leads(self) -> dict:
         """

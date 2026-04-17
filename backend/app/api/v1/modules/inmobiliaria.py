@@ -62,9 +62,10 @@ async def buscar_prospectos(
         bg_db = SessionLocal()
         try:
             service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
-            await service.buscar_comentarios_sociales()
+            resultado = await service.buscar_comentarios_sociales()
+            logger.info(f"Búsqueda social completada (tenant {tenant_id}): {resultado}")
         except Exception as e:
-            logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}")
+            logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}", exc_info=True)
         finally:
             bg_db.close()
             _set_buscando(False)
@@ -178,6 +179,62 @@ async def buscar_linkedin(
         return {"ok": True, "resultado": resultado}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/diagnostico")
+async def diagnostico_apify(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """
+    Prueba UNA llamada Apify (primer hashtag de Instagram del niche_config)
+    y devuelve el resultado crudo — para debuggear sin guardar nada.
+    """
+    from app.models.tenant import TenantModule
+    from app.modules.inmobiliaria.social_comments_client import SocialCommentsClient
+
+    mod = db.query(TenantModule).filter(
+        TenantModule.tenant_id == str(current_user.tenant_id),
+        TenantModule.module == "inmobiliaria",
+    ).first()
+    if not mod:
+        return {"error": "Módulo inmobiliaria no encontrado"}
+
+    cfg = mod.niche_config or {}
+    hashtags = cfg.get("hashtags_instagram", [])
+    paginas = cfg.get("paginas_facebook", [])
+
+    resultado = {
+        "niche_config_keys": list(cfg.keys()),
+        "total_hashtags_ig": len(hashtags),
+        "total_cuentas_ig": len(cfg.get("cuentas_instagram", [])),
+        "total_paginas_fb": len(paginas),
+        "hashtags_tiktok": len(cfg.get("hashtags_tiktok", [])),
+        "cuentas_tiktok": len(cfg.get("cuentas_tiktok", [])),
+        "competidores_ig": len(cfg.get("competidores_instagram", [])),
+    }
+
+    client = SocialCommentsClient()
+    if hashtags:
+        try:
+            items = await client.hashtag_instagram(hashtags[0])
+            resultado["test_fuente"] = f"hashtag_ig:{hashtags[0]}"
+            resultado["test_items_count"] = len(items)
+            resultado["test_muestra"] = items[:2] if items else []
+        except Exception as e:
+            resultado["test_error"] = str(e)
+    elif paginas:
+        try:
+            items = await client.facebook_pagina(paginas[0])
+            resultado["test_fuente"] = f"fb_pagina:{paginas[0]}"
+            resultado["test_items_count"] = len(items)
+            resultado["test_muestra"] = items[:2] if items else []
+        except Exception as e:
+            resultado["test_error"] = str(e)
+    else:
+        resultado["advertencia"] = "Sin fuentes configuradas para probar"
+
+    return resultado
 
 
 @router.get("/descartados")
