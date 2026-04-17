@@ -171,36 +171,27 @@ class SocialCommentsClient:
         }
 
     async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
-        videos = await self._run_actor("clockworks~free-tiktok-scraper", {
+        # apify~tiktok-scraper soporta hashtags + comentarios en una sola llamada
+        items = await self._run_actor("apify~tiktok-scraper", {
             "hashtags": [hashtag],
+            "resultsPerPage": 10,
             "maxResultsPerQuery": 10,
+            "commentsPerPost": 80,
+            "scrapeComments": True,
         })
-        video_urls = [v.get("webVideoUrl") or v.get("videoUrl") for v in videos
-                      if v.get("webVideoUrl") or v.get("videoUrl")]
-        if not video_urls:
-            logger.info(f"TikTok hashtag #{hashtag}: sin videos")
-            return []
-        comentarios = await self._run_actor("apify~tiktok-comment-scraper", {
-            "postURLs": video_urls[:8],
-            "commentsPerPost": 100,
-        })
+        comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
         return [self.normalizar_tiktok(r, f"tiktok_hashtag_{hashtag}") for r in comentarios
                 if (r.get("text") or "").strip()]
 
     async def tiktok_cuenta(self, username: str) -> list[dict]:
-        videos = await self._run_actor("clockworks~free-tiktok-scraper", {
+        items = await self._run_actor("apify~tiktok-scraper", {
             "profiles": [username],
+            "resultsPerPage": 10,
             "maxResultsPerQuery": 10,
+            "commentsPerPost": 80,
+            "scrapeComments": True,
         })
-        video_urls = [v.get("webVideoUrl") or v.get("videoUrl") for v in videos
-                      if v.get("webVideoUrl") or v.get("videoUrl")]
-        if not video_urls:
-            logger.info(f"TikTok cuenta @{username}: sin videos")
-            return []
-        comentarios = await self._run_actor("apify~tiktok-comment-scraper", {
-            "postURLs": video_urls[:8],
-            "commentsPerPost": 100,
-        })
+        comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
         return [self.normalizar_tiktok(r, f"tiktok_cuenta_{username}") for r in comentarios
                 if (r.get("text") or "").strip()]
 
