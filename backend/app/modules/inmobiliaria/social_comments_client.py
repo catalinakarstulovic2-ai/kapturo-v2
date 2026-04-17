@@ -187,29 +187,70 @@ class SocialCommentsClient:
             "autor_url": f"https://www.tiktok.com/@{username}" if username else "",
         }
 
+    async def _fetch_comments_dataset(self, url: str, post_url: str, fuente: str) -> list[dict]:
+        """Fetch comentarios reales desde commentsDatasetUrl de un post TikTok."""
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.get(f"{url}?token={settings.APIFY_API_KEY}&limit=30")
+                if resp.status_code != 200:
+                    return []
+                comments = resp.json()
+                resultado = []
+                for c in comments:
+                    texto = c.get("text") or c.get("commentText") or ""
+                    if not texto.strip():
+                        continue
+                    username = c.get("uniqueId") or c.get("authorUsername") or c.get("username") or ""
+                    nombre = c.get("nickName") or c.get("authorName") or username
+                    resultado.append({
+                        "fuente": fuente,
+                        "autor_username": username,
+                        "autor_nombre": nombre,
+                        "texto": texto,
+                        "post_url": post_url,
+                        "autor_url": f"https://www.tiktok.com/@{username}" if username else "",
+                    })
+                return resultado
+        except Exception as e:
+            logger.warning(f"Error fetching comments dataset {url}: {e}")
+            return []
+
     async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
-        items = await self._run_actor("clockworks~tiktok-scraper", {
+        posts = await self._run_actor("clockworks~tiktok-scraper", {
             "hashtags": [hashtag],
             "resultsPerPage": 5,
             "maxResultsPerQuery": 5,
-            "commentsPerPost": 20,
+            "commentsPerPost": 30,
             "scrapeComments": True,
         })
-        comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
-        return [self.normalizar_tiktok(r, f"tiktok_hashtag_{hashtag}") for r in comentarios
-                if (r.get("text") or "").strip()]
+        # Buscar comentarios reales desde commentsDatasetUrl de cada post
+        resultado = []
+        for post in posts:
+            post_url = post.get("webVideoUrl") or post.get("videoUrl", "")
+            dataset_url = post.get("commentsDatasetUrl") or post.get("commentDatasetUrl")
+            if dataset_url:
+                comentarios = await self._fetch_comments_dataset(dataset_url, post_url, f"tiktok_hashtag_{hashtag}")
+                resultado.extend(comentarios)
+        logger.info(f"TikTok hashtag #{hashtag}: {len(posts)} posts → {len(resultado)} comentarios reales")
+        return resultado
 
     async def tiktok_cuenta(self, username: str) -> list[dict]:
-        items = await self._run_actor("clockworks~tiktok-scraper", {
+        posts = await self._run_actor("clockworks~tiktok-scraper", {
             "profiles": [username],
             "resultsPerPage": 5,
             "maxResultsPerQuery": 5,
-            "commentsPerPost": 20,
+            "commentsPerPost": 30,
             "scrapeComments": True,
         })
-        comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
-        return [self.normalizar_tiktok(r, f"tiktok_cuenta_{username}") for r in comentarios
-                if (r.get("text") or "").strip()]
+        resultado = []
+        for post in posts:
+            post_url = post.get("webVideoUrl") or post.get("videoUrl", "")
+            dataset_url = post.get("commentsDatasetUrl") or post.get("commentDatasetUrl")
+            if dataset_url:
+                comentarios = await self._fetch_comments_dataset(dataset_url, post_url, f"tiktok_cuenta_{username}")
+                resultado.extend(comentarios)
+        logger.info(f"TikTok cuenta @{username}: {len(posts)} posts → {len(resultado)} comentarios reales")
+        return resultado
 
     # ── Instagram seguidores de competidores ──────────────────────────────────
 
