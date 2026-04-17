@@ -74,6 +74,20 @@ def run_migrations():
         "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'adjudicadas'",
         # Columnas nuevas
         "ALTER TABLE pipeline_stages ADD COLUMN IF NOT EXISTS pipeline_type VARCHAR(50) NOT NULL DEFAULT 'general'",
+        # Convertir config de String a JSONB si aún es texto (limpia datos inválidos primero)
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'tenant_modules' AND column_name = 'config'
+            AND data_type NOT IN ('jsonb', 'json')
+          ) THEN
+            UPDATE tenant_modules SET config = NULL WHERE config IS NOT NULL;
+            ALTER TABLE tenant_modules ALTER COLUMN config TYPE JSONB USING config::jsonb;
+          END IF;
+        END $$
+        """,
     ]
     try:
         with engine.begin() as conn:
