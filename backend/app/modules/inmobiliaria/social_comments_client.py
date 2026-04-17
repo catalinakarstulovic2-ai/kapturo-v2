@@ -89,22 +89,30 @@ class SocialCommentsClient:
         }
 
     async def instagram(self, username: str) -> list[dict]:
-        # Scrapeamos los últimos posts de la cuenta y luego sus comentarios
+        # Scrapeamos posts de la cuenta y extraemos latestComments de cada post
+        # (evitamos el comment-scraper que falla con 404 en muchos posts)
         posts = await self._run_actor("apify~instagram-scraper", {
             "directUrls": [f"https://www.instagram.com/{username}/"],
             "resultsType": "posts",
-            "resultsLimit": 8,
+            "resultsLimit": 12,
         })
-        post_urls = [p.get("url") or p.get("postUrl") for p in posts if p.get("url") or p.get("postUrl")]
-        if not post_urls:
-            logger.info(f"Instagram {username}: sin posts, omitiendo")
-            return []
-        comentarios = await self._run_actor("apify~instagram-comment-scraper", {
-            "directUrls": post_urls[:6],
-            "resultsLimit": 100,
-        })
-        return [self.normalizar(r, f"ig_{username}") for r in comentarios
-                if (r.get("text") or r.get("comment") or "").strip()]
+        resultado = []
+        for post in posts:
+            post_url = post.get("url") or post.get("postUrl", "")
+            owner = post.get("ownerUsername", "")
+            for c in (post.get("latestComments") or []):
+                texto = c.get("text") or ""
+                if texto.strip():
+                    resultado.append({
+                        "fuente": f"ig_{username}",
+                        "autor_username": c.get("ownerUsername", ""),
+                        "autor_nombre": c.get("ownerFullName", ""),
+                        "texto": texto,
+                        "post_url": post_url,
+                        "autor_url": f"https://www.instagram.com/{c.get('ownerUsername', '')}/",
+                    })
+        logger.info(f"Instagram cuenta {username}: {len(posts)} posts → {len(resultado)} comentarios")
+        return resultado
 
     async def facebook_pagina(self, url: str) -> list[dict]:
         raw = await self._run_actor("apify~facebook-posts-scraper", {
@@ -134,19 +142,28 @@ class SocialCommentsClient:
                 if (r.get("text") or r.get("comment") or "").strip()]
 
     async def hashtag_instagram(self, hashtag: str) -> list[dict]:
+        # Usamos latestComments de cada post directamente — el comment-scraper
+        # separado falla con 404 en la mayoría de posts (privados o Reels)
         posts = await self._run_actor("apify~instagram-hashtag-scraper", {
             "hashtags": [hashtag],
-            "resultsLimit": 10,
+            "resultsLimit": 20,
         })
-        post_urls = [p.get("url") or p.get("postUrl") for p in posts if p.get("url") or p.get("postUrl")]
-        if not post_urls:
-            return []
-        comentarios = await self._run_actor("apify~instagram-comment-scraper", {
-            "directUrls": post_urls[:8],
-            "resultsLimit": 100,
-        })
-        return [self.normalizar(r, f"hashtag_{hashtag}") for r in comentarios
-                if (r.get("text") or r.get("comment") or "").strip()]
+        resultado = []
+        for post in posts:
+            post_url = post.get("url") or post.get("postUrl", "")
+            for c in (post.get("latestComments") or []):
+                texto = c.get("text") or ""
+                if texto.strip():
+                    resultado.append({
+                        "fuente": f"hashtag_{hashtag}",
+                        "autor_username": c.get("ownerUsername", ""),
+                        "autor_nombre": c.get("ownerFullName", ""),
+                        "texto": texto,
+                        "post_url": post_url,
+                        "autor_url": f"https://www.instagram.com/{c.get('ownerUsername', '')}/",
+                    })
+        logger.info(f"Instagram hashtag #{hashtag}: {len(posts)} posts → {len(resultado)} comentarios")
+        return resultado
 
     async def youtube(self, video_url: str) -> list[dict]:
         raw = await self._run_actor("apify~youtube-comment-scraper", {

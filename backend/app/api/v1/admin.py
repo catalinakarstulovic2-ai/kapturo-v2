@@ -340,13 +340,12 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
         "comprador_ideal": "latinoamericano con capital propio o capacidad de ahorro, que busca dolarizar su patrimonio o hacer su primera inversión en EE.UU.",
         "paises_objetivo": ["chile","argentina","mexico","peru","colombia","venezuela","ecuador","uruguay","panama","costa rica","estados unidos","eeuu","usa","espana","miami","florida"],
         "hashtags_instagram": [
-            "invertirenusa", "terrenosflorida", "propiedadesenusa",
-            "comprarenusa", "bienesraicesusa", "floridarealestate",
-            "inversionesflorida", "terrenoenusa", "dolarizatusahorros",
-            "patrimonioenusa", "primerapropiedad", "invertirenbienes",
-            "invertirenestadosunidos", "terrenoventas", "bienesraiceslatam"
+            "invertirenusa", "inversionesenusa", "bienesraicesusa",
+            "floridarealestate", "invertirenestadosunidos", "dolarizatusahorros",
+            "patrimonioenusa", "comprarterrenoenusa", "inversionesflorida",
+            "bienesraiceslatam", "inversiones", "dolarizar",
         ],
-        "cuentas_instagram": ["terrenoenflorida", "uperland.us"],
+        "cuentas_instagram": ["terrenoenflorida", "uperland.us", "firstlandusa"],
         "paginas_facebook": [
             "https://www.facebook.com/terrenoenflorida",
             "https://www.facebook.com/uperland.us"
@@ -354,11 +353,12 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
         "grupos_facebook": [],
         "videos_youtube": [],
         "hashtags_tiktok": [
-            "invertirenusa", "terrenoflorida", "comprarenusa",
-            "dolarizarpatrimonio", "bienesraicesusa", "floridarealestate",
-            "invertirenestadosunidos", "patrimonioenusd",
+            "invertirenusa", "inversionesenusa", "bienesraicesusa",
+            "floridarealestate", "invertirenestadosunidos", "dolarizar",
+            "inversiones", "comprarterrenoenusa", "patrimonioenusd",
+            "dolarizarpatrimonio", "bienesraices", "inversionesinmobiliarias",
         ],
-        "cuentas_tiktok": ["terrenoenflorida", "uperland.us"],
+        "cuentas_tiktok": ["terrenoenflorida", "uperland.us", "firstlandusa"],
         "competidores_instagram": ["terrenoenflorida", "firstlandusa", "uperland.us"],
         "linkedin_queries": [
             "CEO Chile",
