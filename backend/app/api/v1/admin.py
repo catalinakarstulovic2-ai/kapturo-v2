@@ -138,7 +138,7 @@ def crear_tenant(
         db.execute(
             sqla_text(
                 "INSERT INTO tenant_modules (id, tenant_id, module, is_active, niche_config, activated_at) "
-                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, :cfg::jsonb, now())"
+                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, CAST(:cfg AS jsonb), now())"
             ),
             {
                 "id": str(_uuid.uuid4()),
@@ -385,7 +385,7 @@ def asignar_modulo(
         existing_config = existente_row[2]  # niche_config column
         if not existing_config and module_str in DEFAULT_NICHE_CONFIGS:
             import json as _json
-            update_sql += ", niche_config = :cfg::jsonb"
+            update_sql += ", niche_config = CAST(:cfg AS jsonb)"
             params["cfg"] = _json.dumps(DEFAULT_NICHE_CONFIGS[module_str])
         update_sql += " WHERE id = :id"
         db.execute(sqla_text(update_sql), params)
@@ -395,7 +395,7 @@ def asignar_modulo(
         db.execute(
             sqla_text(
                 "INSERT INTO tenant_modules (id, tenant_id, module, is_active, niche_config, activated_at) "
-                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, :cfg::jsonb, now())"
+                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, CAST(:cfg AS jsonb), now())"
             ),
             {
                 "id": str(_uuid.uuid4()),
