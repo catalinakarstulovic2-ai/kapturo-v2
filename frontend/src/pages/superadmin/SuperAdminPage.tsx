@@ -97,6 +97,68 @@ function StatsTab() {
   )
 }
 
+// ── Modal niche_config ────────────────────────────────────────────────────────
+
+function NicheConfigModal({ tenantId, modulo, onClose }: { tenantId: string; modulo: any; onClose: () => void }) {
+  const [json, setJson] = useState(JSON.stringify(modulo.niche_config || {}, null, 2))
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const guardar = async () => {
+    try {
+      JSON.parse(json)
+    } catch {
+      setError('JSON inválido — revisa la sintaxis')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/v1/admin/tenants/${tenantId}/modules/${modulo.id}/config`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${JSON.parse(localStorage.getItem('kapturo-auth-v2') || '{}')?.state?.token || ''}`,
+        },
+        body: json,
+      })
+      if (!res.ok) {
+        const detail = await res.text()
+        throw new Error(`${res.status}: ${detail}`)
+      }
+      onClose()
+    } catch (e: any) {
+      setError(`Error al guardar: ${e.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800">Configuración — {modulo.module}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <p className="text-xs text-gray-500">Edita el JSON de configuración para este módulo. Usa <code className="bg-gray-100 px-1 rounded">ubicacion</code>, <code className="bg-gray-100 px-1 rounded">queries</code>, <code className="bg-gray-100 px-1 rounded">producto</code>, <code className="bg-gray-100 px-1 rounded">nicho</code>.</p>
+        <textarea
+          value={json}
+          onChange={e => { setJson(e.target.value); setError('') }}
+          rows={12}
+          className="w-full font-mono text-xs border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
+          <button onClick={guardar} disabled={saving} className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Vista detalle de un tenant ────────────────────────────────────────────────
 
 function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => void }) {
@@ -114,6 +176,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   const [impersonateLoading, setImpersonateLoading] = useState<Record<string, boolean>>({})
   const [showRubros, setShowRubros] = useState(false)
   const [rubrosSeleccionados, setRubrosSeleccionados] = useState<string[]>([])
+  const [nicheModalModulo, setNicheModalModulo] = useState<any>(null)
   const [categoriaAbierta, setCategoriaAbierta] = useState<string | null>(null)
   const [buscarRubro, setBuscarRubro] = useState('')
 
@@ -135,7 +198,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
     setImpersonateLoading(p => ({ ...p, [userId]: true }))
     try {
       const res = await api.post(`/admin/impersonate/${userId}`)
-      startImpersonation(res.data.access_token, res.data.user)
+      await startImpersonation(res.data.access_token, res.data.user)
       navigate('/dashboard')
     } catch {
       alert('Error al impersonar usuario')
@@ -226,6 +289,13 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
 
   return (
     <div className="space-y-5">
+      {nicheModalModulo && (
+        <NicheConfigModal
+          tenantId={tenantId}
+          modulo={nicheModalModulo}
+          onClose={() => setNicheModalModulo(null)}
+        />
+      )}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="text-gray-400 hover:text-gray-700">
           <ChevronLeft size={20} />
@@ -357,15 +427,23 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             {t.modulos?.map((m: any) => (
               <div key={m.id} className="flex justify-between items-center text-sm">
                 <span className="text-gray-700">{MODULE_LABELS[m.module] ?? m.module.replace('_', ' ')}</span>
-                <button
-                  title={m.is_active ? 'Desactivar' : 'Activar'}
-                  onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })}
-                  className="text-gray-400 hover:text-gray-700"
-                >
-                  {m.is_active
-                    ? <ToggleRight size={16} className="text-emerald-500" />
-                    : <ToggleLeft size={16} />}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    title="Editar configuración"
+                    onClick={() => setNicheModalModulo(m)}
+                    className="text-gray-400 hover:text-brand-600 text-xs">
+                    ⚙
+                  </button>
+                  <button
+                    title={m.is_active ? 'Desactivar' : 'Activar'}
+                    onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })}
+                    className="text-gray-400 hover:text-gray-700"
+                  >
+                    {m.is_active
+                      ? <ToggleRight size={16} className="text-emerald-500" />
+                      : <ToggleLeft size={16} />}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -700,6 +778,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
   const [showCrearUser, setShowCrearUser] = useState(false)
   const [showModulo, setShowModulo] = useState(false)
   const [showPlan, setShowPlan] = useState(false)
+  const [nicheModalModulo, setNicheModalModulo] = useState<any>(null)
   const [userForm, setUserForm] = useState({ email: '', full_name: '', password: '', role: 'admin' })
   const [selectedModulo, setSelectedModulo] = useState<string>(MODULES[0])
   const [selectedPlanId, setSelectedPlanId] = useState('')
@@ -803,7 +882,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
     setLoadingUser(userId)
     try {
       const res = await api.post(`/admin/impersonate/${userId}`)
-      startImpersonation(res.data.access_token, res.data.user)
+      await startImpersonation(res.data.access_token, res.data.user)
       navigate(destino)
     } catch { alert('Error al acceder como usuario') }
     finally { setLoadingUser(null) }
@@ -811,6 +890,13 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
 
   return (
     <div className={`card border-l-4 transition-all ${t.is_active ? 'border-l-emerald-400' : 'border-l-gray-200'} ${expanded ? 'col-span-1 lg:col-span-2' : ''}`}>
+      {nicheModalModulo && (
+        <NicheConfigModal
+          tenantId={t.id}
+          modulo={nicheModalModulo}
+          onClose={() => setNicheModalModulo(null)}
+        />
+      )}
       {/* ── Header siempre visible (clickeable para expandir) ── */}
       <div
         className="p-4 flex items-start justify-between cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
@@ -955,6 +1041,12 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                         <div className="flex items-center gap-2">
                           <span>{MODULE_ICONS[m.module] ?? '📦'}</span>
                           <span className="text-xs flex-1 text-gray-700 font-medium">{MODULE_LABELS[m.module] ?? m.module}</span>
+                          <button
+                            title="Editar configuración"
+                            onClick={() => setNicheModalModulo(m)}
+                            className="text-gray-400 hover:text-brand-600 text-xs">
+                            ⚙
+                          </button>
                           <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
                             {m.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
                           </button>

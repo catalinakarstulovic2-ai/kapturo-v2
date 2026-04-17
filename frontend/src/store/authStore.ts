@@ -14,7 +14,7 @@ interface AuthState {
   signup: (companyName: string, fullName: string, email: string, password: string) => Promise<void>
   logout: () => void
   fetchMe: () => Promise<void>
-  startImpersonation: (token: string, user: User) => void
+  startImpersonation: (token: string, user: User) => Promise<void>
   stopImpersonation: () => Promise<void>
 }
 
@@ -55,15 +55,17 @@ export const useAuthStore = create<AuthState>()(
         set({ user: me.data, isAuthenticated: true })
       },
 
-      startImpersonation: (token: string, user: User) => {
+      startImpersonation: async (token: string, _user: User) => {
         const currentToken = get().token
         localStorage.setItem('kapturo_token', token)
         set({
           superAdminToken: currentToken,
           token: token,
-          user: user,
           isImpersonating: true,
         })
+        // Llamar /me con el nuevo token para obtener módulos frescos del tenant
+        const me = await api.get('/auth/me')
+        set({ user: me.data })
       },
 
       stopImpersonation: async () => {
