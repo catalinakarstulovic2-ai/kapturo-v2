@@ -388,3 +388,81 @@ class InmobiliariaService:
         for c in cfg.get("competidores_instagram", []):
             todas_fuentes.append(("ig_seguidores", c))
         return await self.buscar_fuentes(todas_fuentes)
+
+    async def buscar_fuentes_rapido(self) -> dict:
+        """
+        Búsqueda manual rápida: corre las mejores fuentes EN PARALELO.
+        TikTok hashtags + cuentas TikTok → resultados en ~60s en vez de 30+ min.
+        """
+        from app.models.tenant import TenantModule
+        from app.modules.inmobiliaria.social_comments_client import SocialCommentsClient
+
+        modulo = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module == "inmobiliaria",
+            TenantModule.is_active == True,
+        ).first()
+        if not modulo or not modulo.niche_config:
+            return {"error": "Modulo inmobiliaria sin configuracion"}
+
+        cfg = modulo.niche_config
+        client = SocialCommentsClient()
+
+        # Las mejores fuentes: top 4 TikTok hashtags + top 2 cuentas TikTok
+        hashtags_tt = cfg.get("hashtags_tiktok", [])[:4]
+        cuentas_tt = cfg.get("cuentas_tiktok", [])[:2]
+
+        tareas = []
+        etiquetas = []
+        for h in hashtags_tt:
+            tareas.append(client.tiktok_hashtag(h))
+            etiquetas.append(f"tiktok_hashtag:{h}")
+        for c in cuentas_tt:
+            tareas.append(client.tiktok_cuenta(c))
+            etiquetas.append(f"tiktok_cuenta:{c}")
+
+        resultados = await asyncio.gather(*tareas, return_exceptions=True)
+
+        todos = []
+        for etiqueta, res in zip(etiquetas, resultados):
+            if isinstance(res, Exception):
+                logger.warning(f"Fuente {etiqueta} falló: {res}")
+            else:
+                logger.info(f"Fuente {etiqueta} → {len(res)} items")
+                todos.extend(res)
+
+        logger.info(f"buscar_fuentes_rapido: {len(todos)} items totales de {len(tareas)} fuentes paralelas")
+
+        guardados = calificados = duplicados = 0
+        for c in todos:
+            p_dict = {
+                "contact_name": c["autor_nombre"] or c["autor_username"],
+                "company_name": f"Lead social — {c['fuente']}",
+                "website": c["autor_url"],
+                "notes": c["texto"],
+                "source": ProspectSource.apify_social,
+                "source_url": c["post_url"],
+                "tenant_id": self.tenant_id,
+            }
+            if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+            score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config={
+                "producto": cfg.get("producto", ""),
+                "nicho": cfg.get("nicho", ""),
+                "empresa": cfg.get("empresa", ""),
+                "comprador_ideal": cfg.get("comprador_ideal", ""),
+                "paises_objetivo": cfg.get("paises_objetivo", []),
+            })
+            p_dict["score"] = score
+            p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
+            p_dict["is_qualified"] = score >= 65
+            await self._guardar(p_dict)
+            guardados += 1
+            if score >= 65:
+                calificados += 1
+
+        self.db.commit()
+        resultado = {"fuentes": len(tareas), "total_encontrados": len(todos), "guardados": guardados, "calificados": calificados, "duplicados": duplicados}
+        logger.info(f"buscar_fuentes_rapido finalizado: {resultado}")
+        return resultado

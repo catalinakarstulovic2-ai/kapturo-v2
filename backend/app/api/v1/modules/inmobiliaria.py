@@ -62,7 +62,9 @@ async def buscar_prospectos(
         bg_db = SessionLocal()
         try:
             service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
-            resultado = await service.buscar_comentarios_sociales()
+            # Manual: corre las MEJORES fuentes en paralelo (rápido, demo-ready)
+            # Las 5 fuentes más confiables: 3 TikTok hashtags + 2 cuentas TikTok
+            resultado = await service.buscar_fuentes_rapido()
             logger.info(f"Búsqueda social completada (tenant {tenant_id}): {resultado}")
         except Exception as e:
             logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}", exc_info=True)
