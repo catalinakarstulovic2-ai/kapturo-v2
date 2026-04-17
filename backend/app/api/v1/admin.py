@@ -353,6 +353,13 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
         ],
         "grupos_facebook": [],
         "videos_youtube": [],
+        "hashtags_tiktok": [
+            "invertirenusa", "terrenoflorida", "comprarenusa",
+            "dolarizarpatrimonio", "bienesraicesusa", "floridarealestate",
+            "invertirenestadosunidos", "patrimonioenusd",
+        ],
+        "cuentas_tiktok": ["terrenoenflorida", "uperland.us"],
+        "competidores_instagram": ["terrenoenflorida", "firstlandusa", "uperland.us"],
         "linkedin_queries": [
             "CEO Chile",
             "founder Argentina",

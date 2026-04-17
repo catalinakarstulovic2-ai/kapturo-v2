@@ -142,6 +142,34 @@ def run_migrations():
     except Exception as e:
         print(f"⚠️  Error limpiando grupos_facebook: {e}")
 
+    # Inyectar nuevas fuentes (TikTok + competidores IG) en tenants existentes que no las tienen
+    try:
+        import json as _json
+        from app.api.v1.admin import DEFAULT_NICHE_CONFIGS
+        default_inmo = DEFAULT_NICHE_CONFIGS.get("inmobiliaria", {})
+        nuevas_claves = ["hashtags_tiktok", "cuentas_tiktok", "competidores_instagram"]
+        with engine.begin() as conn:
+            rows = conn.execute(text(
+                "SELECT id, niche_config FROM tenant_modules "
+                "WHERE module::text = 'inmobiliaria' AND is_active = true "
+                "AND niche_config IS NOT NULL"
+            )).fetchall()
+            for row_id, niche_cfg in rows:
+                cfg = niche_cfg if isinstance(niche_cfg, dict) else (_json.loads(niche_cfg) if niche_cfg else {})
+                updated = False
+                for clave in nuevas_claves:
+                    if clave not in cfg:
+                        cfg[clave] = default_inmo.get(clave, [])
+                        updated = True
+                if updated:
+                    conn.execute(
+                        text("UPDATE tenant_modules SET niche_config = CAST(:cfg AS jsonb) WHERE id = :id"),
+                        {"cfg": _json.dumps(cfg), "id": row_id}
+                    )
+        print("✅ Nuevas fuentes TikTok/competidores inyectadas en niche_config")
+    except Exception as e:
+        print(f"⚠️  Error inyectando nuevas fuentes: {e}")
+
 
 @app.get("/")
 def root():

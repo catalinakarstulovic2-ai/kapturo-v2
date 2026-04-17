@@ -155,3 +155,72 @@ class SocialCommentsClient:
         })
         return [self.normalizar(r, "youtube") for r in raw
                 if (r.get("textDisplay") or r.get("text") or "").strip()]
+
+    # ── TikTok ────────────────────────────────────────────────────────────────
+
+    def normalizar_tiktok(self, raw: dict, fuente: str) -> dict:
+        author = raw.get("authorMeta") or {}
+        username = author.get("name") or raw.get("uniqueId", "")
+        return {
+            "fuente": fuente,
+            "autor_username": username,
+            "autor_nombre": author.get("nickName") or author.get("name", ""),
+            "texto": raw.get("text", ""),
+            "post_url": raw.get("webVideoUrl") or raw.get("videoUrl", ""),
+            "autor_url": f"https://www.tiktok.com/@{username}" if username else "",
+        }
+
+    async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
+        videos = await self._run_actor("clockworks~free-tiktok-scraper", {
+            "hashtags": [hashtag],
+            "maxResultsPerQuery": 10,
+        })
+        video_urls = [v.get("webVideoUrl") or v.get("videoUrl") for v in videos
+                      if v.get("webVideoUrl") or v.get("videoUrl")]
+        if not video_urls:
+            logger.info(f"TikTok hashtag #{hashtag}: sin videos")
+            return []
+        comentarios = await self._run_actor("apify~tiktok-comment-scraper", {
+            "postURLs": video_urls[:8],
+            "commentsPerPost": 100,
+        })
+        return [self.normalizar_tiktok(r, f"tiktok_hashtag_{hashtag}") for r in comentarios
+                if (r.get("text") or "").strip()]
+
+    async def tiktok_cuenta(self, username: str) -> list[dict]:
+        videos = await self._run_actor("clockworks~free-tiktok-scraper", {
+            "profiles": [username],
+            "maxResultsPerQuery": 10,
+        })
+        video_urls = [v.get("webVideoUrl") or v.get("videoUrl") for v in videos
+                      if v.get("webVideoUrl") or v.get("videoUrl")]
+        if not video_urls:
+            logger.info(f"TikTok cuenta @{username}: sin videos")
+            return []
+        comentarios = await self._run_actor("apify~tiktok-comment-scraper", {
+            "postURLs": video_urls[:8],
+            "commentsPerPost": 100,
+        })
+        return [self.normalizar_tiktok(r, f"tiktok_cuenta_{username}") for r in comentarios
+                if (r.get("text") or "").strip()]
+
+    # ── Instagram seguidores de competidores ──────────────────────────────────
+
+    def normalizar_seguidor(self, raw: dict, fuente: str) -> dict:
+        username = raw.get("username", "")
+        return {
+            "fuente": fuente,
+            "autor_username": username,
+            "autor_nombre": raw.get("fullName", ""),
+            "texto": raw.get("biography", ""),  # bio como señal de intención
+            "post_url": "",
+            "autor_url": raw.get("profileUrl") or (f"https://www.instagram.com/{username}/" if username else ""),
+        }
+
+    async def instagram_seguidores(self, username: str) -> list[dict]:
+        raw = await self._run_actor("apify~instagram-followers-scraper", {
+            "username": [username],
+            "resultsLimit": 200,
+        })
+        return [self.normalizar_seguidor(r, f"ig_seguidores_{username}") for r in raw
+                if r.get("username")]

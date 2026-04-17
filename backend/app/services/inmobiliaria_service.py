@@ -240,6 +240,12 @@ class InmobiliariaService:
                     todos.extend(await client.facebook_pagina(valor))
                 elif tipo == "youtube":
                     todos.extend(await client.youtube(valor))
+                elif tipo == "tiktok_hashtag":
+                    todos.extend(await client.tiktok_hashtag(valor))
+                elif tipo == "tiktok_cuenta":
+                    todos.extend(await client.tiktok_cuenta(valor))
+                elif tipo == "ig_seguidores":
+                    todos.extend(await client.instagram_seguidores(valor))
             except Exception as e:
                 # No abortar todo el run si una fuente falla
                 import logging
@@ -370,4 +376,10 @@ class InmobiliariaService:
             todas_fuentes.append(("fb_pagina", p))
         for v in cfg.get("videos_youtube", []):
             todas_fuentes.append(("youtube", v))
+        for h in cfg.get("hashtags_tiktok", []):
+            todas_fuentes.append(("tiktok_hashtag", h))
+        for c in cfg.get("cuentas_tiktok", []):
+            todas_fuentes.append(("tiktok_cuenta", c))
+        for c in cfg.get("competidores_instagram", []):
+            todas_fuentes.append(("ig_seguidores", c))
         return await self.buscar_fuentes(todas_fuentes)

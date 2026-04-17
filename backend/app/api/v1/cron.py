@@ -365,6 +365,12 @@ async def sync_inmobiliaria(
                 todas_fuentes.append(("fb_pagina", p))
             for v in cfg.get("videos_youtube", []):
                 todas_fuentes.append(("youtube", v))
+            for h in cfg.get("hashtags_tiktok", []):
+                todas_fuentes.append(("tiktok_hashtag", h))
+            for c in cfg.get("cuentas_tiktok", []):
+                todas_fuentes.append(("tiktok_cuenta", c))
+            for c in cfg.get("competidores_instagram", []):
+                todas_fuentes.append(("ig_seguidores", c))
 
             n_batches = math.ceil(len(todas_fuentes) / BATCH_SIZE) or 1
             idx = date.today().timetuple().tm_yday % n_batches
