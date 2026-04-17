@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -93,25 +93,27 @@ export default function InmobiliariaPage() {
   }
 
   // Al cargar la página, verificar si hay búsqueda en curso en el servidor
-  useQuery({
+  const { data: estadoBusqueda } = useQuery({
     queryKey: ['inmobiliaria-estado-busqueda'],
     queryFn: () => api.get('/inmobiliaria/buscar/estado').then(r => r.data),
-    onSuccess: (d: any) => {
-      if (d?.buscando && !jobId) {
-        setJobId('background')
-        pollRef.current = setInterval(async () => {
-          try {
-            const r = await api.get('/inmobiliaria/buscar/estado')
-            if (!r.data?.buscando) {
-              stopPolling(); setJobId(null)
-              qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
-              toast('Búsqueda completada', { icon: '✅' })
-            }
-          } catch { stopPolling(); setJobId(null) }
-        }, 15000)
-      }
-    },
   })
+
+  useEffect(() => {
+    if (estadoBusqueda?.buscando && !jobId) {
+      setJobId('background')
+      pollRef.current = setInterval(async () => {
+        try {
+          const r = await api.get('/inmobiliaria/buscar/estado')
+          if (!r.data?.buscando) {
+            stopPolling(); setJobId(null)
+            qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+            toast('Búsqueda completada', { icon: '✅' })
+          }
+        } catch { stopPolling(); setJobId(null) }
+      }, 15000)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estadoBusqueda?.buscando])
 
   const startPolling = (id: string) => {
     pollRef.current = setInterval(async () => {
