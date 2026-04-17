@@ -64,6 +64,28 @@ export default function InmobiliariaPage() {
     queryFn: () =>
       api.get('/inmobiliaria/prospectos', { params: { por_pagina: 200 } }).then(r => r.data),
   })
+
+  // Al cargar la página, verificar si hay búsqueda en curso en el servidor
+  useQuery({
+    queryKey: ['inmobiliaria-estado-busqueda'],
+    queryFn: () => api.get('/inmobiliaria/buscar/estado').then(r => r.data),
+    refetchInterval: jobId ? 30000 : false,
+    onSuccess: (data: any) => {
+      if (data?.buscando && !jobId) {
+        setJobId('background')
+        pollRef.current = setInterval(async () => {
+          try {
+            const r = await api.get('/inmobiliaria/buscar/estado')
+            if (!r.data?.buscando) {
+              stopPolling(); setJobId(null)
+              qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+              toast('Búsqueda completada', { icon: '✅' })
+            }
+          } catch { stopPolling(); setJobId(null) }
+        }, 15000)
+      }
+    },
+  })
   const allProspects: Prospect[] = data?.prospectos ?? []
 
   const { data: dataPapelera, refetch: refetchPapelera } = useQuery({
