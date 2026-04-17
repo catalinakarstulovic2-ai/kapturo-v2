@@ -37,20 +37,18 @@ INTENT_KEYWORDS = [
     "payment plan", "how to buy", "can i invest", "how do i buy",
 ]
 
-# Exclusiones: spam puro — pero NO excluir agentes porque son potencial_referido
 EXCLUSION_KEYWORDS = [
+    # Spam puro
     "follow me", "sígueme", "check my profile", "check my bio",
-    "link in bio", "visit my page", "visit my website",
-    "para mis clientes", "para un cliente", "tengo clientes",
-    "trabajo en bienes", "trabajo en real estate", "work in real estate",
-    "mi cartera de clientes", "wholesale",
-]
-
-# Palabras que identifican a un agente LATAM (potencial referido — NO descartar)
-AGENT_KEYWORDS = [
+    "link in bio", "visit my page", "visit my website", "wholesale",
+    # Agentes y realtors — NO son compradores, los descartamos
     "soy agente", "soy corredor", "soy realtor", "soy broker",
     "agente inmobiliario", "corredor inmobiliario", "broker inmobiliario",
-    "tengo cartera", "mis clientes buscan", "comisión", "comision",
+    "tengo cartera", "mis clientes buscan", "para mis clientes",
+    "para un cliente", "tengo clientes", "mi cartera de clientes",
+    "trabajo en bienes", "trabajo en real estate", "work in real estate",
+    "i am a realtor", "i'm a realtor", "i am an agent", "real estate agent",
+    "comisión", "comision", "ganar comision", "ganar comisión",
 ]
 
 

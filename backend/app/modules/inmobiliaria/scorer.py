@@ -62,7 +62,7 @@ class InmobiliariaScorer:
         title_lower = (prospect.get("contact_title") or "").lower()
         for agent_word in AGENT_TITLES:
             if agent_word in title_lower:
-                return 5.0, f"Descartado: '{prospect.get('contact_title')}' es intermediario, no comprador directo.", "agente_latam", "invitar_programa_referidos"
+                return 5.0, f"Descartado: '{prospect.get('contact_title')}' es intermediario, no comprador directo.", "descartado", "descartar"
 
         prompt = self._construir_prompt(prospect, config)
         message = self.client.messages.create(
@@ -89,11 +89,12 @@ class InmobiliariaScorer:
         texto_comentario = p.get("notes", "") or p.get("raw_text", "")
 
         if es_lead_social:
-            return f"""Eres un experto en ventas digitales. Clasifica y califica este lead captado de redes sociales para {empresa}, que vende: {producto}.
+            return f"""Eres un experto en ventas digitales. Califica este lead captado de redes sociales para {empresa}, que vende: {producto}.
 
 El comprador ideal: {comprador_ideal}. Países de mayor interés: {paises_str}.
 
-Contexto del negocio: {empresa} también tiene un programa de referidos donde agentes o corredores LATAM pueden vender terrenos en Florida a sus clientes SIN necesitar licencia USA. Este es un segundo tipo de lead valioso.
+IMPORTANTE: Solo nos interesan compradores directos — personas que quieren comprar para sí mismas.
+Descarta inmediatamente: agentes inmobiliarios, realtors, corredores, brokers, o cualquier persona que trabaje en bienes raíces.
 
 LEAD SOCIAL:
 - Usuario: {p.get('contact_name', '')}
@@ -104,50 +105,53 @@ LEAD SOCIAL:
 TABLA DE PUNTUACIÓN (suma los puntos que apliquen):
 +50 → Pregunta directamente precio, cómo comprar, cómo invertir, cuotas, financiamiento, contacto
 +35 → Expresa interés claro: "me interesa", "quiero más info", "quiero un terreno", "busco en florida"
-+20 → Menciona Florida, USA, terreno, lote, inversión en EE.UU.
++20 → Menciona Florida, USA, terreno, lote, inversión en EE.UU., dolarizar
 +15 → País objetivo: {paises_str}
--50 → Es agente/corredor/broker buscando comisión para sí mismo (NO es comprador final)
+-100 → Es agente, realtor, corredor, broker o trabaja en bienes raíces → score 0, descartar
 -30 → Comentario es spam, emoji suelto, o seguimiento de cuenta sin intención de compra
 
-TIPO DE LEAD — elige UNO:
-- "comprador_directo": persona que quiere comprar un terreno para sí mismo
-- "potencial_referido": agente, corredor o realtor LATAM que podría unirse al programa de referidos de {empresa} para vender a sus clientes
-- "agente_latam": corredor inmobiliario con cartera propia en LATAM (LinkedIn, portal, etc.) candidato al programa
-
-ACCIÓN RECOMENDADA — elige UNA según score y tipo:
+ACCIÓN RECOMENDADA — elige UNA:
 - "contactar_hoy": score >= 70, comprador con intención directa
-- "nutrir_contenido": score 40-69, interesado pero no listo para comprar
-- "invitar_programa_referidos": es agente/corredor LATAM → ofrecerle el programa sin licencia USA
-- "descartar": sin señales reales de intención
+- "nutrir_contenido": score 40-69, interesado pero no listo aún
+- "descartar": agente inmobiliario, spam, o sin señales reales
 
 Devuelve SOLO este JSON (sin texto extra):
-{{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "<tipo>", "accion_recomendada": "<accion>"}}"""
+{{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "comprador_directo", "accion_recomendada": "<accion>"}}"""
 
-        return f"""Eres un experto en ventas. Califica este prospecto para {empresa}, que vende: {producto}.
+        return f"""Eres un experto en ventas. Califica este perfil profesional como potencial comprador de terrenos en Florida para {empresa}.
 
-El comprador ideal: {comprador_ideal}.
+El producto: {producto}
+El comprador ideal: {comprador_ideal}
 
-PROSPECTO:
+IMPORTANTE: Solo nos interesan compradores directos con capacidad económica real.
+Descarta inmediatamente: agentes inmobiliarios, realtors, corredores, brokers, o cualquier persona que trabaje en bienes raíces.
+
+PERFIL:
 - Nombre: {p.get('contact_name', '')}
 - Cargo: {p.get('contact_title', '')}
 - Empresa: {p.get('company_name', '')}
 - Industria: {p.get('industry', '')}
 - País: {p.get('country', '')}
 - Ciudad: {p.get('city', '')}
-- Email verificado: {'Sí' if p.get('email') else 'No'}
-- LinkedIn disponible: {'Sí' if p.get('linkedin_url') else 'No'}
-- Texto/contexto: {p.get('raw_text', '')[:300] if p.get('raw_text') else 'No disponible'}
+- LinkedIn: {'Disponible' if p.get('linkedin_url') else 'No'}
+- Email: {'Verificado' if p.get('email') else 'No disponible'}
 
 TABLA DE PUNTUACIÓN (suma los puntos que apliquen):
-+30 → Cargo de decisión: {cargos_str}
++35 → Cargo de alta decisión o dueño: CEO, founder, co-founder, owner, president, propietario, dueño, socio
++25 → Cargo profesional con ingresos altos: médico, abogado, arquitecto, ingeniero senior, director, gerente general
 +20 → Industria con liquidez: {industrias_str}
 +15 → País objetivo: {paises_str}
-+25 → Texto menciona explícitamente el problema o interés que resuelve el producto
-+10 → Email verificado disponible
--80 → Es agente, corredor o broker (intermediario, no cliente final)
++10 → LinkedIn disponible (puede contactarse directamente)
++10 → Email verificado
+-100 → Es agente, realtor, corredor, broker o trabaja en bienes raíces → score 0, descartar
+
+ACCIÓN RECOMENDADA:
+- "contactar_hoy": score >= 65, perfil sólido con capacidad clara
+- "nutrir_contenido": score 40-64, perfil prometedor pero sin suficiente señal
+- "descartar": agente inmobiliario o sin capacidad aparente
 
 Devuelve SOLO este JSON:
-{{"score": <número 0-100>, "razon": "<1-2 oraciones explicando el score>"}}"""
+{{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "perfil_capacidad", "accion_recomendada": "<accion>"}}"""
 
     def _parse_score(self, text: str) -> tuple[float, str, str, str]:
         try:
