@@ -28,6 +28,7 @@ class CrearTenantRequest(BaseModel):
     company_name: str
     slug: Optional[str] = None
     plan_id: Optional[str] = None
+    modules: list[str] = []
 
 
 class ActualizarTenantRequest(BaseModel):
@@ -125,6 +126,34 @@ def crear_tenant(
     # Crear etapas de pipeline por defecto
     servicio = PipelineService(db=db, tenant_id=tenant.id)
     servicio.crear_etapas_default(tenant_id=tenant.id)
+
+    # Asignar módulos si se indicaron
+    import uuid as _uuid, json as _json
+    from sqlalchemy import text as sqla_text
+    for mod_str in data.modules:
+        mod_str = mod_str.strip().lower()
+        if mod_str not in VALID_MODULES:
+            continue
+        try:
+            with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
+                raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{mod_str}'"))
+        except Exception:
+            pass
+        default_cfg = DEFAULT_NICHE_CONFIGS.get(mod_str)
+        db.execute(
+            sqla_text(
+                "INSERT INTO tenant_modules (id, tenant_id, module, is_active, niche_config, activated_at) "
+                "VALUES (:id, :tid, CAST(:mod AS moduletype), true, :cfg::jsonb, now())"
+            ),
+            {
+                "id": str(_uuid.uuid4()),
+                "tid": tenant.id,
+                "mod": mod_str,
+                "cfg": _json.dumps(default_cfg) if default_cfg else "{}",
+            }
+        )
+    if data.modules:
+        db.commit()
 
     return {"id": tenant.id, "name": tenant.name, "slug": tenant.slug}
 

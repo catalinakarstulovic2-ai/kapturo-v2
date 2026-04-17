@@ -1274,6 +1274,7 @@ function TenantsTab() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ company_name: '', slug: '' })
+  const [selectedModules, setSelectedModules] = useState<string[]>([])
   const [confirmDelete, setConfirmDelete] = useState<any>(null)
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null)
 
@@ -1290,11 +1291,12 @@ function TenantsTab() {
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
   const crearMutation = useMutation({
-    mutationFn: (d: typeof form) => api.post('/admin/tenants', d),
+    mutationFn: (d: typeof form) => api.post('/admin/tenants', { ...d, modules: selectedModules }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-tenants'] })
       setShowForm(false)
       setForm({ company_name: '', slug: '' })
+      setSelectedModules([])
     },
   })
 
@@ -1339,6 +1341,23 @@ function TenantsTab() {
             className="input" placeholder="Slug (opcional, se genera automático)" value={form.slug}
             onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
           />
+          <div>
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Módulos a activar</p>
+            <div className="flex flex-wrap gap-2">
+              {MODULES.map(m => (
+                <label key={m} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedModules.includes(m)}
+                    onChange={e => setSelectedModules(prev =>
+                      e.target.checked ? [...prev, m] : prev.filter(x => x !== m)
+                    )}
+                  />
+                  {MODULE_LABELS[m] ?? m}
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-2">
             <button className="btn-primary text-sm" onClick={() => crearMutation.mutate(form)} disabled={!form.company_name || crearMutation.isPending}>
               {crearMutation.isPending ? 'Creando...' : 'Crear'}
