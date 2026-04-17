@@ -1,7 +1,9 @@
 import httpx
 import os
+import logging
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 APIFY_BASE = "https://api.apify.com/v2/acts"
 
 INTENT_KEYWORDS = [
@@ -56,11 +58,17 @@ class SocialCommentsClient:
 
     async def _run_actor(self, actor_id: str, run_input: dict) -> list[dict]:
         url = f"{APIFY_BASE}/{actor_id}/run-sync-get-dataset-items"
-        params = {"token": settings.APIFY_API_KEY}
-        async with httpx.AsyncClient(timeout=180) as client:
-            resp = await client.post(url, json=run_input, params=params)
-            resp.raise_for_status()
-            return resp.json()
+        params = {"token": settings.APIFY_API_KEY, "timeout": 280, "memory": 1024}
+        try:
+            async with httpx.AsyncClient(timeout=300) as client:
+                resp = await client.post(url, json=run_input, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info(f"Apify {actor_id}: {len(data)} items")
+                return data
+        except Exception as e:
+            logger.warning(f"Apify {actor_id} falló: {e}")
+            return []
 
     def tiene_intencion(self, texto: str) -> bool:
         t = texto.lower()
