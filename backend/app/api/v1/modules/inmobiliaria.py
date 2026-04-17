@@ -243,6 +243,39 @@ async def diagnostico_apify(
     return resultado
 
 
+@router.post("/test-guardar")
+async def test_guardar_prospecto(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """Prueba guardar UN prospecto de prueba y devuelve si tuvo éxito o el error exacto."""
+    from app.models.prospect import Prospect, ProspectSource, ProspectStatus
+    import uuid
+    try:
+        p = Prospect(
+            id=str(uuid.uuid4()),
+            tenant_id=str(current_user.tenant_id),
+            contact_name="Test Lead TikTok",
+            company_name="Lead social — tiktok_hashtag_invertirenusa",
+            website="https://www.tiktok.com/@testuser",
+            notes="Texto del comentario de prueba: quiero invertir en florida",
+            source=ProspectSource.apify_social,
+            source_url="https://www.tiktok.com/@testuser/video/123",
+            score=75.0,
+            score_reason="Test | tipo: comprador_directo | accion: contactar_hoy",
+            is_qualified=True,
+            status=ProspectStatus.new,
+        )
+        db.add(p)
+        db.flush()
+        db.commit()
+        db.refresh(p)
+        return {"ok": True, "id": p.id, "mensaje": "Prospecto guardado correctamente"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "error": str(e), "tipo": type(e).__name__}
+
+
 @router.get("/descartados")
 async def listar_descartados(
     pagina: int = 1,
