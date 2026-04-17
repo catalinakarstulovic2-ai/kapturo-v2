@@ -152,6 +152,17 @@ def _do_migrations():
     except Exception as e:
         print(f"⚠️  Error limpiando grupos_facebook: {e}")
 
+    # Corregir prospectos apify_social sin source_module — quedan invisibles en el módulo
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(
+                "UPDATE prospects SET source_module = 'inmobiliaria' "
+                "WHERE source::text = 'apify_social' AND (source_module IS NULL OR source_module = '')"
+            ))
+        print("✅ source_module=inmobiliaria inyectado en prospectos apify_social sin módulo")
+    except Exception as e:
+        print(f"⚠️  Error inyectando source_module: {e}")
+
     # Inyectar nuevas fuentes (TikTok + competidores IG) en tenants existentes que no las tienen
     try:
         import json as _json
