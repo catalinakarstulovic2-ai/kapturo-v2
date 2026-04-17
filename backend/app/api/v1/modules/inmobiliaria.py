@@ -105,6 +105,24 @@ async def buscar_empresas(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/buscar-linkedin")
+async def buscar_linkedin(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """
+    Busca perfiles LinkedIn según las queries configuradas en niche_config.
+    Califica cada perfil con Claude y guarda los que superen el umbral.
+    """
+    from app.services.inmobiliaria_service import InmobiliariaService
+    try:
+        service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
+        resultado = await service.buscar_linkedin_leads()
+        return {"ok": True, "resultado": resultado}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/descartados")
 async def listar_descartados(
     pagina: int = 1,

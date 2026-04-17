@@ -284,6 +284,65 @@ class InmobiliariaService:
             "duplicados": duplicados,
         }
 
+    async def buscar_linkedin_leads(self) -> dict:
+        """
+        Busca perfiles LinkedIn usando las queries definidas en niche_config.
+        Cada perfil se califica con Claude y se guarda como prospecto.
+        """
+        from app.modules.inmobiliaria.linkedin_client import LinkedInClient
+        from app.models.tenant import TenantModule
+
+        modulo = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module == "inmobiliaria",
+            TenantModule.is_active == True,
+        ).first()
+
+        if not modulo or not modulo.niche_config:
+            return {"error": "Módulo inmobiliaria sin configuración"}
+
+        cfg = modulo.niche_config
+        queries = cfg.get("linkedin_queries") or []
+        if not queries:
+            return {"error": "No hay linkedin_queries en la configuración del módulo"}
+
+        client = LinkedInClient()
+        perfiles = await client.buscar_multiples(queries, max_por_query=20)
+
+        guardados = calificados = duplicados = 0
+
+        for perfil in perfiles:
+            perfil["source_module"] = "inmobiliaria"
+            perfil["tenant_id"] = self.tenant_id
+
+            if not await self._es_nuevo(perfil):
+                duplicados += 1
+                continue
+
+            score, razon, tipo_lead, accion = await self.scorer.calificar(perfil, config=self.agent_config)
+
+            prospect = Prospect(
+                tenant_id=self.tenant_id,
+                score=score,
+                score_reason=f"{razon} | tipo: {tipo_lead} | accion: {accion}",
+                is_qualified=score >= SCORE_THRESHOLD,
+                status=ProspectStatus.qualified if score >= SCORE_THRESHOLD else ProspectStatus.new,
+                **{k: v for k, v in perfil.items() if k not in ("tenant_id", "source_module")},
+            )
+            self.db.add(prospect)
+            self.db.flush()
+            guardados += 1
+            if score >= SCORE_THRESHOLD:
+                calificados += 1
+
+        self.db.commit()
+        return {
+            "perfiles_encontrados": len(perfiles),
+            "guardados": guardados,
+            "calificados": calificados,
+            "duplicados": duplicados,
+        }
+
     async def buscar_comentarios_sociales(self) -> dict:
         """Wrapper legacy — corre TODAS las fuentes (para tests manuales)."""
         from app.models.tenant import TenantModule
