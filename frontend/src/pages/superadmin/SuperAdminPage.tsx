@@ -114,7 +114,7 @@ function NicheConfigModal({ tenantId, modulo, onClose }: { tenantId: string; mod
     setSaving(true)
     try {
       const res = await fetch(`/api/v1/admin/tenants/${tenantId}/modules/${modulo.id}/config`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${JSON.parse(localStorage.getItem('kapturo-auth-v2') || '{}')?.state?.token || ''}`,

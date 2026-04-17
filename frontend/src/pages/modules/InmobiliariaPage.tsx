@@ -10,8 +10,25 @@ import {
   Loader2, MapPin, Mail, Linkedin, ArrowRight, X,
   RefreshCw, Search, Phone, ChevronDown, ChevronUp,
   Home, Star, Users, Globe, MessageCircle, Instagram,
-  TrendingUp, UserCheck, UserX,
+  TrendingUp, UserCheck, UserX, Building2, Zap,
 } from 'lucide-react'
+
+// Parsea "razón | tipo: X | accion: Y" de score_reason
+function parseScoreReason(raw?: string): { razon: string; tipo?: string; accion?: string } {
+  if (!raw) return { razon: '' }
+  const partes = raw.split(' | ')
+  const razon = partes[0] ?? ''
+  const tipo = partes.find(p => p.startsWith('tipo:'))?.replace('tipo: ', '').replace('tipo:', '').trim()
+  const accion = partes.find(p => p.startsWith('accion:'))?.replace('accion: ', '').replace('accion:', '').trim()
+  return { razon, tipo, accion }
+}
+
+const ACCION_LABELS: Record<string, { label: string; color: string }> = {
+  contactar_hoy:          { label: '⚡ Contactar hoy',         color: 'bg-emerald-100 text-emerald-700' },
+  nutrir_contenido:       { label: '📩 Nutrir con contenido',  color: 'bg-sky-100 text-sky-700' },
+  invitar_programa_referidos: { label: '🤝 Invitar a referidos', color: 'bg-violet-100 text-violet-700' },
+  descartar:              { label: '🗑 Descartar',             color: 'bg-gray-100 text-gray-500' },
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -39,6 +56,7 @@ export default function InmobiliariaPage() {
   const [soloCalificados, setSoloCalificados] = useState(false)
   const [excluidoLoading, setExcluidoLoading] = useState<Record<string, boolean>>({})
   const [restaurarLoading, setRestaurarLoading] = useState<Record<string, boolean>>({})
+  const [pipelineLoading, setPipelineLoading] = useState<Record<string, boolean>>({})
   const [searchSeconds, setSearchSeconds] = useState(0)
 
   const { data, isLoading, refetch } = useQuery({
@@ -127,6 +145,19 @@ export default function InmobiliariaPage() {
       toast.error('Error')
     } finally {
       setExcluidoLoading(p => ({ ...p, [id]: false }))
+    }
+  }
+
+  const agregarPipeline = async (id: string) => {
+    setPipelineLoading(p => ({ ...p, [id]: true }))
+    try {
+      await api.post(`/modules/prospector/prospectos/${id}/pipeline`)
+      toast.success('Lead agregado al pipeline')
+      qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Error al agregar al pipeline')
+    } finally {
+      setPipelineLoading(p => ({ ...p, [id]: false }))
     }
   }
 
@@ -344,6 +375,9 @@ export default function InmobiliariaPage() {
               const fuente = (p as any).fuente_inmobiliaria as string | undefined
               const isExpanded = expandedId === p.id
 
+              const { razon, accion } = parseScoreReason(p.score_reason)
+              const accionMeta = accion ? ACCION_LABELS[accion] : null
+
               return (
                 <div key={p.id} className={clsx('transition-colors', isExpanded ? 'bg-brand-50/40' : 'hover:bg-gray-50/60')}>
 
@@ -355,12 +389,17 @@ export default function InmobiliariaPage() {
                     <ScoreBadge score={p.score} />
 
                     <div className="min-w-0 space-y-1">
-                      {/* Nombre + origen */}
+                      {/* Nombre + origen + acción */}
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-gray-900">
                           {p.contact_name || p.company_name || 'Sin nombre'}
                         </span>
                         <FuenteBadge source={fuente} />
+                        {accionMeta && (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${accionMeta.color}`}>
+                            {accionMeta.label}
+                          </span>
+                        )}
                       </div>
                       {/* Cargo · Empresa · Industria · Ubicación */}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
@@ -394,10 +433,11 @@ export default function InmobiliariaPage() {
                     </div>
                   </div>
 
-                  {/* Panel expandido — contacto + razón del score */}
+                  {/* Panel expandido — contacto + razón del score + pipeline */}
                   {isExpanded && (
-                    <div className="pl-[4.5rem] pr-5 pb-4 pt-2 border-t border-gray-100">
-                      <div className="flex flex-wrap gap-x-5 gap-y-2 mb-2">
+                    <div className="pl-[4.5rem] pr-5 pb-4 pt-2 border-t border-gray-100 space-y-3">
+                      {/* Contacto */}
+                      <div className="flex flex-wrap gap-x-5 gap-y-2">
                         {p.email && (
                           <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-xs text-brand-600 hover:underline font-medium">
                             <Mail size={12} />{p.email}
@@ -418,11 +458,27 @@ export default function InmobiliariaPage() {
                           <span className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</span>
                         )}
                       </div>
-                      {p.score_reason && (
-                        <div className="flex items-start gap-1.5 text-xs text-gray-400 italic border-t border-gray-100 pt-2">
+                      {/* Razón del score */}
+                      {razon && (
+                        <div className="flex items-start gap-1.5 text-xs text-gray-400 italic">
                           <Star size={11} className="text-amber-400 mt-0.5 shrink-0" />
-                          <span>{p.score_reason}</span>
+                          <span>{razon}</span>
                         </div>
+                      )}
+                      {/* Botón pipeline */}
+                      {!p.in_pipeline ? (
+                        <button
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+                          onClick={() => agregarPipeline(p.id)}
+                          disabled={pipelineLoading[p.id]}
+                        >
+                          {pipelineLoading[p.id] ? <Loader2 size={11} className="animate-spin" /> : <ArrowRight size={11} />}
+                          Agregar al pipeline
+                        </button>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                          <TrendingUp size={11} /> En pipeline
+                        </span>
                       )}
                     </div>
                   )}

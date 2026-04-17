@@ -339,9 +339,8 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
         "producto": "terrenos urbanizados de 1,000 m2 en Inverness, Florida desde USD $14,990, con financiamiento directo sin banco, sin necesidad de ser residente ni tener licencia USA",
         "comprador_ideal": "latinoamericano con capital propio o capacidad de ahorro, que busca dolarizar su patrimonio o hacer su primera inversión en EE.UU.",
         "paises_objetivo": ["chile","argentina","mexico","peru","colombia","venezuela","ecuador","uruguay","panama","costa rica","estados unidos","eeuu","usa","espana","miami","florida"],
-        "tipos_lead": ["comprador_directo","potencial_referido","agente_latam"],
-        "hashtags_instagram": ["invertirenusa","terrenosflorida","propiedadesenusa","comprarenusa","bienesraicesusa","floridarealestate","inversionesflorida","terrenoenusa","dolarizatusahorros","patrimonioenusa","realtorchile","realtorlatino","FirstLandUSA"],
-        "cuentas_instagram": ["terrenoenflorida","uperland.us","realtordeflorida","enidizquierdorealtor","realtorannelice"],
+        "hashtags_instagram": ["invertirenusa","terrenosflorida","propiedadesenusa","comprarenusa","bienesraicesusa","floridarealestate","inversionesflorida","terrenoenusa","dolarizatusahorros","patrimonioenusa","FirstLandUSA"],
+        "cuentas_instagram": ["terrenoenflorida","uperland.us"],
         "paginas_facebook": [],
         "grupos_facebook": [
             "https://www.facebook.com/groups/invertirenusadesdechile",
@@ -349,6 +348,18 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
             "https://www.facebook.com/groups/bienesraicesusalatam"
         ],
         "videos_youtube": [],
+        "linkedin_queries": [
+            "CEO Chile",
+            "founder Argentina",
+            "empresario Mexico",
+            "propietario Colombia",
+            "dueño Peru",
+            "gerente general Venezuela",
+            "director Chile inversion",
+            "medico Chile",
+            "abogado Argentina",
+            "arquitecto Colombia"
+        ],
         "competidores": ["terrenoenflorida","firstlandusa","inversionenflorida"],
     },
 }
@@ -430,7 +441,7 @@ def actualizar_modulo(
     return {"module_id": module_id, "is_active": is_active}
 
 
-@router.patch("/tenants/{tenant_id}/modules/{module_id}/config")
+@router.put("/tenants/{tenant_id}/modules/{module_id}/config")
 def actualizar_niche_config(
     tenant_id: str,
     module_id: str,
