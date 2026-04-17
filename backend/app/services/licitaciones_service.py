@@ -7,8 +7,11 @@ Dos flujos principales:
   buscar_y_guardar()    → flujo batch para workers
 """
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 from app.modules.licitaciones.client import MercadoPublicoClient
 from app.modules.licitaciones.normalizer import (
     LicitacionNormalizada,
@@ -302,8 +305,8 @@ class LicitacionesService:
         enriquecimiento = {}
         try:
             enriquecimiento = await self.enriquecer_prospecto(prospect.id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Auto-enriquecimiento falló para prospect {prospect.id}: {e}")
 
         self.db.refresh(prospect)
 
@@ -448,8 +451,8 @@ class LicitacionesService:
                             enriched["phone"] = org["phone"]
                         if enriched:
                             enriched["enrichment_source"] = "Apollo"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Enriquecimiento Apollo falló: {e}")
 
         # --- Fuente 3: Hunter.io — busca emails por dominio de la web ---
         if prospect.website and not enriched.get("email") and not prospect.email:
@@ -480,8 +483,8 @@ class LicitacionesService:
                                         if nombre and not prospect.contact_name:
                                             enriched["contact_name"] = nombre
                                         enriched["enrichment_source"] = "Hunter"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Enriquecimiento Hunter (dominio) falló: {e}")
 
         # --- Fuente 4: Hunter por nombre empresa (si no hay web aún) ---
         if not enriched.get("email") and not prospect.email and prospect.company_name:
@@ -510,8 +513,8 @@ class LicitacionesService:
                                     if nombre2 and not prospect.contact_name:
                                         enriched["contact_name"] = nombre2
                                     enriched["enrichment_source"] = "Hunter"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Enriquecimiento Hunter (empresa) falló: {e}")
 
         # ── Paso 5: RES API → socios/dueños → contact_name ───────────────────
         if prospect.rut and not prospect.contact_name and not enriched.get("contact_name"):
@@ -522,8 +525,8 @@ class LicitacionesService:
                     enriched.setdefault("enrichment_source", "RES")
                 if res_data.get("address") and not prospect.address and not enriched.get("address"):
                     enriched["address"] = res_data["address"]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Consulta RES API falló: {e}")
 
         # ── Paso 6: Apollo enrich_person → cargo del contacto ─────────────────
         email_enrich   = enriched.get("email") or prospect.email
@@ -549,8 +552,8 @@ class LicitacionesService:
                     phones = person.get("phone_numbers") or []
                     if phones and not prospect.phone and not enriched.get("phone"):
                         enriched["phone"] = phones[0].get("sanitized_number", "")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Enriquecimiento Apollo (persona) falló: {e}")
 
         # ── Paso 7: Historial Mercado Público → licitaciones_ganadas_count ─────
         if prospect.rut:
@@ -558,8 +561,8 @@ class LicitacionesService:
                 count = await self._contar_historial_mp(prospect.rut)
                 if count > 0:
                     enriched["licitaciones_ganadas_count"] = count
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Historial Mercado Público falló: {e}")
 
         if enriched:
             for campo, valor in enriched.items():
@@ -603,8 +606,8 @@ class LicitacionesService:
                     if ciudad_match:
                         result["ciudad"] = ciudad_match.group(1).strip()
                     return result
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Scraping web SII falló: {e}")
         return {}
 
     async def _consultar_res(self, rut: str) -> dict:
@@ -654,8 +657,8 @@ class LicitacionesService:
                     if domicilio:
                         result["address"] = domicilio
                     return result
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Consulta RES API (empresa) falló: {e}")
         return {}
 
     async def _contar_historial_mp(self, rut: str) -> int:

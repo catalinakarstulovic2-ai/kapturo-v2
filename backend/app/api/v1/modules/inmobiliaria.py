@@ -5,11 +5,14 @@ POST /api/v1/inmobiliaria/buscar          → lanza búsqueda en background (Cel
 GET  /api/v1/inmobiliaria/buscar/{job_id} → estado del job
 GET  /api/v1/inmobiliaria/prospectos      → lista leads del módulo con filtros
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.middleware import get_current_user, require_admin
 from app.services.prospector_service import ProspectorService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/inmobiliaria", tags=["inmobiliaria"])
 
@@ -70,8 +73,8 @@ async def buscar_prospectos(
             try:
                 service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
                 await service.buscar_comentarios_sociales()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}")
             finally:
                 bg_db.close()
                 _set_buscando(False)
