@@ -190,9 +190,9 @@ class SocialCommentsClient:
     async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
         items = await self._run_actor("clockworks~tiktok-scraper", {
             "hashtags": [hashtag],
-            "resultsPerPage": 10,
-            "maxResultsPerQuery": 10,
-            "commentsPerPost": 80,
+            "resultsPerPage": 5,
+            "maxResultsPerQuery": 5,
+            "commentsPerPost": 20,
             "scrapeComments": True,
         })
         comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
@@ -202,9 +202,9 @@ class SocialCommentsClient:
     async def tiktok_cuenta(self, username: str) -> list[dict]:
         items = await self._run_actor("clockworks~tiktok-scraper", {
             "profiles": [username],
-            "resultsPerPage": 10,
-            "maxResultsPerQuery": 10,
-            "commentsPerPost": 80,
+            "resultsPerPage": 5,
+            "maxResultsPerQuery": 5,
+            "commentsPerPost": 20,
             "scrapeComments": True,
         })
         comentarios = [r for r in items if r.get("type") == "comment" or r.get("text")]
