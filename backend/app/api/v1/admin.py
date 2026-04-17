@@ -616,7 +616,11 @@ def impersonar_usuario(
     if target.role == UserRole.super_admin:
         raise HTTPException(status_code=400, detail="No puedes impersonar a otro super_admin")
 
-    token = create_access_token({"sub": target.email})
+    token = create_access_token({
+        "sub": str(target.id),
+        "tenant_id": str(target.tenant_id) if target.tenant_id else None,
+        "role": target.role.value if hasattr(target.role, "value") else str(target.role),
+    })
 
     # Cargar módulos del tenant
     modulos = []
