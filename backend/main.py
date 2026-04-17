@@ -112,6 +112,8 @@ def run_migrations():
                     {"cfg": _json.dumps(cfg), "mod": mod_name},
                 )
         print("✅ niche_config por defecto inyectado en módulos vacíos")
+    except Exception as e:
+        print(f"⚠️  Error inyectando niche_config: {e}")
 
     # Limpiar grupos_facebook privados de todos los tenants (no funcionan sin login)
     try:
@@ -139,8 +141,6 @@ def run_migrations():
         print("✅ grupos_facebook privados removidos de niche_config")
     except Exception as e:
         print(f"⚠️  Error limpiando grupos_facebook: {e}")
-    except Exception as e:
-        print(f"⚠️  Error inyectando niche_config: {e}")
 
 
 @app.get("/")
