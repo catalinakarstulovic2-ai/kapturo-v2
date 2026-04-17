@@ -1,49 +1,68 @@
 """
 Endpoints REST del módulo Inmobiliaria.
 
-POST /api/v1/inmobiliaria/buscar   → lanza búsqueda con Google Maps + Hunter + Claude
-GET  /api/v1/inmobiliaria/prospectos → lista prospectos del módulo con filtros
+POST /api/v1/inmobiliaria/buscar          → lanza búsqueda en background (Celery)
+GET  /api/v1/inmobiliaria/buscar/{job_id} → estado del job
+GET  /api/v1/inmobiliaria/prospectos      → lista leads del módulo con filtros
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional, List
 from app.core.database import get_db
 from app.core.middleware import get_current_user, require_admin
-from app.services.inmobiliaria_service import InmobiliariaService
 from app.services.prospector_service import ProspectorService
 
 router = APIRouter(prefix="/inmobiliaria", tags=["inmobiliaria"])
 
 
-class BusquedaParams(BaseModel):
-    ubicacion: Optional[str] = None          # ej: "Santiago, Chile"
-    queries: Optional[List[str]] = None      # queries custom (o usa DEFAULT_QUERIES)
-    max_por_query: int = 20                  # resultados Maps por query
-
-
 @router.post("/buscar")
 async def buscar_prospectos(
-    params: BusquedaParams,
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
     """
-    Lanza la búsqueda de prospectos inmobiliarios usando:
-      1. Google Maps  → encuentra agencias/constructoras/inmobiliarias
-      2. Hunter.io    → enriquece con email y contacto real
-      3. Claude Haiku → califica según contexto del tenant
-
-    Devuelve resumen con totales y detalle por query.
+    Lanza búsqueda en background vía Celery.
+    Retorna inmediatamente con job_id para hacer polling.
+    Cada run procesa un batch rotado de fuentes (anti-ban).
     """
     try:
-        service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
-        resultado = await service.ejecutar_busqueda(
-            ubicacion=params.ubicacion,
-            queries=params.queries,
-            max_por_query=params.max_por_query,
-        )
-        return {"ok": True, "resultado": resultado}
+        from workers.tasks.social_comments_sync import sync_social_comments
+        task = sync_social_comments.delay(tenant_id=str(current_user.tenant_id))
+        return {
+            "ok": True,
+            "job_id": task.id,
+            "mensaje": "Búsqueda iniciada. Consulta /buscar/{job_id} para el estado.",
+        }
+    except Exception:
+        # Fallback síncrono si Celery/Redis no está disponible (dev local sin worker)
+        from app.services.inmobiliaria_service import InmobiliariaService
+        try:
+            service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
+            resultado = await service.buscar_comentarios_sociales()
+            return {"ok": True, "job_id": None, "resultado": resultado}
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=str(e2))
+
+
+@router.get("/buscar/{job_id}")
+async def estado_busqueda(
+    job_id: str,
+    current_user=Depends(require_admin),
+):
+    """
+    Consulta el estado de un job de búsqueda.
+    Estados posibles: PENDING | STARTED | SUCCESS | FAILURE
+    """
+    try:
+        from celery.result import AsyncResult
+        from workers.celery_app import app as celery_app
+        result = AsyncResult(job_id, app=celery_app)
+        estado = result.state
+        if estado == "SUCCESS":
+            return {"ok": True, "estado": "SUCCESS", "resultado": result.result}
+        elif estado == "FAILURE":
+            return {"ok": False, "estado": "FAILURE", "error": str(result.result)}
+        else:
+            return {"ok": True, "estado": estado, "resultado": None}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -57,10 +76,6 @@ async def listar_prospectos(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """
-    Lista los prospectos del módulo inmobiliaria con filtros y paginación.
-    Reutiliza el servicio de prospector filtrando por source_module=inmobiliaria.
-    """
     service = ProspectorService(db=db, tenant_id=str(current_user.tenant_id))
     return await service.obtener_prospectos(
         modulo="inmobiliaria",

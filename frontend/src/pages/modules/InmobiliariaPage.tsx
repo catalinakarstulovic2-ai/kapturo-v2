@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -9,7 +9,8 @@ import ScoreBadge from '../../components/ui/ScoreBadge'
 import {
   Loader2, MapPin, Mail, Linkedin, ArrowRight, X,
   RefreshCw, Search, Phone, ChevronDown, ChevronUp,
-  Home, Star, Users, Globe, Flag,
+  Home, Star, Users, Globe, MessageCircle, Instagram,
+  TrendingUp, UserCheck, UserX,
 } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -24,11 +25,7 @@ function FuenteBadge({ source }: { source?: string }) {
   )
 }
 
-const DEFAULT_PARAMS = {
-  max_por_query: 20,
-}
-
-type FiltroCalidad = 'todos' | 'calificados' | 'con_email' | 'con_web'
+type FiltroCalidad = 'todos' | 'calificados' | 'con_email' | 'con_contacto'
 
 // ── Página ─────────────────────────────────────────────────────────────────
 
@@ -61,28 +58,60 @@ export default function InmobiliariaPage() {
 
   const prospects = allProspects.filter(p => {
     if (soloCalificados && !p.is_qualified) return false
-    if (filtroCalidad === 'calificados' && !p.is_qualified) return false
-    if (filtroCalidad === 'con_email'   && !p.email)       return false
-    if (filtroCalidad === 'con_web'     && !(p as any).website) return false
+    if (filtroCalidad === 'calificados'   && !p.is_qualified) return false
+    if (filtroCalidad === 'con_email'     && !p.email)        return false
+    if (filtroCalidad === 'con_contacto'  && !p.email && !p.phone) return false
     return true
   })
 
   let timer: ReturnType<typeof setInterval> | null = null
+  const [jobId, setJobId] = useState<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    if (timer) { clearInterval(timer); timer = null }
+  }
+
+  const startPolling = (id: string) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await api.get(`/inmobiliaria/buscar/${id}`)
+        const { estado, resultado, error: jobError } = res.data
+        if (estado === 'SUCCESS') {
+          stopPolling(); setJobId(null)
+          toast.success(`${resultado?.calificados ?? 0} calificados de ${resultado?.guardados ?? 0} nuevos leads`)
+          qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+        } else if (estado === 'FAILURE') {
+          stopPolling(); setJobId(null)
+          toast.error(jobError || 'Error en la búsqueda')
+        }
+      } catch { stopPolling(); setJobId(null) }
+    }, 5000)
+  }
+
   const buscarMutation = useMutation({
     mutationFn: () => {
       setSearchSeconds(0)
       timer = setInterval(() => setSearchSeconds(s => s + 1), 1000)
-      return api.post('/inmobiliaria/buscar', DEFAULT_PARAMS)
+      return api.post('/inmobiliaria/buscar')
     },
     onSuccess: (res) => {
-      if (timer) clearInterval(timer)
-      const r = res.data.resultado
-      const enrich = r.total_enriquecidos ? ` · ${r.total_enriquecidos} con email` : ''
-      toast.success(`${r.total_calificados} calificados de ${r.total_guardados} guardados${enrich}`)
-      qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+      const { job_id, resultado } = res.data
+      if (job_id) {
+        setJobId(job_id)
+        startPolling(job_id)
+        toast('Buscando en background... puede tardar unos minutos ☕', { icon: '🔍' })
+      } else if (resultado) {
+        if (timer) clearInterval(timer)
+        if (resultado.error) { toast.error(resultado.error); return }
+        toast.success(`${resultado.calificados} calificados de ${resultado.guardados} nuevos leads`)
+        qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+      }
     },
     onError: (err: any) => {
       if (timer) clearInterval(timer)
+      setJobId(null)
       toast.error(err.response?.data?.detail || 'Error en la búsqueda')
     },
   })
@@ -115,8 +144,9 @@ export default function InmobiliariaPage() {
     }
   }
 
-  const calificados = allProspects.filter(p => p.is_qualified).length
-  const enContacto  = allProspects.filter(p => (p as any).contactado).length
+  const calificados  = allProspects.filter(p => p.is_qualified).length
+  const conContacto  = allProspects.filter(p => p.email || p.phone).length
+  const sinContacto  = allProspects.filter(p => !p.email && !p.phone).length
 
   return (
     <div className="space-y-5">
@@ -129,7 +159,7 @@ export default function InmobiliariaPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Inmobiliaria</h1>
-            <p className="text-gray-500 text-sm">Prospección · Google Maps + Hunter.io + Claude</p>
+            <p className="text-gray-500 text-sm">Leads · Instagram · Facebook · YouTube · Comentarios sociales</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -153,13 +183,15 @@ export default function InmobiliariaPage() {
             <button
               className="btn-primary flex items-center gap-2 px-5 py-2.5"
               onClick={() => buscarMutation.mutate()}
-              disabled={buscarMutation.isPending}
+              disabled={buscarMutation.isPending || !!jobId}
             >
               {buscarMutation.isPending
-                ? <><Loader2 size={15} className="animate-spin" />
-                    {searchSeconds > 0 ? `Buscando... ${searchSeconds}s` : 'Iniciando búsqueda...'}
-                  </>
-                : <><Search size={15} /> Buscar prospectos</>
+                ? <><Loader2 size={15} className="animate-spin" /> Iniciando...</>
+                : jobId
+                  ? <><Loader2 size={15} className="animate-spin" />
+                      {searchSeconds > 0 ? `Buscando... ${searchSeconds}s` : 'En background...'}
+                    </>
+                  : <><Search size={15} /> Buscar ahora</>
               }
             </button>
           )}
@@ -215,12 +247,13 @@ export default function InmobiliariaPage() {
       {vista === 'lista' && allProspects.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Encontrados',  value: allProspects.length, color: 'text-gray-700',    bg: 'bg-gray-50' },
-            { label: 'Calificados',  value: calificados,          color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Contactados',  value: enContacto,           color: 'text-brand-600',   bg: 'bg-brand-50' },
-            { label: 'Sin contacto', value: allProspects.filter(p => !p.email && !p.phone).length, color: 'text-gray-400', bg: 'bg-gray-50' },
+            { label: 'Encontrados',   value: allProspects.length, color: 'text-gray-700',    bg: 'bg-gray-50',     icon: <Users size={16} /> },
+            { label: 'Calificados',   value: calificados,          color: 'text-emerald-600', bg: 'bg-emerald-50',  icon: <UserCheck size={16} /> },
+            { label: 'Con contacto',  value: conContacto,          color: 'text-brand-600',   bg: 'bg-brand-50',    icon: <MessageCircle size={16} /> },
+            { label: 'Sin contacto',  value: sinContacto,          color: 'text-gray-400',    bg: 'bg-gray-50',     icon: <UserX size={16} /> },
           ].map(s => (
             <div key={s.label} className={`card p-4 text-center ${s.bg}`}>
+              <div className={`flex justify-center mb-1 ${s.color} opacity-60`}>{s.icon}</div>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
             </div>
@@ -233,10 +266,10 @@ export default function InmobiliariaPage() {
         <div className="card p-3 flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-1">Filtrar:</span>
           {([
-            { id: 'todos',       label: 'Todos',       icon: <Home size={11} /> },
-            { id: 'calificados', label: 'Calificados', icon: <Star size={11} /> },
-            { id: 'con_email',   label: 'Con email',   icon: <Mail size={11} /> },
-            { id: 'con_web',     label: 'Con web',     icon: <Globe size={11} /> },
+            { id: 'todos',         label: 'Todos',          icon: <Home size={11} /> },
+            { id: 'calificados',   label: 'Calificados',    icon: <Star size={11} /> },
+            { id: 'con_email',     label: 'Con email',      icon: <Mail size={11} /> },
+            { id: 'con_contacto',  label: 'Con contacto',   icon: <MessageCircle size={11} /> },
           ] as { id: FiltroCalidad; label: string; icon: React.ReactNode }[]).map(f => (
             <button
               key={f.id}
@@ -264,8 +297,8 @@ export default function InmobiliariaPage() {
         <div className="card p-16 text-center space-y-4">
           <Home size={48} className="mx-auto text-gray-200" />
           <div>
-            <p className="font-semibold text-gray-500">Sin prospectos todavía</p>
-            <p className="text-sm text-gray-400 mt-1">Haz clic en <strong>"Buscar prospectos"</strong> para encontrar<br />agencias inmobiliarias, constructoras y desarrolladores.</p>
+            <p className="font-semibold text-gray-500">Sin leads todavía</p>
+            <p className="text-sm text-gray-400 mt-1">Los leads aparecen aquí automáticamente cada noche.<br />También puedes hacer clic en <strong>"Buscar ahora"</strong> para lanzar una búsqueda manual.</p>
           </div>
         </div>
       )}
@@ -274,8 +307,8 @@ export default function InmobiliariaPage() {
       {vista === 'lista' && buscarMutation.isPending && allProspects.length === 0 && (
         <div className="card p-14 text-center space-y-3">
           <Loader2 size={36} className="mx-auto text-brand-400 animate-spin" />
-          <p className="font-semibold text-gray-600">Buscando compradores potenciales...</p>
-          <p className="text-sm text-gray-400">Apollo LATAM · Apollo USA · Facebook · Reddit · Instagram · TikTok</p>
+          <p className="font-semibold text-gray-600">Buscando personas interesadas...</p>
+          <p className="text-sm text-gray-400">Instagram · Facebook · YouTube · Comentarios públicos</p>
           {searchSeconds > 5 && (
             <div className="w-48 mx-auto bg-gray-100 rounded-full h-1">
               <div className="bg-brand-400 h-1 rounded-full transition-all duration-1000"

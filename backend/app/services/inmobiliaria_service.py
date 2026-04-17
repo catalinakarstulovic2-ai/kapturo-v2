@@ -14,7 +14,7 @@ from app.modules.prospector.gmaps_client import GoogleMapsProspectorClient
 from app.modules.prospector.hunter_client import HunterClient
 from app.modules.prospector.normalizer import normalizar_gmaps
 from app.modules.inmobiliaria.scorer import InmobiliariaScorer, SCORE_THRESHOLD
-from app.models.prospect import Prospect, ProspectStatus
+from app.models.prospect import Prospect, ProspectStatus, ProspectSource
 from app.models.tenant import Tenant
 from app.core.config import settings
 
@@ -137,7 +137,7 @@ class InmobiliariaService:
                 enriched = True
 
         # Calificar con Claude
-        score, razon = await self.scorer.calificar(p_dict, config=self.agent_config)
+        score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config=self.agent_config)
 
         prospect = Prospect(
             tenant_id=self.tenant_id,
@@ -152,6 +152,15 @@ class InmobiliariaService:
 
         return {"calificado": score >= SCORE_THRESHOLD, "enriquecido": enriched}
 
+    async def _guardar(self, p_dict: dict):
+        """Guarda un prospecto ya procesado en la BD."""
+        prospect = Prospect(
+            tenant_id=self.tenant_id,
+            **{k: v for k, v in p_dict.items() if k != "tenant_id"},
+        )
+        self.db.add(prospect)
+        self.db.flush()
+
     async def _es_nuevo(self, p_dict: dict) -> bool:
         """True si el prospecto NO existe aún en la BD del tenant."""
         phone = p_dict.get("phone", "")
@@ -159,6 +168,18 @@ class InmobiliariaService:
             existe = self.db.query(Prospect).filter(
                 Prospect.tenant_id == self.tenant_id,
                 Prospect.phone == phone,
+            ).first()
+            if existe:
+                return False
+
+        # Deduplicación para leads sociales: por contact_name + source
+        contact_name = p_dict.get("contact_name", "")
+        source = p_dict.get("source")
+        if contact_name and source == ProspectSource.apify_social:
+            existe = self.db.query(Prospect).filter(
+                Prospect.tenant_id == self.tenant_id,
+                Prospect.contact_name == contact_name,
+                Prospect.source == ProspectSource.apify_social,
             ).first()
             if existe:
                 return False
@@ -175,3 +196,114 @@ class InmobiliariaService:
                 return False
 
         return True
+    async def buscar_fuentes(self, fuentes: list[tuple]) -> dict:
+        """
+        Ejecuta el scraping solo sobre la lista de fuentes indicada.
+        fuentes: lista de (tipo, valor) donde tipo es:
+          'hashtag', 'cuenta', 'fb_grupo', 'fb_pagina', 'youtube'
+        Incluye delays aleatorios entre actores para evitar ban.
+        """
+        import random
+        from app.modules.inmobiliaria.social_comments_client import SocialCommentsClient
+        from app.models.tenant import TenantModule
+
+        modulo = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module == "inmobiliaria",
+            TenantModule.is_active == True,
+        ).first()
+
+        if not modulo or not modulo.niche_config:
+            return {"error": "Modulo inmobiliaria sin configuracion"}
+
+        cfg = modulo.niche_config
+        client = SocialCommentsClient()
+        todos = []
+
+        for i, (tipo, valor) in enumerate(fuentes):
+            # Delay aleatorio entre fuentes: 3-10s para parecer humano
+            if i > 0:
+                await asyncio.sleep(random.uniform(3, 10))
+            try:
+                if tipo == "hashtag":
+                    todos.extend(await client.hashtag_instagram(valor))
+                elif tipo == "cuenta":
+                    todos.extend(await client.instagram(valor))
+                elif tipo == "fb_grupo":
+                    todos.extend(await client.facebook_grupo(valor))
+                elif tipo == "fb_pagina":
+                    todos.extend(await client.facebook_pagina(valor))
+                elif tipo == "youtube":
+                    todos.extend(await client.youtube(valor))
+            except Exception as e:
+                # No abortar todo el run si una fuente falla
+                import logging
+                logging.getLogger(__name__).warning(f"Fuente {tipo}:{valor} fallo: {e}")
+                continue
+
+        guardados = calificados = duplicados = 0
+
+        for c in todos:
+            p_dict = {
+                "contact_name": c["autor_nombre"] or c["autor_username"],
+                "company_name": f"Lead social — {c['fuente']}",
+                "website": c["autor_url"],
+                "notes": c["texto"],
+                "source": ProspectSource.apify_social,
+                "source_url": c["post_url"],
+                "tenant_id": self.tenant_id,
+            }
+
+            if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+
+            score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config={
+                "producto": cfg.get("producto", ""),
+                "nicho": cfg.get("nicho", ""),
+                "empresa": cfg.get("empresa", ""),
+                "comprador_ideal": cfg.get("comprador_ideal", ""),
+                "paises_objetivo": cfg.get("paises_objetivo", []),
+            })
+
+            p_dict["score"] = score
+            p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
+            p_dict["is_qualified"] = score >= 65
+
+            await self._guardar(p_dict)
+            guardados += 1
+            if score >= 65:
+                calificados += 1
+
+        self.db.commit()
+        return {
+            "fuentes_corridas": len(fuentes),
+            "total_encontrados": len(todos),
+            "guardados": guardados,
+            "calificados": calificados,
+            "duplicados": duplicados,
+        }
+
+    async def buscar_comentarios_sociales(self) -> dict:
+        """Wrapper legacy — corre TODAS las fuentes (para tests manuales)."""
+        from app.models.tenant import TenantModule
+        modulo = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module == "inmobiliaria",
+            TenantModule.is_active == True,
+        ).first()
+        if not modulo or not modulo.niche_config:
+            return {"error": "Modulo inmobiliaria sin configuracion"}
+        cfg = modulo.niche_config
+        todas_fuentes = []
+        for h in cfg.get("hashtags_instagram", []):
+            todas_fuentes.append(("hashtag", h))
+        for c in cfg.get("cuentas_instagram", []):
+            todas_fuentes.append(("cuenta", c))
+        for g in cfg.get("grupos_facebook", []):
+            todas_fuentes.append(("fb_grupo", g))
+        for p in cfg.get("paginas_facebook", []):
+            todas_fuentes.append(("fb_pagina", p))
+        for v in cfg.get("videos_youtube", []):
+            todas_fuentes.append(("youtube", v))
+        return await self.buscar_fuentes(todas_fuentes)

@@ -15,9 +15,20 @@ Cómo correr:
 
 Tareas registradas:
   - workers.tasks.adjudicadas_sync.sync_licitaciones_cache
-    → Todos los días a las 02:00 (hora Chile / UTC-3)
+    → Todos los días a las 02:00 AM Santiago (UTC-3 = 05:00 UTC)
     → Barre los últimos 45 días de licitaciones "publicadas" y
       los últimos 14 días de "cerradas", guarda en licitaciones_cache.
+
+  - workers.tasks.social_comments_sync.sync_social_comments
+    → 2 veces por día (mañana y noche), cada vez corre un BATCH distinto.
+    → Con 21 fuentes y BATCH_SIZE=6 → 4 batches → cobertura total cada 2 días.
+    → Horarios elegidos para capturar a latinoamericanos activos en IG/FB:
+        Batch 0 (lunes/miércoles/viernes): 09:00 Santiago — LATAM recién despierta
+        Batch 1 (martes/jueves/sábado):    09:00 Santiago
+        Batch 2 (lunes/miércoles/viernes): 21:00 Santiago — noche LATAM, pico de engagement
+        Batch 3 (martes/jueves/sábado):    21:00 Santiago
+    → Anti-ban: delays aleatorios 3-10s entre actores dentro de cada batch.
+    → Apify usa proxies residenciales rotados por actor.
 """
 import sys
 import os
@@ -33,8 +44,12 @@ app = Celery(
     backend=settings.REDIS_URL,
     include=[
         "workers.tasks.adjudicadas_sync",
+        "workers.tasks.social_comments_sync",
     ],
 )
+
+# Alias para compatibilidad con imports que usen celery_app
+celery_app = app
 
 app.conf.update(
     # Serialización
@@ -52,12 +67,36 @@ app.conf.update(
 
     # Beat schedule
     beat_schedule={
-        # ── Sincronización nocturna de licitaciones ──────────────────────
-        # Se corre a las 02:00 AM hora Chile (UTC-3 = 05:00 UTC)
+        # ── Licitaciones ─────────────────────────────────────────────────
+        # 02:00 AM Santiago (UTC-3 = 05:00 UTC)
         "sync-licitaciones-cache-diario": {
             "task": "workers.tasks.adjudicadas_sync.sync_licitaciones_cache",
-            "schedule": crontab(hour=5, minute=0),   # 05:00 UTC = 02:00 Santiago
-            "options": {"expires": 3600},             # no se re-encola si tarda > 1h
+            "schedule": crontab(hour=5, minute=0),
+            "options": {"expires": 3600},
         },
+
+        # ── Social comments — mañana (batch par) ─────────────────────────
+        # 09:00 Santiago (UTC-3 = 12:00 UTC)
+        # batch_index=None → rota automáticamente por día del año (par)
+        # Lunes a Sábado — domingo libres para dejar descansar los proxies
+        "sync-social-comments-manana": {
+            "task": "workers.tasks.social_comments_sync.sync_social_comments",
+            "schedule": crontab(hour=12, minute=0, day_of_week="1-6"),  # 12 UTC = 09:00 Santiago
+            "kwargs": {"batch_index": None},
+            "options": {"expires": 3600},
+        },
+
+        # ── Social comments — noche (batch impar) ────────────────────────
+        # 21:00 Santiago (UTC-3 = 00:00 UTC siguiente día)
+        # batch_index forzado a par+1 pasando el día+1 en modulo
+        # Lunes a Sábado
+        "sync-social-comments-noche": {
+            "task": "workers.tasks.social_comments_sync.sync_social_comments",
+            "schedule": crontab(hour=0, minute=0, day_of_week="2-7"),  # 00:00 UTC = 21:00 Santiago anterior
+            "kwargs": {"batch_index": None, "offset": 1},
+            "options": {"expires": 3600},
+        },
+    },
+)
     },
 )
