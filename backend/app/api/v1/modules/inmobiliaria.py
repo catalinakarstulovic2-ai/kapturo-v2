@@ -217,24 +217,28 @@ async def diagnostico_apify(
     }
 
     client = SocialCommentsClient()
+
+    # Test TikTok (fuente principal del botón manual)
+    hashtags_tt = cfg.get("hashtags_tiktok", [])
+    if hashtags_tt:
+        try:
+            items_tt = await client.tiktok_hashtag(hashtags_tt[0])
+            resultado["test_tiktok_fuente"] = f"tiktok_hashtag:{hashtags_tt[0]}"
+            resultado["test_tiktok_count"] = len(items_tt)
+            resultado["test_tiktok_muestra"] = items_tt[:2] if items_tt else []
+        except Exception as e:
+            resultado["test_tiktok_error"] = str(e)
+    else:
+        resultado["test_tiktok_error"] = "Sin hashtags_tiktok configurados"
+
+    # Test Instagram (referencia)
     if hashtags:
         try:
             items = await client.hashtag_instagram(hashtags[0])
-            resultado["test_fuente"] = f"hashtag_ig:{hashtags[0]}"
-            resultado["test_items_count"] = len(items)
-            resultado["test_muestra"] = items[:2] if items else []
+            resultado["test_ig_fuente"] = f"hashtag_ig:{hashtags[0]}"
+            resultado["test_ig_count"] = len(items)
         except Exception as e:
-            resultado["test_error"] = str(e)
-    elif paginas:
-        try:
-            items = await client.facebook_pagina(paginas[0])
-            resultado["test_fuente"] = f"fb_pagina:{paginas[0]}"
-            resultado["test_items_count"] = len(items)
-            resultado["test_muestra"] = items[:2] if items else []
-        except Exception as e:
-            resultado["test_error"] = str(e)
-    else:
-        resultado["advertencia"] = "Sin fuentes configuradas para probar"
+            resultado["test_ig_error"] = str(e)
 
     return resultado
 
