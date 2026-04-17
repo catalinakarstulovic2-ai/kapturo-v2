@@ -24,9 +24,36 @@ async def buscar_prospectos(
     Retorna inmediatamente con job_id para hacer polling.
     Cada run procesa un batch rotado de fuentes (anti-ban).
     """
+    import asyncio
+    from app.models.tenant import TenantModule
+    from app.core.database import SessionLocal
+    from sqlalchemy.orm.attributes import flag_modified
+    from datetime import datetime, timezone
+
+    tenant_id = str(current_user.tenant_id)
+
+    # Marcar búsqueda en curso en BD
+    def _set_buscando(en_curso: bool):
+        _db = SessionLocal()
+        try:
+            mod = _db.query(TenantModule).filter(
+                TenantModule.tenant_id == tenant_id,
+                TenantModule.module == "inmobiliaria",
+            ).first()
+            if mod:
+                cfg = dict(mod.config or {})
+                cfg["buscando"] = en_curso
+                cfg["buscando_desde"] = datetime.now(timezone.utc).isoformat() if en_curso else None
+                mod.config = cfg
+                flag_modified(mod, "config")
+                _db.commit()
+        finally:
+            _db.close()
+
     try:
         from workers.tasks.social_comments_sync import sync_social_comments
-        task = sync_social_comments.delay(tenant_id=str(current_user.tenant_id))
+        _set_buscando(True)
+        task = sync_social_comments.delay(tenant_id=tenant_id)
         return {
             "ok": True,
             "job_id": task.id,
@@ -34,11 +61,9 @@ async def buscar_prospectos(
         }
     except Exception:
         # Fallback: Celery no disponible → correr en background con asyncio
-        import asyncio
         from app.services.inmobiliaria_service import InmobiliariaService
-        from app.core.database import SessionLocal
 
-        tenant_id = str(current_user.tenant_id)
+        _set_buscando(True)
 
         async def _run_background():
             bg_db = SessionLocal()
@@ -49,9 +74,37 @@ async def buscar_prospectos(
                 pass
             finally:
                 bg_db.close()
+                _set_buscando(False)
 
         asyncio.create_task(_run_background())
         return {"ok": True, "job_id": None, "resultado": None, "mensaje": "Búsqueda iniciada en background."}
+
+
+@router.get("/buscar/estado")
+async def estado_busqueda_general(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Devuelve si hay una búsqueda en curso para este tenant."""
+    from app.models.tenant import TenantModule
+    from datetime import datetime, timezone, timedelta
+    mod = db.query(TenantModule).filter(
+        TenantModule.tenant_id == str(current_user.tenant_id),
+        TenantModule.module == "inmobiliaria",
+    ).first()
+    if not mod:
+        return {"buscando": False}
+    cfg = mod.config or {}
+    buscando = cfg.get("buscando", False)
+    # Auto-expirar si lleva más de 10 minutos (por si falló sin limpiar)
+    if buscando and cfg.get("buscando_desde"):
+        try:
+            desde = datetime.fromisoformat(cfg["buscando_desde"])
+            if datetime.now(timezone.utc) - desde > timedelta(minutes=10):
+                buscando = False
+        except Exception:
+            buscando = False
+    return {"buscando": buscando}
 
 
 @router.get("/buscar/{job_id}")
