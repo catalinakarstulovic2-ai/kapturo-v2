@@ -335,17 +335,48 @@ export default function InmobiliariaPage() {
       )}
 
       {/* ── Loading ── */}
-      {vista === 'lista' && buscarMutation.isPending && allProspects.length === 0 && (
-        <div className="card p-14 text-center space-y-3">
-          <Loader2 size={36} className="mx-auto text-brand-400 animate-spin" />
-          <p className="font-semibold text-gray-600">Buscando personas interesadas...</p>
-          <p className="text-sm text-gray-400">Instagram · Facebook · YouTube · Comentarios públicos</p>
-          {searchSeconds > 5 && (
-            <div className="w-48 mx-auto bg-gray-100 rounded-full h-1">
-              <div className="bg-brand-400 h-1 rounded-full transition-all duration-1000"
-                style={{ width: `${Math.min((searchSeconds / 60) * 100, 92)}%` }} />
+      {vista === 'lista' && (buscarMutation.isPending || !!jobId) && allProspects.length === 0 && (
+        <div className="card overflow-hidden">
+          <div className="bg-gradient-to-br from-brand-50 to-violet-50 px-8 py-12 text-center space-y-6">
+            {/* Ícono animado */}
+            <div className="relative inline-flex">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
+                <Search size={28} className="text-brand-500" />
+              </div>
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center">
+                <Loader2 size={11} className="text-white animate-spin" />
+              </span>
             </div>
-          )}
+
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-gray-800">Buscando personas interesadas...</p>
+              <p className="text-sm text-gray-500">
+                Esto puede tardar 1-3 minutos. Puedes seguir navegando.
+              </p>
+            </div>
+
+            {/* Fuentes */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {['Instagram', 'Facebook', 'YouTube', 'Grupos'].map(f => (
+                <span key={f} className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-600 shadow-sm border border-gray-100">
+                  {f}
+                </span>
+              ))}
+            </div>
+
+            {/* Barra de progreso */}
+            {searchSeconds > 0 && (
+              <div className="max-w-xs mx-auto space-y-1.5">
+                <div className="w-full bg-white/70 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-brand-500 h-1.5 rounded-full transition-all duration-1000"
+                    style={{ width: `${Math.min((searchSeconds / 120) * 100, 90)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400">{searchSeconds}s — en proceso</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
