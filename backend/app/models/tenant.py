@@ -63,7 +63,7 @@ class TenantModule(Base):
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), nullable=False)
     module: Mapped[ModuleType] = mapped_column(PgEnum(ModuleType), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    config: Mapped[str] = mapped_column(String, nullable=True)  # JSON con configuración del módulo
+    config: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)  # configuración operacional del módulo
     niche_config: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)  # nicho, pais, fuentes
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
