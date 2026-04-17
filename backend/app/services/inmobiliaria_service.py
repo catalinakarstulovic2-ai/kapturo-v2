@@ -175,7 +175,9 @@ class InmobiliariaService:
         # Deduplicación para leads sociales: por contact_name + source
         contact_name = p_dict.get("contact_name", "")
         source = p_dict.get("source")
-        if contact_name and source == ProspectSource.apify_social:
+        # source puede llegar como string o como enum — normalizamos a string
+        source_val = source.value if isinstance(source, ProspectSource) else str(source or "")
+        if contact_name and source_val == ProspectSource.apify_social.value:
             existe = self.db.query(Prospect).filter(
                 Prospect.tenant_id == self.tenant_id,
                 Prospect.contact_name == contact_name,
