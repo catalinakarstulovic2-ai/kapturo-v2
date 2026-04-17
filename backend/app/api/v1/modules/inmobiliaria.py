@@ -53,34 +53,24 @@ async def buscar_prospectos(
         finally:
             _db.close()
 
-    try:
-        from workers.tasks.social_comments_sync import sync_social_comments
-        _set_buscando(True)
-        task = sync_social_comments.delay(tenant_id=tenant_id)
-        return {
-            "ok": True,
-            "job_id": task.id,
-            "mensaje": "Búsqueda iniciada. Consulta /buscar/{job_id} para el estado.",
-        }
-    except Exception:
-        # Fallback: Celery no disponible → correr en background con asyncio
-        from app.services.inmobiliaria_service import InmobiliariaService
+    # Siempre usar asyncio — no hay worker de Celery en Railway
+    from app.services.inmobiliaria_service import InmobiliariaService
 
-        _set_buscando(True)
+    _set_buscando(True)
 
-        async def _run_background():
-            bg_db = SessionLocal()
-            try:
-                service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
-                await service.buscar_comentarios_sociales()
-            except Exception as e:
-                logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}")
-            finally:
-                bg_db.close()
-                _set_buscando(False)
+    async def _run_background():
+        bg_db = SessionLocal()
+        try:
+            service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
+            await service.buscar_comentarios_sociales()
+        except Exception as e:
+            logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}")
+        finally:
+            bg_db.close()
+            _set_buscando(False)
 
-        asyncio.create_task(_run_background())
-        return {"ok": True, "job_id": None, "resultado": None, "mensaje": "Búsqueda iniciada en background."}
+    asyncio.create_task(_run_background())
+    return {"ok": True, "job_id": None, "resultado": None, "mensaje": "Búsqueda iniciada en background."}
 
 
 @router.get("/buscar/estado")
