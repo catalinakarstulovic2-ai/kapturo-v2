@@ -447,13 +447,17 @@ class InmobiliariaService:
             if not await self._es_nuevo(p_dict):
                 duplicados += 1
                 continue
-            score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config={
-                "producto": cfg.get("producto", ""),
-                "nicho": cfg.get("nicho", ""),
-                "empresa": cfg.get("empresa", ""),
-                "comprador_ideal": cfg.get("comprador_ideal", ""),
-                "paises_objetivo": cfg.get("paises_objetivo", []),
-            })
+            try:
+                score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config={
+                    "producto": cfg.get("producto", ""),
+                    "nicho": cfg.get("nicho", ""),
+                    "empresa": cfg.get("empresa", ""),
+                    "comprador_ideal": cfg.get("comprador_ideal", ""),
+                    "paises_objetivo": cfg.get("paises_objetivo", []),
+                })
+            except Exception as scorer_err:
+                logger.warning(f"Scorer falló para {p_dict.get('contact_name')}: {scorer_err}")
+                score, razon, tipo_lead, accion = 50.0, "Score pendiente (error en calificación)", "sin_clasificar", "revisar"
             p_dict["score"] = score
             p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
             p_dict["is_qualified"] = score >= 65
