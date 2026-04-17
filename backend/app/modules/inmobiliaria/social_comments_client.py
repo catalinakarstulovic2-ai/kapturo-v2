@@ -97,13 +97,8 @@ class SocialCommentsClient:
         })
         post_urls = [p.get("url") or p.get("postUrl") for p in posts if p.get("url") or p.get("postUrl")]
         if not post_urls:
-            # Fallback: intentar directamente con el scraper de comentarios
-            raw = await self._run_actor("apify~instagram-comment-scraper", {
-                "directUrls": [f"https://www.instagram.com/{username}/"],
-                "resultsLimit": 50,
-            })
-            return [self.normalizar(r, f"ig_{username}") for r in raw
-                    if (r.get("text") or r.get("comment") or "").strip()]
+            logger.info(f"Instagram {username}: sin posts, omitiendo")
+            return []
         comentarios = await self._run_actor("apify~instagram-comment-scraper", {
             "directUrls": post_urls[:6],
             "resultsLimit": 100,
