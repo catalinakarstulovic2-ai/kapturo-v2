@@ -339,14 +339,19 @@ DEFAULT_NICHE_CONFIGS: dict[str, dict] = {
         "producto": "terrenos urbanizados de 1,000 m2 en Inverness, Florida desde USD $14,990, con financiamiento directo sin banco, sin necesidad de ser residente ni tener licencia USA",
         "comprador_ideal": "latinoamericano con capital propio o capacidad de ahorro, que busca dolarizar su patrimonio o hacer su primera inversión en EE.UU.",
         "paises_objetivo": ["chile","argentina","mexico","peru","colombia","venezuela","ecuador","uruguay","panama","costa rica","estados unidos","eeuu","usa","espana","miami","florida"],
-        "hashtags_instagram": ["invertirenusa","terrenosflorida","propiedadesenusa","comprarenusa","bienesraicesusa","floridarealestate","inversionesflorida","terrenoenusa","dolarizatusahorros","patrimonioenusa","FirstLandUSA"],
-        "cuentas_instagram": ["terrenoenflorida","uperland.us"],
-        "paginas_facebook": [],
-        "grupos_facebook": [
-            "https://www.facebook.com/groups/invertirenusadesdechile",
-            "https://www.facebook.com/groups/inversioninmobiliariainternacional",
-            "https://www.facebook.com/groups/bienesraicesusalatam"
+        "hashtags_instagram": [
+            "invertirenusa", "terrenosflorida", "propiedadesenusa",
+            "comprarenusa", "bienesraicesusa", "floridarealestate",
+            "inversionesflorida", "terrenoenusa", "dolarizatusahorros",
+            "patrimonioenusa", "primerapropiedad", "invertirenbienes",
+            "invertirenestadosunidos", "terrenoventas", "bienesraiceslatam"
         ],
+        "cuentas_instagram": ["terrenoenflorida", "uperland.us"],
+        "paginas_facebook": [
+            "https://www.facebook.com/terrenoenflorida",
+            "https://www.facebook.com/uperland.us"
+        ],
+        "grupos_facebook": [],
         "videos_youtube": [],
         "linkedin_queries": [
             "CEO Chile",

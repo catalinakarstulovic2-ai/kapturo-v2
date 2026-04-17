@@ -112,6 +112,33 @@ def run_migrations():
                     {"cfg": _json.dumps(cfg), "mod": mod_name},
                 )
         print("✅ niche_config por defecto inyectado en módulos vacíos")
+
+    # Limpiar grupos_facebook privados de todos los tenants (no funcionan sin login)
+    try:
+        import json as _json
+        from app.api.v1.admin import DEFAULT_NICHE_CONFIGS
+        with engine.begin() as conn:
+            rows = conn.execute(text(
+                "SELECT id, niche_config FROM tenant_modules "
+                "WHERE module::text = 'inmobiliaria' AND is_active = true "
+                "AND niche_config IS NOT NULL"
+            )).fetchall()
+            for row_id, niche_cfg in rows:
+                cfg = niche_cfg if isinstance(niche_cfg, dict) else (_json.loads(niche_cfg) if niche_cfg else {})
+                if cfg.get("grupos_facebook"):
+                    cfg["grupos_facebook"] = []
+                    # Actualizar hashtags si siguen siendo los originales (11 items)
+                    if len(cfg.get("hashtags_instagram", [])) <= 11:
+                        default = DEFAULT_NICHE_CONFIGS.get("inmobiliaria", {})
+                        cfg["hashtags_instagram"] = default.get("hashtags_instagram", cfg.get("hashtags_instagram", []))
+                        cfg["paginas_facebook"] = default.get("paginas_facebook", [])
+                    conn.execute(
+                        text("UPDATE tenant_modules SET niche_config = CAST(:cfg AS jsonb) WHERE id = :id"),
+                        {"cfg": _json.dumps(cfg), "id": row_id}
+                    )
+        print("✅ grupos_facebook privados removidos de niche_config")
+    except Exception as e:
+        print(f"⚠️  Error limpiando grupos_facebook: {e}")
     except Exception as e:
         print(f"⚠️  Error inyectando niche_config: {e}")
 
