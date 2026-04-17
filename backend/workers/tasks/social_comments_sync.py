@@ -77,6 +77,38 @@ def sync_social_comments(self, tenant_id: str = None, batch_index: int = None, o
                     service = InmobiliariaService(db, str(modulo.tenant_id))
                     resultado = await service.buscar_fuentes(fuentes_hoy)
                     logger.info(f"Tenant {modulo.tenant_id}: {resultado}")
+
+                    # Notificar a admins si hay leads calificados nuevos
+                    calificados_nuevos = resultado.get("calificados", 0)
+                    if calificados_nuevos > 0:
+                        try:
+                            from app.models.user import User, UserRole
+                            from app.services.email_service import EmailService
+                            admins = db.query(User).filter(
+                                User.tenant_id == modulo.tenant_id,
+                                User.role == UserRole.admin,
+                                User.is_active == True,
+                            ).all()
+                            svc = EmailService()
+                            for admin in admins:
+                                await svc.send(
+                                    to=admin.email,
+                                    subject=f"🏠 {calificados_nuevos} nuevo{'s' if calificados_nuevos > 1 else ''} lead{'s' if calificados_nuevos > 1 else ''} calificado{'s' if calificados_nuevos > 1 else ''} — Inmobiliaria",
+                                    html=f"""
+                                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+                                      <h2 style="color:#16a34a;">🏠 Nuevos leads inmobiliaria</h2>
+                                      <p>Kapturo encontró <strong>{calificados_nuevos} lead{'s' if calificados_nuevos > 1 else ''} calificado{'s' if calificados_nuevos > 1 else ''}</strong> de {resultado.get('guardados', 0)} nuevos en redes sociales.</p>
+                                      <a href="https://app.kapturo.cl/inmobiliaria"
+                                         style="display:inline-block;background:#16a34a;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:12px;">
+                                        Ver leads
+                                      </a>
+                                      <p style="color:#999;font-size:12px;margin-top:24px;">Kapturo · Módulo Inmobiliaria</p>
+                                    </div>
+                                    """,
+                                )
+                        except Exception as email_err:
+                            logger.warning(f"No se pudo enviar notificación email: {email_err}")
+
                 except Exception as e:
                     logger.error(f"Error tenant {modulo.tenant_id}: {e}", exc_info=True)
                     continue

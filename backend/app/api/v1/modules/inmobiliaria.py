@@ -86,6 +86,25 @@ async def listar_prospectos(
     )
 
 
+@router.post("/buscar-empresas")
+async def buscar_empresas(
+    ubicacion: str = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """
+    Busca empresas del nicho via Google Maps + Hunter.io + Claude.
+    No usa Celery — Google Maps es rápido, responde directo.
+    """
+    from app.services.inmobiliaria_service import InmobiliariaService
+    try:
+        service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
+        resultado = await service.ejecutar_busqueda(ubicacion=ubicacion)
+        return {"ok": True, "resultado": resultado}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/descartados")
 async def listar_descartados(
     pagina: int = 1,

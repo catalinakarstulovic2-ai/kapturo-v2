@@ -134,11 +134,16 @@ def crear_tenant(
         mod_str = mod_str.strip().lower()
         if mod_str not in VALID_MODULES:
             continue
-        try:
-            with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
-                raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{mod_str}'"))
-        except Exception:
-            pass
+        enum_existe = db.execute(
+            sqla_text("SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'moduletype' AND e.enumlabel = :val"),
+            {"val": mod_str}
+        ).fetchone()
+        if not enum_existe:
+            try:
+                with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
+                    raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{mod_str}'"))
+            except Exception:
+                pass
         default_cfg = DEFAULT_NICHE_CONFIGS.get(mod_str)
         db.execute(
             sqla_text(
@@ -375,16 +380,21 @@ def asignar_modulo(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado")
 
-    # Primero: asegurar que el valor exista en el enum PostgreSQL
-    try:
-        with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
-            from sqlalchemy import text as sqla_text
-            raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{module_str}'"))
-    except Exception:
-        pass  # Si ya existe o falla, seguir
+    from sqlalchemy import text as sqla_text
+
+    # Solo correr ALTER TYPE si el valor NO existe ya en el enum (evita hang en Railway)
+    enum_existe = db.execute(
+        sqla_text("SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'moduletype' AND e.enumlabel = :val"),
+        {"val": module_str}
+    ).fetchone()
+    if not enum_existe:
+        try:
+            with db.bind.connect().execution_options(isolation_level="AUTOCOMMIT") as raw_conn:
+                raw_conn.execute(sqla_text(f"ALTER TYPE moduletype ADD VALUE IF NOT EXISTS '{module_str}'"))
+        except Exception:
+            pass
 
     # Buscar si ya existe usando SQL para evitar validación de enum
-    from sqlalchemy import text as sqla_text
     existente_row = db.execute(
         sqla_text("SELECT id, is_active, niche_config FROM tenant_modules WHERE tenant_id = :tid AND module::text = :mod"),
         {"tid": tenant_id, "mod": module_str}
