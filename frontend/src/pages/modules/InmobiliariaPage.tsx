@@ -112,6 +112,7 @@ export default function InmobiliariaPage() {
         } catch { stopPolling(); setJobId(null) }
       }, 15000)
     }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estadoBusqueda?.buscando])
 
@@ -370,7 +371,7 @@ export default function InmobiliariaPage() {
       )}
 
       {/* ── Vacío ── */}
-      {vista === 'lista' && !isLoading && allProspects.length === 0 && !buscarMutation.isPending && (
+      {vista === 'lista' && !isLoading && allProspects.length === 0 && !buscarMutation.isPending && !estadoBusqueda?.buscando && (
         <div className="card p-16 text-center space-y-4">
           <Home size={48} className="mx-auto text-gray-200" />
           <div>
@@ -381,7 +382,7 @@ export default function InmobiliariaPage() {
       )}
 
       {/* ── Loading ── */}
-      {vista === 'lista' && (buscarMutation.isPending || !!jobId) && allProspects.length === 0 && (
+      {vista === 'lista' && (buscarMutation.isPending || !!jobId || estadoBusqueda?.buscando) && allProspects.length === 0 && (
         <div className="card overflow-hidden">
           <div className="bg-gradient-to-br from-brand-50 to-violet-50 px-8 py-12 text-center space-y-6">
             {/* Ícono animado */}
