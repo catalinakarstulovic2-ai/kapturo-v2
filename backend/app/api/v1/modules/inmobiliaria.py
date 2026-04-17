@@ -33,14 +33,25 @@ async def buscar_prospectos(
             "mensaje": "Búsqueda iniciada. Consulta /buscar/{job_id} para el estado.",
         }
     except Exception:
-        # Fallback síncrono si Celery/Redis no está disponible (dev local sin worker)
+        # Fallback: Celery no disponible → correr en background con asyncio
+        import asyncio
         from app.services.inmobiliaria_service import InmobiliariaService
-        try:
-            service = InmobiliariaService(db=db, tenant_id=str(current_user.tenant_id))
-            resultado = await service.buscar_comentarios_sociales()
-            return {"ok": True, "job_id": None, "resultado": resultado}
-        except Exception as e2:
-            raise HTTPException(status_code=500, detail=str(e2))
+        from app.core.database import SessionLocal
+
+        tenant_id = str(current_user.tenant_id)
+
+        async def _run_background():
+            bg_db = SessionLocal()
+            try:
+                service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
+                await service.buscar_comentarios_sociales()
+            except Exception:
+                pass
+            finally:
+                bg_db.close()
+
+        asyncio.create_task(_run_background())
+        return {"ok": True, "job_id": None, "resultado": None, "mensaje": "Búsqueda iniciada en background."}
 
 
 @router.get("/buscar/{job_id}")
