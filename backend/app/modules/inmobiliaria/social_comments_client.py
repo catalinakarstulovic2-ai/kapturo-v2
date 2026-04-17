@@ -171,8 +171,7 @@ class SocialCommentsClient:
         }
 
     async def tiktok_hashtag(self, hashtag: str) -> list[dict]:
-        # apify~tiktok-scraper soporta hashtags + comentarios en una sola llamada
-        items = await self._run_actor("apify~tiktok-scraper", {
+        items = await self._run_actor("clockworks~tiktok-scraper", {
             "hashtags": [hashtag],
             "resultsPerPage": 10,
             "maxResultsPerQuery": 10,
@@ -184,7 +183,7 @@ class SocialCommentsClient:
                 if (r.get("text") or "").strip()]
 
     async def tiktok_cuenta(self, username: str) -> list[dict]:
-        items = await self._run_actor("apify~tiktok-scraper", {
+        items = await self._run_actor("clockworks~tiktok-scraper", {
             "profiles": [username],
             "resultsPerPage": 10,
             "maxResultsPerQuery": 10,
