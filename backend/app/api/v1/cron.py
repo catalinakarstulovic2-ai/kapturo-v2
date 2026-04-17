@@ -326,3 +326,54 @@ async def sync_licitaciones(
         "total_actualizadas": total_actualizadas,
         "por_estado": resultados,
     }
+
+
+@router.post("/sync-inmobiliaria")
+async def sync_inmobiliaria(
+    db: Session = Depends(get_db),
+    _: None = Depends(_verify_cron),
+):
+    """
+    Ejecuta búsqueda de leads sociales para todos los tenants con módulo inmobiliaria activo.
+    Usar desde Railway Cron 2x por día (mañana y noche Chile):
+      09:00 Santiago = 12:00 UTC
+      21:00 Santiago = 00:00 UTC
+    """
+    from app.models.tenant import TenantModule
+    from app.services.inmobiliaria_service import InmobiliariaService
+    import math
+    from datetime import date
+
+    BATCH_SIZE = 6
+    modulos = db.query(TenantModule).filter(
+        TenantModule.module == "inmobiliaria",
+        TenantModule.is_active == True,
+    ).all()
+
+    resultados = {}
+    for modulo in modulos:
+        try:
+            cfg = modulo.niche_config or {}
+            todas_fuentes = []
+            for h in cfg.get("hashtags_instagram", []):
+                todas_fuentes.append(("hashtag", h))
+            for c in cfg.get("cuentas_instagram", []):
+                todas_fuentes.append(("cuenta", c))
+            for g in cfg.get("grupos_facebook", []):
+                todas_fuentes.append(("fb_grupo", g))
+            for p in cfg.get("paginas_facebook", []):
+                todas_fuentes.append(("fb_pagina", p))
+            for v in cfg.get("videos_youtube", []):
+                todas_fuentes.append(("youtube", v))
+
+            n_batches = math.ceil(len(todas_fuentes) / BATCH_SIZE) or 1
+            idx = date.today().timetuple().tm_yday % n_batches
+            fuentes_hoy = todas_fuentes[idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]
+
+            service = InmobiliariaService(db=db, tenant_id=str(modulo.tenant_id))
+            resultado = await service.buscar_fuentes(fuentes_hoy)
+            resultados[str(modulo.tenant_id)] = resultado
+        except Exception as e:
+            resultados[str(modulo.tenant_id)] = {"error": str(e)}
+
+    return {"status": "ok", "tenants": len(modulos), "resultados": resultados}
