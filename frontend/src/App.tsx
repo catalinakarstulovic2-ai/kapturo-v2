@@ -33,9 +33,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { token, user, fetchMe } = useAuthStore()
 
-  // Al refrescar: si hay token guardado pero no hay user, recargamos el perfil
+  // Al cargar/refrescar: siempre sincronizar el perfil desde el servidor
+  // para que los módulos activados aparezcan sin necesidad de re-login
   useEffect(() => {
-    if (token && !user) {
+    if (token) {
       fetchMe().catch(() => useAuthStore.getState().logout())
     }
   }, [])
@@ -64,7 +65,7 @@ export default function App() {
           <Route path="prospeccion" element={<ProspeccionPage />} />
           {/* Aliases para compatibilidad con links viejos */}
           <Route path="prospector" element={<Navigate to="/prospeccion" replace />} />
-          <Route path="inmobiliaria" element={<Navigate to="/prospeccion" replace />} />
+          <Route path="inmobiliaria" element={<InmobiliariaPage />} />
           <Route path="conversaciones" element={<InboxPage />} />
           <Route path="propuestas" element={<PropuestasPage />} />
           <Route path="agentes" element={<AgentsPage />} />
