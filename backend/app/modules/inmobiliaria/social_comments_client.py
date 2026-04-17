@@ -64,12 +64,9 @@ class SocialCommentsClient:
 
     def tiene_intencion(self, texto: str) -> bool:
         t = texto.lower()
-        # Spam puro → descartar
+        # Spam y agentes/realtors → descartar
         if any(ex in t for ex in EXCLUSION_KEYWORDS):
             return False
-        # Agentes LATAM → dejar pasar (son potencial_referido)
-        if any(kw in t for kw in AGENT_KEYWORDS):
-            return True
         # Intención de compra / inversión
         return any(kw in t for kw in INTENT_KEYWORDS)
 
