@@ -91,7 +91,7 @@ def run_migrations():
             for mod_name, cfg in DEFAULT_NICHE_CONFIGS.items():
                 conn.execute(
                     text(
-                        "UPDATE tenant_modules SET niche_config = :cfg::jsonb "
+                        "UPDATE tenant_modules SET niche_config = CAST(:cfg AS jsonb) "
                         "WHERE module::text = :mod "
                         "AND (niche_config IS NULL OR niche_config::text = '{}' OR niche_config::text = 'null')"
                     ),
