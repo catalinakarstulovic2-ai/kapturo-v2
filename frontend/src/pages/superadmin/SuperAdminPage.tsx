@@ -1298,6 +1298,11 @@ function TenantsTab() {
       setForm({ company_name: '', slug: '' })
       setSelectedModules([])
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail
+      const msg = typeof detail === 'string' ? detail : (err?.message ?? 'Error al crear tenant')
+      alert(`Error: ${msg}`)
+    },
   })
 
   if (isLoading) return <p className="text-gray-500 text-sm">Cargando tenants...</p>
