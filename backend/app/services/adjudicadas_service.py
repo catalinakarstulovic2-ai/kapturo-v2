@@ -413,7 +413,14 @@ class AdjudicadasService:
 
             monto_raw = 0
             try:
-                monto_raw = float(item.get("Montos", {}).get("Total") or item.get("Monto") or 0)
+                valor = item.get("Montos", {}).get("Total") or item.get("Monto") or 0
+                s = str(valor).strip()
+                if s and s != "0":
+                    if ',' in s:
+                        s = s.replace('.', '').replace(',', '.')
+                    else:
+                        s = s.replace('.', '')
+                    monto_raw = float(s) if s else 0
             except Exception:
                 pass
 
