@@ -830,7 +830,7 @@ export default function AdjudicadasPage() {
                   <>
                     <tr
                       key={item.codigo}
-                      className={clsx('hover:bg-gray-50 cursor-pointer transition-colors', expandedId === item.codigo && 'bg-amber-50/30')}
+                      className={clsx('group hover:bg-amber-50/60 cursor-pointer transition-all duration-150', expandedId === item.codigo && 'bg-amber-50/40')}
                       onClick={() => {
                         const nuevoId = expandedId === item.codigo ? null : item.codigo
                         setExpandedId(nuevoId)
@@ -838,8 +838,17 @@ export default function AdjudicadasPage() {
                       }}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900 line-clamp-1">{item.nombre_adjudicado || '—'}</div>
-                        <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.nombre}</div>
+                        <div className="font-medium text-gray-900 line-clamp-1 group-hover:text-amber-800 transition-colors">{item.nombre_adjudicado || '—'}</div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <a
+                            href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
+                            target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title="Ver esta licitación en el portal de Mercado Público"
+                            className="text-xs text-gray-400 line-clamp-1 hover:text-amber-600 hover:underline transition-colors"
+                          >{item.nombre}</a>
+                          <ExternalLink size={9} className="shrink-0 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         {item.rut_adjudicado && <div className="text-xs text-gray-400">RUT {item.rut_adjudicado}</div>}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{formatCLP(item.monto_adjudicado)}</td>
@@ -1137,11 +1146,20 @@ export default function AdjudicadasPage() {
                     return (
                       <>
                         <tr key={item.codigo}
-                          className={clsx('hover:bg-gray-50 cursor-pointer transition-colors', isExp && 'bg-blue-50/30')}
+                          className={clsx('group hover:bg-blue-50/60 cursor-pointer transition-all duration-150', isExp && 'bg-blue-50/40')}
                           onClick={() => setExpandedId(isExp ? null : item.codigo)}
                         >
                           <td className="px-4 py-3 max-w-xs">
-                            <div className="font-medium text-gray-900 line-clamp-2 leading-snug">{item.nombre}</div>
+                            <div className="flex items-start gap-1.5">
+                              <a
+                                href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
+                                target="_blank" rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                title="Ver esta licitación en el portal de Mercado Público"
+                                className="font-medium text-gray-900 line-clamp-2 leading-snug hover:text-blue-600 hover:underline transition-colors"
+                              >{item.nombre}</a>
+                              <ExternalLink size={10} className="shrink-0 mt-0.5 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                             <div className="text-xs text-gray-400 font-mono mt-0.5">{item.codigo}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
@@ -1317,7 +1335,7 @@ export default function AdjudicadasPage() {
                     return (
                       <>
                         <tr key={item.codigo}
-                          className={clsx('hover:bg-gray-50 cursor-pointer transition-colors', isExp && 'bg-gray-50/50')}
+                          className={clsx('group hover:bg-violet-50/60 cursor-pointer transition-all duration-150', isExp && 'bg-violet-50/40')}
                           onClick={() => {
                             const nuevoId = expandedId === item.codigo ? null : item.codigo
                             setExpandedId(nuevoId)
@@ -1325,7 +1343,16 @@ export default function AdjudicadasPage() {
                           }}
                         >
                           <td className="px-4 py-3 max-w-xs">
-                            <div className="font-medium text-gray-900 line-clamp-2 leading-snug">{item.nombre}</div>
+                            <div className="flex items-start gap-1.5">
+                              <a
+                                href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
+                                target="_blank" rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                title="Ver esta licitación en el portal de Mercado Público"
+                                className="font-medium text-gray-900 line-clamp-2 leading-snug hover:text-violet-600 hover:underline transition-colors"
+                              >{item.nombre}</a>
+                              <ExternalLink size={10} className="shrink-0 mt-0.5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                             <div className="text-xs text-gray-400 font-mono mt-0.5">{item.codigo}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
