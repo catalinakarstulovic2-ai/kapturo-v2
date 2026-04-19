@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, NavLink } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -2577,6 +2577,12 @@ function PostulacionCard({
                 <ExternalLink size={11} /> Postular en MP
               </a>
             )}
+            <NavLink
+              to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-semibold"
+            >
+              <FileSignature size={11} /> Docs
+            </NavLink>
             <button
               onClick={() => onAnalizar(p)}
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
