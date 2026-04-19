@@ -53,6 +53,21 @@ class AgentConfigRequest(BaseModel):
     onboarding_completed: Optional[bool] = None
 
 
+class LicitacionesProfileRequest(BaseModel):
+    """Perfil de empresa para el módulo de licitaciones."""
+    rut_empresa: Optional[str] = None
+    razon_social: Optional[str] = None
+    inscrito_chile_proveedores: Optional[bool] = None
+    rubros: Optional[list[str]] = None
+    regiones: Optional[list[str]] = None
+    descripcion: Optional[str] = None
+    experiencia_anos: Optional[int] = None
+    proyectos_anteriores: Optional[str] = None
+    certificaciones: Optional[str] = None
+    email_alertas: Optional[str] = None
+    frecuencia_alertas: Optional[str] = None  # "diaria" | "semanal" | "nunca"
+
+
 def _mask(value: str | None) -> str:
     """Devuelve los últimos 4 caracteres enmascarados para mostrar en UI."""
     if not value:
@@ -243,3 +258,49 @@ def guardar_agent_config(
         "onboarding_completed": tenant.onboarding_completed,
         "config": tenant.agent_config,
     }
+
+
+# ── Perfil de empresa para Licitaciones ───────────────────────────────────────
+
+@router.get("/me/licitaciones-profile")
+def obtener_licitaciones_profile(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Devuelve el perfil de empresa configurado para el módulo de licitaciones."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant")
+    mod = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module == "licitaciones",
+        TenantModule.is_active == True,
+    ).first()
+    if not mod:
+        raise HTTPException(status_code=404, detail="Módulo licitaciones no activo")
+    return mod.niche_config or {}
+
+
+@router.put("/me/licitaciones-profile")
+def guardar_licitaciones_profile(
+    data: LicitacionesProfileRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Guarda el perfil de empresa para el módulo de licitaciones."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant")
+    mod = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module == "licitaciones",
+        TenantModule.is_active == True,
+    ).first()
+    if not mod:
+        raise HTTPException(status_code=404, detail="Módulo licitaciones no activo")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    profile = dict(mod.niche_config or {})
+    profile.update(data.model_dump(exclude_none=True))
+    mod.niche_config = profile
+    flag_modified(mod, "niche_config")
+    db.commit()
+    return mod.niche_config

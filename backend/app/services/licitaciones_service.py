@@ -768,7 +768,7 @@ class LicitacionesService:
 
         total = query.count()
         prospectos = query.order_by(Prospect.score.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
-        return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "prospectos": [self._serializar(p) for p in prospectos]}
+        return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "items": [self._serializar(p) for p in prospectos]}
 
     def _serializar(self, p: Prospect) -> dict:
         return {
@@ -799,6 +799,7 @@ class LicitacionesService:
             "licitacion_estado": p.licitacion_estado,
             "licitacion_fecha_adjudicacion": p.licitacion_fecha_adjudicacion,
             "licitacion_fecha_cierre": p.licitacion_fecha_cierre,
+            "postulacion_estado": p.postulacion_estado,
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }
 
@@ -932,20 +933,22 @@ class LicitacionesService:
         query = self.db.query(Prospect).filter(Prospect.tenant_id == self.tenant_id)
 
         if modulo:
-            query = query.filter(Prospect.source_module == modulo)
+            # 'licitaciones' es alias de 'licitador_a'
+            modulo_filtro = 'licitador_a' if modulo == 'licitaciones' else modulo
+            query = query.filter(Prospect.source_module == modulo_filtro)
         if solo_calificados:
             query = query.filter(Prospect.is_qualified == True)
         if score_minimo > 0:
             query = query.filter(Prospect.score >= score_minimo)
 
         total = query.count()
-        prospectos = query.order_by(Prospect.score.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+        prospectos = query.order_by(Prospect.created_at.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
 
         return {
             "total": total,
             "pagina": pagina,
             "por_pagina": por_pagina,
-            "prospectos": [self._serializar(p) for p in prospectos],
+            "items": [self._serializar(p) for p in prospectos],
         }
 
     def _serializar(self, p: Prospect) -> dict:
@@ -977,5 +980,7 @@ class LicitacionesService:
             "licitacion_estado": p.licitacion_estado,
             "licitacion_fecha_adjudicacion": p.licitacion_fecha_adjudicacion,
             "licitacion_fecha_cierre": p.licitacion_fecha_cierre,
+            "postulacion_estado": p.postulacion_estado,
+            "notes": p.notes,
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }

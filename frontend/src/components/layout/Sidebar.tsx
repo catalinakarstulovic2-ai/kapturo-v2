@@ -1,22 +1,20 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Search, Bot, Settings, Zap, MessageSquare, ShieldAlert, X, Trophy, Sparkles, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
 // hideSuperAdmin: ocultar este ítem cuando el usuario es super_admin
 // onlySuperAdmin: mostrar este ítem solo a super_admin
 const nav = [
-  { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',        module: null,            hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/adjudicadas',     icon: Trophy,          label: 'Mercado Público',  module: 'adjudicadas',   hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/pipeline',        icon: Kanban,          label: 'Pipeline',         module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/propuestas',      icon: Sparkles,        label: 'Propuestas IA',    module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospectos',      icon: Users,           label: 'Clientes',         module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/licitaciones',    icon: FileText,        label: 'Licitaciones',     module: 'licitaciones',  hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospeccion',     icon: Search,          label: 'Prospección',      module: 'prospector',    hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/inmobiliaria',    icon: Building2,       label: 'Inmobiliaria',     module: 'inmobiliaria',  hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/agentes',         icon: Bot,             label: 'Agentes IA',       module: null,            hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/configuracion',   icon: Settings,        label: 'Configuración',    module: null,            hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/superadmin',      icon: ShieldAlert,     label: 'Super Admin',      module: null,            hideSuperAdmin: false, onlySuperAdmin: true  },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',       module: null,           hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/licitaciones',  icon: FileText,        label: 'Licitaciones',   module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/adjudicadas',   icon: Trophy,          label: 'Mercado Público',module: 'adjudicadas',  hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/pipeline',      icon: Kanban,          label: 'Pipeline',       module: null,           hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospectos',    icon: Users,           label: 'Prospectos',     module: null,           hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/prospeccion',   icon: Search,          label: 'Prospección',    module: 'prospector',   hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/inmobiliaria',  icon: Building2,       label: 'Inmobiliaria',   module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false },
+  { to: '/configuracion', icon: Settings,        label: 'Configuración',  module: null,           hideSuperAdmin: false, onlySuperAdmin: false },
+  { to: '/superadmin',    icon: ShieldAlert,     label: 'Super Admin',    module: null,           hideSuperAdmin: false, onlySuperAdmin: true  },
 ]
 
 interface SidebarProps {
@@ -37,6 +35,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     if (effectiveIsSuperAdmin && item.hideSuperAdmin) return false       // ocultar operacionales
     if (!item.module) return true                                        // sin módulo: siempre
     if (effectiveIsSuperAdmin) return true                               // super_admin real ve todo
+    // 'licitador' es el nombre legacy de 'licitaciones' (mismo módulo, nombre viejo en BD)
+    if (item.module === 'licitaciones' && userModuleTypes.includes('licitador')) return true
     return userModuleTypes.includes(item.module)                        // módulo del tenant
   })
 

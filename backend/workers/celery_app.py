@@ -45,6 +45,7 @@ app = Celery(
     include=[
         "workers.tasks.adjudicadas_sync",
         "workers.tasks.social_comments_sync",
+        "workers.tasks.licitaciones_alertas",
     ],
 )
 
@@ -72,6 +73,13 @@ app.conf.update(
         "sync-licitaciones-cache-diario": {
             "task": "workers.tasks.adjudicadas_sync.sync_licitaciones_cache",
             "schedule": crontab(hour=5, minute=0),
+            "options": {"expires": 3600},
+        },
+
+        # 08:00 AM Santiago (UTC-3 = 11:00 UTC) — alertas email a tenants
+        "alertas-licitaciones-diario": {
+            "task": "workers.tasks.licitaciones_alertas.enviar_alertas_licitaciones",
+            "schedule": crontab(hour=11, minute=0),
             "options": {"expires": 3600},
         },
 

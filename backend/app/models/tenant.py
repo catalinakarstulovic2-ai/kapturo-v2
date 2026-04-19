@@ -13,11 +13,12 @@ class PlanName(str, enum.Enum):
 
 
 class ModuleType(str, enum.Enum):
-    licitador    = "licitador"
-    licitaciones = "licitaciones"
-    prospector   = "prospector"
-    inmobiliaria = "inmobiliaria"
-    adjudicadas  = "adjudicadas"
+    licitador     = "licitador"      # legacy: nombre viejo de 'licitaciones'
+    licitaciones  = "licitaciones"   # buscar licitaciones activas para participar
+    prospector    = "prospector"
+    inmobiliaria  = "inmobiliaria"
+    adjudicadas   = "adjudicadas"    # empresas que ganaron licitaciones (para prospectarlas)
+    kapturo_ventas = "kapturo_ventas"
 
 
 class SubscriptionPlan(Base):

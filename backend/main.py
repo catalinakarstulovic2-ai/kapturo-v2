@@ -67,6 +67,28 @@ async def _run_migrations_sync():
 def _do_migrations():
     from app.core.database import engine
     from sqlalchemy import text
+
+    # ── Paso 1: ALTER TYPE ADD VALUE requiere AUTOCOMMIT (no puede ir en una transacción) ──
+    enum_migrations = [
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'licitador'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'licitaciones'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'prospector'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'inmobiliaria'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'adjudicadas'",
+        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'kapturo_ventas'",
+    ]
+    try:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for sql in enum_migrations:
+                try:
+                    conn.execute(text(sql))
+                except Exception as e:
+                    print(f"⚠️  Enum migration skip: {e}")
+        print("✅ Enum migrations OK")
+    except Exception as e:
+        print(f"⚠️  Error en enum migrations: {e}")
+
+    # ── Paso 2: DDL normal dentro de transacción ──
     migrations = [
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS licitaciones_ganadas_count INTEGER DEFAULT 0",
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS alarma_fecha TIMESTAMP",
@@ -78,12 +100,9 @@ def _do_migrations():
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS niche_config JSONB DEFAULT '{}'",
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'",
         "ALTER TABLE tenant_modules ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP",
-        # Agregar valores faltantes al enum moduletype
-        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'inmobiliaria'",
-        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'licitaciones'",
-        "ALTER TYPE moduletype ADD VALUE IF NOT EXISTS 'adjudicadas'",
         # Columnas nuevas
         "ALTER TABLE pipeline_stages ADD COLUMN IF NOT EXISTS pipeline_type VARCHAR(50) NOT NULL DEFAULT 'general'",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS postulacion_estado VARCHAR(50)",
         # Convertir config de String a JSONB si aún es texto (limpia datos inválidos primero)
         """
         DO $$

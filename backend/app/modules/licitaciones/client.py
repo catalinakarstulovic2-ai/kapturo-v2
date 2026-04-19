@@ -110,6 +110,33 @@ class MercadoPublicoClient:
         """Módulo B: licitaciones ya adjudicadas (hay un ganador)."""
         return await self.buscar_licitaciones(estado="adjudicada", **kwargs)
 
+    async def obtener_documentos(self, codigo: str) -> list[dict]:
+        """
+        Obtiene la lista de documentos adjuntos de una licitación.
+        Devuelve: [{nombre, descripcion, url, tipo, fecha}]
+
+        Los documentos incluyen: Bases Técnicas, Bases Administrativas,
+        Formularios, Anexos, etc. — todos son descargables como PDF.
+        """
+        detalle = await self.obtener_detalle(codigo)
+        docs_raw = detalle.get("Documentos", {})
+        listado = docs_raw.get("Listado", []) if isinstance(docs_raw, dict) else []
+
+        documentos = []
+        for doc in listado:
+            url = doc.get("Url", "")
+            if not url:
+                continue
+            documentos.append({
+                "nombre": doc.get("Nombre", ""),
+                "descripcion": doc.get("Descripcion", ""),
+                "url": url,
+                "tipo": doc.get("Tipo", ""),
+                "fecha": doc.get("FechaCreacion", "")[:10] if doc.get("FechaCreacion") else "",
+            })
+
+        return documentos
+
     def obtener_catalogo(self) -> dict:
         """
         Catálogos fijos de Mercado Público Chile.

@@ -6,6 +6,7 @@ import {
   CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
   Building2, CreditCard, ShieldAlert,
   DollarSign, Clock, MessageCircle, UserX, Calendar, ExternalLink,
+  FileText, Settings,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -181,7 +182,15 @@ export default function DashboardPage() {
     ? ['licitador', 'prospector']
     : (user?.modules ?? []).map(m => m.tipo)
   const tieneProspector = userModuleTypes.includes('prospector')
-  const tieneLicitador  = userModuleTypes.includes('licitador')
+  const tieneLicitador  = userModuleTypes.includes('licitador') || userModuleTypes.includes('licitaciones')
+
+  const { data: perfilLicit } = useQuery({
+    queryKey: ['licitaciones-profile'],
+    queryFn: () => api.get('/tenant/me/licitaciones-profile').then(r => r.data).catch(() => null),
+    enabled: tieneLicitador,
+    staleTime: 5 * 60 * 1000,
+  })
+  const perfilLicitCompleto = !!(perfilLicit?.descripcion && perfilLicit?.rubros?.length > 0)
 
   const busquedasGuardadas = useAdjudicadasStore(s => s.busquedasGuardadas)
   // Búsquedas creadas en los últimos 7 días (el id es Date.now())
@@ -212,6 +221,27 @@ export default function DashboardPage() {
           </button>
         )}
       </div>
+
+      {/* Banner setup perfil licitaciones */}
+      {tieneLicitador && !perfilLicitCompleto && (
+        <div className="flex items-start gap-4 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
+            <FileText size={18} className="text-indigo-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-indigo-900">Primero: configura el perfil de tu empresa</p>
+            <p className="text-xs text-indigo-600 mt-0.5 leading-relaxed">
+              La IA necesita conocer tus rubros, regiones y descripción para filtrar licitaciones relevantes y generar propuestas técnicas personalizadas.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/licitaciones')}
+            className="shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
+          >
+            Configurar ahora <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
 
       {/* Stat cards — fila 1: conteos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

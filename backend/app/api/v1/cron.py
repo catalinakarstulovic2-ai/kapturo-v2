@@ -328,6 +328,144 @@ async def sync_licitaciones(
     }
 
 
+@router.post("/alertas-cierre")
+async def alertas_cierre(
+    db: Session = Depends(get_db),
+    _: None = Depends(_verify_cron),
+):
+    """
+    Revisa todas las postulaciones con fecha_cierre en los próximos 1, 2 o 3 días
+    y envía un email de alerta al admin del tenant.
+
+    Correr diariamente desde Railway Cron (ej. 9am Chile = 12:00 UTC):
+      Path:   POST /api/v1/cron/alertas-cierre
+      Header: X-Cron-Secret: <tu_cron_secret>
+      Cron:   0 12 * * *
+
+    Returns: {"enviados": N, "errores": [...]}
+    """
+    from dateutil import parser as dateparser
+
+    hoy = datetime.now(timezone.utc).date()
+    limite = hoy + timedelta(days=3)
+
+    # Traer todas las postulaciones activas con fecha_cierre
+    postulaciones = (
+        db.query(Prospect)
+        .filter(
+            Prospect.source_module == "licitador_a",
+            Prospect.licitacion_fecha_cierre != None,
+            Prospect.postulacion_estado.notin_(["ganada", "perdida"]),
+            Prospect.excluido == False,
+        )
+        .all()
+    )
+
+    email_service = EmailService()
+    enviados = 0
+    errores = []
+
+    for p in postulaciones:
+        try:
+            # Parsear la fecha de cierre (puede venir en varios formatos)
+            try:
+                fecha_cierre = dateparser.parse(p.licitacion_fecha_cierre)
+                if fecha_cierre is None:
+                    continue
+                fecha_cierre = fecha_cierre.date()
+            except Exception:
+                continue
+
+            dias_restantes = (fecha_cierre - hoy).days
+            if dias_restantes < 0 or dias_restantes > 3:
+                continue
+
+            # Buscar admin del tenant
+            admin = (
+                db.query(User)
+                .filter(User.tenant_id == p.tenant_id, User.is_active == True)
+                .order_by(User.created_at.asc())
+                .first()
+            )
+            if not admin or not admin.email:
+                continue
+
+            nombre = p.licitacion_nombre or p.licitacion_codigo or p.id[:8]
+            organismo = p.licitacion_organismo or ""
+            codigo = p.licitacion_codigo or ""
+            estado_txt = (p.postulacion_estado or "sin estado").replace("_", " ").title()
+
+            if dias_restantes == 0:
+                urgencia = "🚨 ¡Cierra HOY!"
+                color = "#dc2626"
+            elif dias_restantes == 1:
+                urgencia = "⚠️ Cierra mañana"
+                color = "#ea580c"
+            else:
+                urgencia = f"⏰ Cierra en {dias_restantes} días"
+                color = "#d97706"
+
+            html = f"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
+              <div style="background: #4f46e5; padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 20px;">📋 Alerta de licitación — Kapturo</h1>
+              </div>
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+                <div style="background: {color}18; border-left: 4px solid {color}; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+                  <strong style="color: {color}; font-size: 16px;">{urgencia}</strong>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 13px; width: 130px;">Licitación</td>
+                    <td style="padding: 10px 0; font-size: 13px; font-weight: 600;">{nombre}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Organismo</td>
+                    <td style="padding: 10px 0; font-size: 13px;">{organismo}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Código</td>
+                    <td style="padding: 10px 0; font-size: 13px; font-family: monospace;">{codigo}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Fecha cierre</td>
+                    <td style="padding: 10px 0; font-size: 13px; font-weight: 600; color: {color};">{fecha_cierre.strftime("%d/%m/%Y")}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Estado</td>
+                    <td style="padding: 10px 0; font-size: 13px;">{estado_txt}</td>
+                  </tr>
+                </table>
+                <a href="https://app.kapturo.cl/licitaciones?tab=postulaciones"
+                   style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px;
+                          border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                  Ver mis postulaciones →
+                </a>
+                <p style="color: #9ca3af; font-size: 11px; margin-top: 24px;">
+                  Kapturo · Licitaciones Chile · <a href="https://app.kapturo.cl" style="color: #9ca3af;">app.kapturo.cl</a>
+                </p>
+              </div>
+            </div>
+            """
+
+            await email_service.send(
+                to=admin.email,
+                subject=f"{urgencia} — {nombre[:60]}",
+                html=html,
+            )
+            enviados += 1
+
+        except Exception as e:
+            errores.append({"prospect_id": p.id, "error": str(e)})
+
+    return {
+        "status": "ok",
+        "revisadas": len(postulaciones),
+        "alertas_enviadas": enviados,
+        "errores": errores,
+    }
+
+
 @router.post("/sync-inmobiliaria")
 async def sync_inmobiliaria(
     db: Session = Depends(get_db),
@@ -383,3 +521,124 @@ async def sync_inmobiliaria(
             resultados[str(modulo.tenant_id)] = {"error": str(e)}
 
     return {"status": "ok", "tenants": len(modulos), "resultados": resultados}
+
+
+# ── Alertas diarias de licitaciones ───────────────────────────────────────────
+
+@router.post("/alertas-licitaciones")
+async def run_alertas_licitaciones(
+    db: Session = Depends(get_db),
+    _: None = Depends(_verify_cron),
+):
+    """
+    Envía alertas diarias de nuevas licitaciones relevantes a todos los tenants
+    con módulo licitaciones activo, email_alertas configurado y rubros definidos.
+
+    Para cada tenant:
+      1. Busca licitaciones en Mercado Público publicadas en las últimas 24h
+         usando los rubros del perfil como keywords
+      2. Si encuentra resultados, envía email al email_alertas
+      3. Guarda `nuevas_pendientes` en niche_config para badge in-app
+      4. Registra `last_alerta_enviada` timestamp
+
+    Llamar cada día a las 8:00 desde Railway Cron:
+      Path: POST /api/v1/cron/alertas-licitaciones
+      Header: X-Cron-Secret: <tu_cron_secret>
+    """
+    from app.models.tenant import TenantModule
+    from sqlalchemy.orm.attributes import flag_modified
+
+    modulos = (
+        db.query(TenantModule)
+        .filter(
+            TenantModule.module == "licitaciones",
+            TenantModule.is_active == True,
+        )
+        .all()
+    )
+
+    email_service = EmailService()
+    client = MercadoPublicoClient()
+    enviados = 0
+    sin_email = 0
+    errores = []
+
+    ahora = datetime.now(timezone.utc)
+    ayer = (ahora - timedelta(days=1)).strftime("%Y-%m-%d")
+    hoy = ahora.strftime("%Y-%m-%d")
+
+    for mod in modulos:
+        cfg = mod.niche_config or {}
+        email_alertas = cfg.get("email_alertas", "").strip()
+        rubros = cfg.get("rubros") or []
+        razon_social = cfg.get("razon_social") or "Tu empresa"
+
+        if not email_alertas or not rubros:
+            sin_email += 1
+            continue
+
+        try:
+            # Buscar licitaciones en las últimas 24h usando primer rubro como keyword
+            keyword = rubros[0] if len(rubros) == 1 else ", ".join(rubros[:3])
+            filtros = {
+                "fecha_desde": ayer,
+                "fecha_hasta": hoy,
+                "keyword": keyword,
+            }
+            region = cfg.get("regiones", [])
+            if len(region) == 1:
+                filtros["region"] = region[0]
+
+            resultado = await asyncio.to_thread(
+                client.buscar_licitaciones,
+                tipo="licitador_b",
+                filtros=filtros,
+                pagina=1,
+            )
+
+            items = resultado.get("items", [])
+            if not items:
+                # Igual actualizamos nuevas_pendientes a 0
+                cfg["nuevas_pendientes"] = 0
+                mod.niche_config = dict(cfg)
+                flag_modified(mod, "niche_config")
+                continue
+
+            # Preparar lista para email (datos básicos)
+            licitaciones_email = []
+            for item in items[:10]:
+                licitaciones_email.append({
+                    "nombre": item.get("nombre") or item.get("licitacion_nombre") or "Sin nombre",
+                    "codigo": item.get("codigo") or "",
+                    "organismo": item.get("organismo") or item.get("comprador") or "",
+                    "monto_estimado": item.get("monto_estimado") or 0,
+                    "fecha_cierre": item.get("fecha_cierre") or "",
+                    "score": item.get("score") or 0,
+                })
+
+            # Enviar email
+            await email_service.send_licitaciones_alert(
+                to=email_alertas,
+                razon_social=razon_social,
+                licitaciones=licitaciones_email,
+            )
+            enviados += 1
+
+            # Guardar metadatos en niche_config para badge in-app
+            cfg["nuevas_pendientes"] = len(items)
+            cfg["last_alerta_enviada"] = ahora.isoformat()
+            mod.niche_config = dict(cfg)
+            flag_modified(mod, "niche_config")
+
+        except Exception as e:
+            errores.append({"tenant_id": str(mod.tenant_id), "error": str(e)})
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "tenants_procesados": len(modulos),
+        "emails_enviados": enviados,
+        "sin_email_o_rubros": sin_email,
+        "errores": errores,
+    }

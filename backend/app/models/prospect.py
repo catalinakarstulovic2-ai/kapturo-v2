@@ -66,6 +66,10 @@ class Prospect(Base):
     source_url: Mapped[str] = mapped_column(String(1000), nullable=True)  # URL de origen (Google Maps, etc.)
     signal_text: Mapped[str] = mapped_column(Text, nullable=True)         # Señal exacta detectada
 
+    # Estado de postulación (solo módulo licitaciones)
+    # Valores: en_preparacion | postulada | evaluando | ganada | perdida
+    postulacion_estado: Mapped[str] = mapped_column(String(50), nullable=True)
+
     # Notas manuales del usuario
     notes: Mapped[str] = mapped_column(Text, nullable=True)
     notes_history: Mapped[str] = mapped_column(Text, nullable=True)       # JSON list de {text, created_at}

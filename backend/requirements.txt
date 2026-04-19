@@ -29,3 +29,4 @@ redis==5.0.8
 
 # Utilities
 python-slugify==8.0.4
+pypdf>=6.0.0

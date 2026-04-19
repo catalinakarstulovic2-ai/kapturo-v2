@@ -18,7 +18,7 @@ import SettingsPage from './pages/settings/SettingsPage'
 import InboxPage from './pages/conversations/InboxPage'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
-import PropuestasPage from './pages/propuestas/PropuestasPage'
+import LicitacionPropuestaPage from './pages/propuestas/LicitacionPropuestaPage'
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
@@ -67,7 +67,7 @@ export default function App() {
           <Route path="prospector" element={<Navigate to="/prospeccion" replace />} />
           <Route path="inmobiliaria" element={<InmobiliariaPage />} />
           <Route path="conversaciones" element={<InboxPage />} />
-          <Route path="propuestas" element={<PropuestasPage />} />
+          <Route path="propuestas/licitaciones" element={<LicitacionPropuestaPage />} />
           <Route path="agentes" element={<AgentsPage />} />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route

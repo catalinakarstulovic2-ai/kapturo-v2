@@ -185,7 +185,7 @@ def obtener_tenant(
             {"api": "Claude (Anthropic)", "uso": "Calificar y puntuar cada prospecto",     "costo_usd": claude_cost, "modelo": f"{total_prospectos} calificaciones"},
         ]
 
-    if "licitador" in modulo_tipos:
+    if "licitador" in modulo_tipos or "licitaciones" in modulo_tipos:
         # Mercado Público API: gratis
         # Claude: scoring de licitaciones
         licit_prosp = db.query(Prospect).filter(
