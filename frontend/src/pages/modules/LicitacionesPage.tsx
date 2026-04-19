@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams, NavLink } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
+import { useLicitacionesSearchStore } from '../../store/licitacionesSearchStore'
 import toast from 'react-hot-toast'
 import {
   FileText, Search, ChevronDown, ChevronUp, Loader2,
@@ -68,6 +69,59 @@ const RUBRO_CATEGORIAS: { label: string; emoji: string; rubros: string[] }[] = [
   { label: 'Equipamiento',           emoji: '🪡', rubros: ['mobiliario', 'vestuario', 'uniformes', 'imprenta'] },
   { label: 'Turismo & Gastronomía',  emoji: '🏨', rubros: ['hotelería'] },
 ]
+
+// Badge de rubro con color según categoría detectada desde el texto de la categoría MP
+const CATEGORIA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Tecnología':             { bg: 'bg-blue-50',    text: 'text-blue-700',   border: 'border-blue-200' },
+  'Construcción & Obras':   { bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200' },
+  'Salud':                  { bg: 'bg-red-50',     text: 'text-red-700',    border: 'border-red-200' },
+  'Servicios Generales':    { bg: 'bg-gray-100',   text: 'text-gray-700',   border: 'border-gray-200' },
+  'Logística & Transporte': { bg: 'bg-orange-50',  text: 'text-orange-700', border: 'border-orange-200' },
+  'Consultoría & Negocios': { bg: 'bg-violet-50',  text: 'text-violet-700', border: 'border-violet-200' },
+  'Educación':              { bg: 'bg-green-50',   text: 'text-green-700',  border: 'border-green-200' },
+  'Industria & Producción': { bg: 'bg-yellow-50',  text: 'text-yellow-700', border: 'border-yellow-200' },
+  'Equipamiento':           { bg: 'bg-pink-50',    text: 'text-pink-700',   border: 'border-pink-200' },
+  'Turismo & Gastronomía':  { bg: 'bg-teal-50',    text: 'text-teal-700',   border: 'border-teal-200' },
+}
+
+function detectarCategoria(categoria: string | undefined): { label: string; emoji: string } | null {
+  if (!categoria) return null
+  const lower = categoria.toLowerCase()
+  // Buscar qué categoría contiene algún rubro que aparezca en el string de la categoría MP
+  for (const cat of RUBRO_CATEGORIAS) {
+    if (cat.rubros.some(r => lower.includes(r.toLowerCase()))) {
+      return { label: cat.label, emoji: cat.emoji }
+    }
+  }
+  // Fallback: buscar por label de categoría
+  for (const cat of RUBRO_CATEGORIAS) {
+    const catLower = cat.label.toLowerCase().replace(' & ', ' ')
+    if (catLower.split(' ').some(w => w.length > 4 && lower.includes(w))) {
+      return { label: cat.label, emoji: cat.emoji }
+    }
+  }
+  return null
+}
+
+const RubroBadge = ({ categoria, rubrosSeleccionados }: { categoria?: string; rubrosSeleccionados: string[] }) => {
+  const cat = detectarCategoria(categoria)
+  if (!cat) {
+    return <span className="text-xs text-gray-400">—</span>
+  }
+  // Verificar si esta categoría hace match con algún rubro seleccionado por el usuario
+  const catData = RUBRO_CATEGORIAS.find(c => c.label === cat.label)
+  const isMatched = rubrosSeleccionados.length > 0 && catData
+    ? catData.rubros.some(r => rubrosSeleccionados.map(x => x.toLowerCase()).includes(r.toLowerCase()))
+    : false
+  const colors = CATEGORIA_COLORS[cat.label] ?? { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' }
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${colors.bg} ${colors.text} ${colors.border} ${isMatched ? 'ring-1 ring-offset-0' : ''}`}
+      title={categoria}>
+      <span>{cat.emoji}</span>
+      <span className="truncate max-w-[100px]">{cat.label}</span>
+    </span>
+  )
+}
 
 const formatMonto = (n: number | null | undefined) => {
   if (!n) return '—'
@@ -216,6 +270,13 @@ function PerfilEmpresaModal({ onClose, catalogo }: { onClose: () => void; catalo
   const queryClient = useQueryClient()
   const perfilCached = queryClient.getQueryData<any>(['licitaciones-profile'])
 
+  // Siempre cargamos del servidor al abrir el modal para tener datos frescos
+  const { data: perfilRemoto } = useQuery({
+    queryKey: ['licitaciones-profile'],
+    queryFn: () => api.get('/tenant/me/licitaciones-profile').then(r => r.data).catch(() => null),
+    staleTime: 0,  // siempre refrescar al montar el modal
+  })
+
   const [form, setForm] = useState({
     rut_empresa: perfilCached?.rut_empresa || '',
     razon_social: perfilCached?.razon_social || '',
@@ -229,6 +290,54 @@ function PerfilEmpresaModal({ onClose, catalogo }: { onClose: () => void; catalo
     email_alertas: perfilCached?.email_alertas || '',
     diferenciadores: perfilCached?.diferenciadores || '',
   })
+
+  // Sincronizar form cuando llega el perfil del servidor (si el caché estaba vacío al abrir)
+  useEffect(() => {
+    if (!perfilRemoto) return
+    setForm({
+      rut_empresa: perfilRemoto.rut_empresa || '',
+      razon_social: perfilRemoto.razon_social || '',
+      descripcion: perfilRemoto.descripcion || '',
+      experiencia_anos: perfilRemoto.experiencia_anos != null ? String(perfilRemoto.experiencia_anos) : '',
+      proyectos_anteriores: perfilRemoto.proyectos_anteriores || '',
+      certificaciones: perfilRemoto.certificaciones || '',
+      inscrito_chile_proveedores: perfilRemoto.inscrito_chile_proveedores || false,
+      rubros: (perfilRemoto.rubros as string[]) || [],
+      regiones: (perfilRemoto.regiones as string[]) || [],
+      email_alertas: perfilRemoto.email_alertas || '',
+      diferenciadores: perfilRemoto.diferenciadores || '',
+    })
+  }, [perfilRemoto])
+
+  // ── Sugerir rubros automáticamente cuando el usuario escribe la descripción ──
+  const [sugirendoRubros, setSugirendoRubros] = useState(false)
+  const [rubrosSugeridos, setRubrosSugeridos] = useState<string[]>([])
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const onDescripcionChange = (valor: string) => {
+    setForm(f => ({ ...f, descripcion: valor }))
+    setRubrosSugeridos([])
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    // Solo sugerir si hay texto suficiente y aún no tiene rubros
+    if (valor.trim().length < 10) return
+    debounceRef.current = setTimeout(async () => {
+      setSugirendoRubros(true)
+      try {
+        const res = await api.post('/modules/licitaciones/sugerir-rubros', { descripcion: valor.trim() })
+        const sugeridos: string[] = res.data.rubros || []
+        // Filtrar los que ya tiene seleccionados
+        const nuevos = sugeridos.filter(r => !form.rubros.includes(r))
+        if (nuevos.length > 0) setRubrosSugeridos(nuevos)
+      } catch { /* silencioso */ }
+      finally { setSugirendoRubros(false) }
+    }, 1200)  // 1.2s de debounce
+  }
+
+  const aplicarRubrosSugeridos = () => {
+    setForm(f => ({ ...f, rubros: [...new Set([...f.rubros, ...rubrosSugeridos])] }))
+    setRubrosSugeridos([])
+  }
+
 
   const guardarMutation = useMutation({
     mutationFn: () => api.put('/tenant/me/licitaciones-profile', {
@@ -413,8 +522,32 @@ function PerfilEmpresaModal({ onClose, catalogo }: { onClose: () => void; catalo
               rows={3}
               placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas certificadas en RM y Biobío. Contamos con ISO 9001..."
               value={form.descripcion}
-              onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
+              onChange={e => onDescripcionChange(e.target.value)}
             />
+            {/* Banner sugerencia de rubros */}
+            {sugirendoRubros && (
+              <p className="text-[10px] text-indigo-400 mt-1.5 flex items-center gap-1">
+                <Loader2 size={10} className="animate-spin" /> Detectando rubros…
+              </p>
+            )}
+            {rubrosSugeridos.length > 0 && !sugirendoRubros && (
+              <div className="mt-2 flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                <Sparkles size={12} className="text-indigo-500 shrink-0" />
+                <span className="text-[11px] text-indigo-700 flex-1">
+                  Rubros detectados: <strong>{rubrosSugeridos.join(', ')}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={aplicarRubrosSugeridos}
+                  className="text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-md shrink-0"
+                >
+                  Agregar
+                </button>
+                <button type="button" onClick={() => setRubrosSugeridos([])} className="text-gray-400 hover:text-gray-600">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
             <p className="text-[10px] text-gray-400 mt-1">
               {form.rubros.length === 0
                 ? '⚠️ Selecciona rubros primero para habilitar la generación con IA'
@@ -639,7 +772,7 @@ export default function LicitacionesPage() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null)
   const [savingCodigo, setSavingCodigo] = useState<string | null>(null)
   const [showAvanzados, setShowAvanzados] = useState(false)
-  const [searchSeconds, setSearchSeconds] = useState(0)
+  // searchSeconds viene del store global (ver más abajo)
   const [cacheInfo, setCacheInfo] = useState<string | null>(null)
   const [rubrosConConteo, setRubrosConConteo] = useState<Record<string, number>>({})
   const [buscarRubroQuery, setBuscarRubroQuery] = useState('')
@@ -707,17 +840,30 @@ export default function LicitacionesPage() {
       const ageMs = data.savedAt ? Date.now() - new Date(data.savedAt).getTime() : Infinity
       const isStale = ageMs > CACHE_TTL_MS
 
+      // Invalidar caché si los rubros guardados son [] (todos) pero el perfil tiene rubros específicos
+      // Esto evita mostrar resultados sin filtro cuando el perfil ya está configurado
+      const cachedRubros: string[] = data.rubrosSeleccionados || []
+      // Intentar leer perfil del queryClient (puede estar disponible por otra query)
+      const perfil = (window as any).__kapturo_perfil_rubros as string[] | undefined
+      const perfilTieneRubros = perfil && perfil.length > 0
+      const cacheEsSinFiltro = cachedRubros.length === 0
+      if (perfilTieneRubros && cacheEsSinFiltro) {
+        // El caché no tiene filtro de rubros pero el perfil sí — descartarlo
+        localStorage.removeItem('kapturo_licitaciones_cache')
+        return
+      }
+
       if (data.filtros) setFiltros(data.filtros)
-      if (data.rubrosSeleccionados) setRubrosSeleccionados(data.rubrosSeleccionados)
+      if (cachedRubros.length > 0) setRubrosSeleccionados(cachedRubros)
       if (data.rubrosConConteo) setRubrosConConteo(data.rubrosConConteo)
       if (data.resultados?.length) {
         setResultados(data.resultados)
         setTotalResultados(data.total || 0)
         setTotalDisponible(data.total_disponible ?? null)
         if (isStale) {
-          setCacheInfo('actualizando...')
-          // auto-refresca en background sin bloquear la pantalla
-          setTimeout(() => buscarMutation.mutate(1), 300)
+          // Caché expirado — no auto-refrescamos (puede colgar si los filtros son inválidos)
+          // El usuario puede actualizar manualmente con el botón "Actualizar"
+          setCacheInfo('expirado · pulsa Actualizar')
         } else {
           const mins = Math.round(ageMs / 60000)
           const expiraMins = Math.round((CACHE_TTL_MS - ageMs) / 60000)
@@ -742,19 +888,37 @@ export default function LicitacionesPage() {
   useEffect(() => {
     if (!perfilEmpresa) return
     try {
-      const hasCache = !!localStorage.getItem('kapturo_licitaciones_cache')
-      if (!hasCache) {
-        if (perfilEmpresa.rubros?.length > 0) setRubrosSeleccionados(perfilEmpresa.rubros)
-        if (perfilEmpresa.regiones?.length === 1) setFiltros(f => ({ ...f, region: perfilEmpresa.regiones[0] }))
+      // Guardar rubros del perfil en window para que el check de caché pueda accederlos
+      if (perfilEmpresa.rubros?.length > 0) {
+        (window as any).__kapturo_perfil_rubros = perfilEmpresa.rubros
       }
+      // Si el perfil tiene rubros, aplicarlos SIEMPRE como filtro por defecto
+      // (sobreescribe caché sin filtro o con rubros distintos)
+      if (perfilEmpresa.rubros?.length > 0) {
+        setRubrosSeleccionados(prev => {
+          // Solo sobreescribir si los rubros actuales no son un subconjunto del perfil
+          // (respeta si el usuario manualmente seleccionó un subconjunto de sus rubros)
+          const perfilSet = new Set(perfilEmpresa.rubros)
+          const todosEnPerfil = prev.every((r: string) => perfilSet.has(r))
+          if (prev.length === 0 || !todosEnPerfil) return perfilEmpresa.rubros
+          return prev  // el usuario ya tenia rubros del perfil seleccionados
+        })
+      }
+      if (perfilEmpresa.regiones?.length === 1) setFiltros(f => ({ ...f, region: perfilEmpresa.regiones[0] }))
     } catch {}
   }, [perfilEmpresa])
 
   // ── Limpiar resultados cuando cambian los filtros activos ────────────────
   // Evita mostrar resultados de una búsqueda anterior con otros filtros
   const prevFiltrosRef = useRef<string>('')
+  const iaSearchActiveRef = useRef(false)  // true mientras IA está seteando rubros — evita limpiar sus propios resultados
   useEffect(() => {
     const key = JSON.stringify({ rubrosSeleccionados, region: filtros.region, periodo: filtros.periodo })
+    if (iaSearchActiveRef.current) {
+      iaSearchActiveRef.current = false
+      prevFiltrosRef.current = key
+      return
+    }
     if (prevFiltrosRef.current && prevFiltrosRef.current !== key) {
       // Los filtros cambiaron después de una búsqueda — limpiar caché y resultados
       setResultados([])
@@ -773,95 +937,70 @@ export default function LicitacionesPage() {
   })
 
   // ── Preview / Búsqueda ──────────────────────────────────────────────────
-  const buscarMutation = useMutation({
-    mutationFn: (pagina: number = 1) => {
-      const params = new URLSearchParams({ tipo: tab, pagina: String(pagina) })
-      const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
-      const hasta = new Date(); hasta.setDate(hasta.getDate() - 1)
-      const desde = new Date(hasta); desde.setDate(desde.getDate() - (parseInt(filtros.periodo) - 1))
-      params.set('fecha_desde', fmtDate(desde))
-      params.set('fecha_hasta', fmtDate(hasta))
-      if (filtros.region)          params.set('region', filtros.region)
-      if (filtros.tipo_licitacion) params.set('tipo_licitacion', filtros.tipo_licitacion)
-      if (rubrosSeleccionados.length > 0) params.set('keyword', rubrosSeleccionados.join(','))
-      if (filtros.comprador)       params.set('comprador', filtros.comprador)
-      if (filtros.proveedor)       params.set('proveedor', filtros.proveedor)
-      return api.get(`/modules/licitaciones/preview?${params}`)
-    },
-    onSuccess: (res, pagina) => {
-      // Cruzar con prospectos guardados para marcar cuáles ya están en postulaciones
-      const savedCodigos: Record<string, string> = {}
+  // ── Store global de búsqueda (sobrevive navegación) ───────────────────────
+  const searchStore = useLicitacionesSearchStore()
+  const getToken = () => localStorage.getItem('kapturo_token') || ''
+
+  // Sincronizar resultados del store al estado local del componente
+  useEffect(() => {
+    // Sincronizar siempre que la búsqueda termine (incluso con 0 resultados)
+    const searchJustFinished = !searchStore.isSearching && !searchStore.isSearchingIA
+      && searchStore.searchParams !== null
+    if (searchJustFinished) {
+      setResultados(searchStore.resultados as unknown as LicitacionPreview[])
+      setTotalResultados(searchStore.totalResultados)
+      setTotalPaginas(searchStore.totalPaginas)
+      setPaginaActual(searchStore.paginaActual)
+      setTotalDisponible(searchStore.totalDisponible)
+      setRubrosConConteo(searchStore.rubrosConConteo)
+      setCacheInfo(searchStore.cacheInfo)
+      if (searchStore.iaResumen !== null) setIaResumen(searchStore.iaResumen)
+      if (searchStore.iaAdvertencia !== null) setIaAdvertencia(searchStore.iaAdvertencia)
+      if (searchStore.iaSugerencia !== null) setIaSugerencia(searchStore.iaSugerencia)
+      // Cruzar con prospectos guardados
       if (postulacionesData?.items?.length) {
+        const codigoToId: Record<string, string> = {}
         for (const p of postulacionesData.items) {
-          if (p.licitacion_codigo) savedCodigos[p.licitacion_codigo] = p.id
+          if (p.licitacion_codigo) codigoToId[p.licitacion_codigo] = p.id
         }
+        setResultados(prev => prev.map(r =>
+          !r.prospect_id && codigoToId[r.codigo] ? { ...r, prospect_id: codigoToId[r.codigo] } : r
+        ))
       }
-      const items = (res.data.items as LicitacionPreview[]).map(r =>
-        savedCodigos[r.codigo] ? { ...r, prospect_id: savedCodigos[r.codigo] } : r
+    }
+    if (searchStore.error) {
+      toast.error(searchStore.error)
+      searchStore.clearError()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStore.isSearching, searchStore.isSearchingIA, searchStore.resultados])
+
+  const buscarMutation = {
+    isPending: searchStore.isSearching,
+    mutate: (pagina: number = 1) => {
+      searchStore.iniciarBusqueda(
+        { tab, filtros, rubrosSeleccionados, pagina },
+        getToken()
       )
-      setResultados(items)
-      setTotalResultados(res.data.total)
-      setTotalPaginas(res.data.total_paginas ?? 1)
-      setPaginaActual(pagina ?? 1)
+      setPaginaActual(pagina)
       setExpandedId(null)
-      const savedAt = new Date().toISOString()
-      const rc: Record<string, number> = res.data.rubros_counts ?? {}
-      setRubrosConConteo(rc)
-      setCacheInfo(`guardado · expira en 4 h`)
-      setTotalDisponible(res.data.total_disponible ?? null)
-      try {
-        localStorage.setItem('kapturo_licitaciones_cache', JSON.stringify({
-          filtros, rubrosSeleccionados, rubrosConConteo: rc,
-          resultados: items, total: res.data.total,
-          total_disponible: res.data.total_disponible, savedAt,
-        }))
-      } catch {}
-      const msg = (pagina ?? 1) === 1
-        ? `${res.data.total} licitaciones encontradas`
-        : `Página ${pagina} de ${res.data.total_paginas ?? 1}`
-      toast.success(msg)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en la búsqueda'),
-  })
+  }
 
   // ── Búsqueda con IA ────────────────────────────────────────────────────────
-  const busquedaIAMutation = useMutation({
-    mutationFn: (consulta: string) =>
-      api.post('/modules/licitaciones/busqueda-ia', { consulta, tipo: tab }),
-    onSuccess: (res) => {
-      const { filtros_extraidos, resultado } = res.data
-      // Aplicar filtros entendidos
-      if (filtros_extraidos.keyword) {
-        setRubrosSeleccionados(filtros_extraidos.keyword.split(' ').filter(Boolean))
-      }
-      if (filtros_extraidos.region) {
-        setFiltros(f => ({ ...f, region: filtros_extraidos.region }))
-      }
-      setIaResumen(filtros_extraidos.resumen || null)
-      setIaAdvertencia(filtros_extraidos.advertencia || null)
-      setIaSugerencia(filtros_extraidos.sugerencia || null)
-      // Aplicar resultados
-      setResultados(resultado.items ?? [])
-      setTotalResultados(resultado.total ?? 0)
-      setTotalPaginas(resultado.total_paginas ?? 1)
-      setPaginaActual(1)
+  const busquedaIAMutation = {
+    isPending: searchStore.isSearchingIA,
+    mutate: (consulta: string) => {
+      setResultados([])
+      setTotalResultados(0)
+      setCacheInfo(null)
+      setIaResumen(null)
+      setIaAdvertencia(null)
+      setIaSugerencia(null)
       setExpandedId(null)
-      const rc = resultado.rubros_counts ?? {}
-      setRubrosConConteo(rc)
-      setTotalDisponible(resultado.total_disponible ?? null)
-      setCacheInfo('búsqueda IA')
-      try {
-        localStorage.setItem('kapturo_licitaciones_cache', JSON.stringify({
-          filtros, rubrosSeleccionados, rubrosConConteo: rc,
-          resultados: resultado.items, total: resultado.total,
-          total_disponible: resultado.total_disponible,
-          savedAt: new Date().toISOString(),
-        }))
-      } catch {}
-      toast.success(`${resultado.total ?? 0} licitaciones encontradas`)
+      searchStore.iniciarBusquedaIA(consulta, tab, getToken())
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error en búsqueda IA'),
-  })
+  }
 
   // ── Generar propuesta ─────────────────────────────────────────────────────
   const propuestaMutation = useMutation({
@@ -889,7 +1028,7 @@ export default function LicitacionesPage() {
   })
 
   // Polling del job cada 3s
-  useQuery({
+  const { data: jobData } = useQuery({
     queryKey: ['analysis-job', analysisJobId],
     queryFn: () => api.get(`/modules/licitaciones/analizar/job/${analysisJobId}`).then(r => r.data),
     enabled: !!analysisJobId,
@@ -898,24 +1037,40 @@ export default function LicitacionesPage() {
       if (!data || data.status === 'pending') return 3000
       return false // parar cuando done o error
     },
-    onSuccess: (data: any) => {
-      if (data.status === 'done') {
-        setAnalisisData(data.result)
-        setPropuestaTexto(data.result?.propuesta || null)
-        setAnalisisTab('analisis')
-        setAnalysisJobId(null)
-      } else if (data.status === 'error') {
-        toast.error(data.error || 'Error en el análisis')
-        setAnalysisJobId(null)
-      }
-    },
   } as any)
 
-  // Contador de segundos mientras analiza
+  // Reaccionar al resultado del job (onSuccess fue eliminado en TanStack Query v5)
+  useEffect(() => {
+    if (!jobData) return
+    if ((jobData as any).status === 'done') {
+      setAnalisisData((jobData as any).result)
+      setPropuestaTexto((jobData as any).result?.propuesta || null)
+      setAnalisisTab('analisis')
+      setAnalysisJobId(null)
+      queryClient.removeQueries({ queryKey: ['analysis-job'] })
+    } else if ((jobData as any).status === 'error') {
+      toast.error((jobData as any).error || 'Error en el análisis')
+      setAnalysisJobId(null)
+      queryClient.removeQueries({ queryKey: ['analysis-job'] })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobData])
+
+  // Contador de segundos mientras analiza + timeout de 120s
   useEffect(() => {
     if (!analysisJobId) { setAnalysisSeconds(0); return }
-    const t = setInterval(() => setAnalysisSeconds(s => s + 1), 1000)
+    const t = setInterval(() => setAnalysisSeconds(s => {
+      if (s >= 119) {
+        clearInterval(t)
+        setAnalysisJobId(null)
+        queryClient.removeQueries({ queryKey: ['analysis-job'] })
+        toast.error('El análisis tardó demasiado. Intenta de nuevo.')
+        return 0
+      }
+      return s + 1
+    }), 1000)
     return () => clearInterval(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisJobId])
 
   const isAnalyzing = analizarMutation.isPending || !!analysisJobId
@@ -942,12 +1097,9 @@ export default function LicitacionesPage() {
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Error al actualizar estado'),
   })
 
-  // ── Timer de progreso de búsqueda ────────────────────────────────────────
-  useEffect(() => {
-    if (!buscarMutation.isPending) { setSearchSeconds(0); return }
-    const interval = setInterval(() => setSearchSeconds(s => s + 1), 1000)
-    return () => clearInterval(interval)
-  }, [buscarMutation.isPending])
+  // ── Timer de progreso de búsqueda — sincronizado con el store global ────
+  const searchSeconds = searchStore.searchSeconds
+  const setSearchSeconds = (_: number) => {}  // el store maneja el timer
 
   // ── Guardar ─────────────────────────────────────────────────────────────
   const guardarMutation = useMutation({
@@ -965,12 +1117,6 @@ export default function LicitacionesPage() {
     onMutate: (item) => setSavingCodigo(item.codigo),
     onSuccess: (res, item) => {
       setSavingCodigo(null)
-      if (res.data.status === 'duplicate') {
-        toast('Ya guardada — ve a Mis postulaciones', { icon: '✅' })
-      } else {
-        toast.success(`Guardada ✓ — score ${res.data.score?.toFixed(0) ?? '—'}`)
-      }
-      // Siempre actualizar el item local con prospect_id (duplicate o nuevo)
       queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
       setResultados(prev => {
         const updated = prev.map(r => r.codigo === item.codigo
@@ -998,6 +1144,21 @@ export default function LicitacionesPage() {
         } catch {}
         return updated
       })
+      // Navegar directo al prospecto recién guardado (o duplicado)
+      const prospectId = res.data.prospect_id
+      const isDuplicate = res.data.status === 'duplicate'
+      if (isDuplicate) {
+        toast('Ya estaba guardada — abriéndola…', { icon: 'ℹ️' })
+      } else {
+        toast.success(`Guardada ✓ — score ${res.data.score?.toFixed(0) ?? '—'}`)
+      }
+      if (prospectId) {
+        setMainTab('postulaciones')
+        // Esperar a que el panel cargue los nuevos datos antes de hacer scroll
+        setTimeout(() => setExpandedId(prospectId), 500)
+      } else if (isDuplicate) {
+        setMainTab('postulaciones')
+      }
     },
     onError: (err: any) => {
       setSavingCodigo(null)
@@ -1189,6 +1350,8 @@ export default function LicitacionesPage() {
         <PostulacionesPanel
           prospectos={postulacionesData?.items ?? []}
           loading={loadingPostulaciones}
+          highlightId={expandedId}
+          onHighlightClear={() => setExpandedId(null)}
           onAnalizar={(p) => {
             setAnalisisData(null)
             setPropuestaTexto(null)
@@ -1620,9 +1783,7 @@ export default function LicitacionesPage() {
                         {formatMonto(item.monto)}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full line-clamp-1">
-                          {item.categoria || '—'}
-                        </span>
+                        <RubroBadge categoria={item.categoria} rubrosSeleccionados={rubrosSeleccionados} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 hidden md:table-cell text-xs">{item.region || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs line-clamp-1">
@@ -2168,6 +2329,8 @@ interface ProspectoLicit {
 function PostulacionesPanel({
   prospectos,
   loading,
+  highlightId,
+  onHighlightClear,
   onAnalizar,
   onCambiarEstado,
   updatingId,
@@ -2176,6 +2339,8 @@ function PostulacionesPanel({
 }: {
   prospectos: ProspectoLicit[]
   loading: boolean
+  highlightId?: string | null
+  onHighlightClear?: () => void
   onAnalizar: (p: ProspectoLicit) => void
   onCambiarEstado: (id: string, estado: string) => void
   updatingId: string | null
@@ -2187,6 +2352,23 @@ function PostulacionesPanel({
   const [estadoDropdown, setEstadoDropdown] = useState<string | null>(null)
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [busquedaLocal, setBusquedaLocal] = useState('')
+  const highlightRef = useRef<HTMLDivElement>(null)
+
+  // Scroll al item destacado cuando llega — con retry para esperar el render
+  useEffect(() => {
+    if (!highlightId) return
+    let attempts = 0
+    const tryScroll = () => {
+      if (highlightRef.current) {
+        highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const t = setTimeout(() => onHighlightClear?.(), 3000)
+        return () => clearTimeout(t)
+      }
+      if (attempts++ < 10) setTimeout(tryScroll, 150)
+    }
+    tryScroll()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId])
 
   const notasMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes: string }) =>
@@ -2375,6 +2557,8 @@ function PostulacionesPanel({
               <PostulacionCard
                 key={p.id}
                 p={p}
+                highlight={p.id === highlightId}
+                highlightRef={p.id === highlightId ? highlightRef : undefined}
                 onAnalizar={onAnalizar}
                 onCambiarEstado={onCambiarEstado}
                 updatingId={updatingId}
@@ -2457,6 +2641,8 @@ function PostulacionesPanel({
                   <PostulacionCard
                     key={p.id}
                     p={p}
+                    highlight={p.id === highlightId}
+                    highlightRef={p.id === highlightId ? highlightRef : undefined}
                     onAnalizar={onAnalizar}
                     onCambiarEstado={onCambiarEstado}
                     updatingId={updatingId}
@@ -2505,9 +2691,11 @@ function EstadoMenu({ onSelect, onClose }: { onSelect: (e: string) => void; onCl
 // ── Tarjeta de postulación ────────────────────────────────────────────────────
 
 function PostulacionCard({
-  p, onAnalizar, onCambiarEstado, updatingId, estadoDropdown, setEstadoDropdown, onGuardarNotas, onEliminar
+  p, highlight, highlightRef, onAnalizar, onCambiarEstado, updatingId, estadoDropdown, setEstadoDropdown, onGuardarNotas, onEliminar
 }: {
   p: ProspectoLicit
+  highlight?: boolean
+  highlightRef?: React.RefObject<HTMLDivElement>
   onAnalizar: (p: ProspectoLicit) => void
   onCambiarEstado: (id: string, estado: string) => void
   updatingId: string | null
@@ -2550,7 +2738,7 @@ function PostulacionCard({
     : null
 
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div ref={highlightRef} className={clsx('border-b border-gray-100 last:border-0 transition-colors', highlight && 'bg-indigo-50/60 ring-1 ring-inset ring-indigo-200')}>
       {/* Fila principal */}
       <div className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
         <div className="flex items-start gap-3">

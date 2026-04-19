@@ -271,11 +271,16 @@ class LicitacionesService:
         norm = LicitacionNormalizada(detalle, tipo)
         p_dict = norm.a_prospect_dict()
 
-        rut = norm.adjudicado_rut if tipo == "licitador_b" else norm.organismo_rut
-        if rut:
+        # Detectar duplicado por código de licitación (clave única real)
+        licitacion_codigo = p_dict.get("licitacion_codigo") or codigo
+        if licitacion_codigo:
             existing = (
                 self.db.query(Prospect)
-                .filter(Prospect.tenant_id == self.tenant_id, Prospect.rut == rut, Prospect.source_module == tipo)
+                .filter(
+                    Prospect.tenant_id == self.tenant_id,
+                    Prospect.licitacion_codigo == licitacion_codigo,
+                    Prospect.source_module == tipo,
+                )
                 .first()
             )
             if existing:

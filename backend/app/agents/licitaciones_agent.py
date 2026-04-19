@@ -123,16 +123,19 @@ Solo el JSON, sin texto adicional."""
         razon_social = perfil.get("razon_social") or "" if perfil else ""
         descripcion_empresa = perfil.get("descripcion") or "" if perfil else ""
         perfil_ctx = ""
-        if rubros_empresa:
+        if rubros_empresa or descripcion_empresa:
+            rubros_line = f"- Rubros en los que opera: {rubros_empresa}" if rubros_empresa else "- Rubros: no especificados aún"
+            desc_line = f"- Descripción: {descripcion_empresa[:300]}" if descripcion_empresa else "- Descripción: no especificada"
             perfil_ctx = f"""
 
 CONTEXTO DE LA EMPRESA DEL USUARIO:
 - Razón social: {razon_social or 'no especificada'}
-- Rubros en los que opera: {rubros_empresa}
-- Descripción: {descripcion_empresa[:200] if descripcion_empresa else 'no especificada'}
+{rubros_line}
+{desc_line}
 
-EVALUÓ si la búsqueda del usuario tiene sentido para esta empresa.
-Si la búsqueda está FUERA de sus rubros, incluye una advertencia clara."""
+EVALÚA si la búsqueda del usuario tiene sentido para esta empresa.
+Si la búsqueda está FUERA del giro de la empresa (por rubro O por descripción), incluye una advertencia clara y una sugerencia de búsqueda más acorde al perfil.
+Si no hay suficiente información del perfil para evaluar, pon null en advertencia."""
 
         prompt = f"""Eres un asistente experto en licitaciones públicas chilenas de Mercado Público.
 El usuario describió lo que busca en lenguaje natural. Extrae los filtros de búsqueda.{perfil_ctx}
@@ -144,13 +147,13 @@ RUBROS DISPONIBLES: {rubros_str}
 
 Responde SOLO con un JSON válido:
 {{
-  "keyword": "palabras clave (máx 3-4 palabras del servicio/producto principal)",
+  "keyword": "palabras clave MUY ESPECÍFICAS del objeto licitado (ej: 'plaza pública', 'ciberseguridad firewall', 'digitalización documentos'). Máx 3-4 palabras, NO uses palabras genéricas como 'construcción', 'servicio', 'contratación'. Usa el sustantivo principal de lo que se compra/contrata.",
   "region": "código numérico o null",
   "tipo_licitacion": null,
   "fecha_periodo_dias": 30,
   "resumen": "frase corta de lo que entendiste (máx 15 palabras)",
-  "advertencia": "texto si la búsqueda no encaja con el perfil de la empresa, o null si encaja bien",
-  "sugerencia": "búsqueda alternativa más acorde al perfil de la empresa, o null"
+  "advertencia": "Si el perfil de la empresa tiene descripción o rubros Y la búsqueda no encaja con ese giro, escribe aquí una advertencia clara. Si no hay perfil o sí encaja, pon null.",
+  "sugerencia": "Si pusiste advertencia, escribe aquí una búsqueda alternativa más acorde al perfil de la empresa (solo las keywords, sin comillas). Si no hay advertencia, pon null."
 }}
 
 Solo el JSON, sin texto adicional."""

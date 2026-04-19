@@ -66,6 +66,7 @@ class LicitacionesProfileRequest(BaseModel):
     certificaciones: Optional[str] = None
     email_alertas: Optional[str] = None
     frecuencia_alertas: Optional[str] = None  # "diaria" | "semanal" | "nunca"
+    nuevas_pendientes: Optional[int] = None
 
 
 def _mask(value: str | None) -> str:

@@ -8,6 +8,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import asyncio
 import uuid
+import json
 
 from app.core.database import get_db, SessionLocal
 from app.core.middleware import get_current_user, require_admin
@@ -207,6 +208,62 @@ class AsistentePerfilRequest(BaseModel):
     regiones: list[str] = []
     descripcion_actual: Optional[str] = None
     diferenciadores_actuales: Optional[str] = None
+
+
+class SugerirRubrosRequest(BaseModel):
+    descripcion: str
+
+
+@router.post("/sugerir-rubros")
+async def sugerir_rubros(
+    data: SugerirRubrosRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recibe la descripción de la empresa en texto libre y devuelve los rubros
+    de Mercado Público que mejor corresponden, usando Claude Haiku.
+    """
+    catalogo = MercadoPublicoClient().obtener_catalogo()
+    rubros_disponibles = catalogo.get("rubros", [])
+    rubros_str = ", ".join(rubros_disponibles)
+
+    prompt = f"""Eres un experto en licitaciones públicas chilenas de Mercado Público.
+
+El usuario describió su empresa así: "{data.descripcion}"
+
+Lista de rubros disponibles en el sistema (usa EXACTAMENTE estos nombres, sin inventar nuevos):
+{rubros_str}
+
+Selecciona los 1 a 4 rubros que mejor correspondan al giro de esta empresa.
+Si la descripción menciona ciberseguridad, software, informática o tecnología → incluye "tecnología" y/o "informática" y/o "software" según corresponda.
+Si no hay suficiente información, devuelve al menos 1 rubro probable.
+
+Responde SOLO con un JSON válido:
+{{"rubros": ["rubro1", "rubro2"]}}
+
+Solo el JSON, sin texto adicional."""
+
+    agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
+    try:
+        raw = await asyncio.to_thread(
+            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 200
+        )
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            parts = cleaned.split("```")
+            cleaned = parts[1][4:] if parts[1].startswith("json") else parts[1]
+        result = json.loads(cleaned.strip())
+        # Validar que los rubros devueltos existen en el catálogo
+        rubros_lower = {r.lower(): r for r in rubros_disponibles}
+        rubros_validos = [
+            rubros_lower[r.lower()]
+            for r in (result.get("rubros") or [])
+            if r.lower() in rubros_lower
+        ]
+        return {"rubros": rubros_validos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al sugerir rubros: {str(e)}")
 
 
 @router.post("/asistente-perfil")

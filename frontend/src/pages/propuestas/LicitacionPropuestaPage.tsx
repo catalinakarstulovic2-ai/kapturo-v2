@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
+import { jsPDF } from 'jspdf'
 import {
   Sparkles, FileText, Copy, Download, ChevronRight, ChevronLeft,
   Building2, CheckCircle2, RotateCcw, Loader2, FileSignature,
@@ -133,13 +134,98 @@ export default function LicitacionPropuestaPage() {
   const descargar = () => {
     const nombre = selectedPostulacion?.licitacion_nombre ?? 'licitacion'
     const tipoLabel = TIPOS.find(t => t.id === tipo)?.label ?? tipo
-    const blob = new Blob([resultado], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${tipoLabel.replace(/\s+/g, '_')}_${nombre.slice(0, 40).replace(/\s+/g, '_')}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    const titulo = `${tipoLabel} — ${nombre.slice(0, 60)}`
+    const nombreArchivo = `${tipoLabel.replace(/\s+/g, '_')}_${nombre.slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+    const fecha = new Date().toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const marginX = 20
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const maxWidth = pageWidth - marginX * 2
+    let y = 20
+
+    const checkPage = (needed = 8) => {
+      if (y + needed > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage()
+        y = 20
+      }
+    }
+
+    // Cabecera
+    doc.setFillColor(79, 70, 229)
+    doc.rect(0, 0, pageWidth, 14, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('KAPTURO', marginX, 9.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(`Generado el ${fecha}`, pageWidth - marginX, 9.5, { align: 'right' })
+    y = 22
+
+    // Título
+    doc.setTextColor(30, 27, 75)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    const tituloLines = doc.splitTextToSize(titulo, maxWidth)
+    doc.text(tituloLines, marginX, y)
+    y += tituloLines.length * 7 + 4
+
+    // Línea separadora
+    doc.setDrawColor(199, 210, 254)
+    doc.line(marginX, y, pageWidth - marginX, y)
+    y += 6
+
+    // Contenido — procesar línea por línea
+    const lines = resultado.split('\n')
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line) { y += 3; continue }
+
+      checkPage(10)
+
+      if (line.startsWith('## ') || line.startsWith('# ')) {
+        y += 2
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(49, 46, 129)
+        const text = line.replace(/^#+\s+/, '')
+        const wrapped = doc.splitTextToSize(text, maxWidth)
+        doc.text(wrapped, marginX, y)
+        y += wrapped.length * 6 + 3
+        doc.setDrawColor(224, 231, 255)
+        doc.line(marginX, y, pageWidth - marginX, y)
+        y += 4
+      } else if (line.startsWith('### ')) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(55, 65, 81)
+        const text = line.replace(/^###\s+/, '')
+        const wrapped = doc.splitTextToSize(text, maxWidth)
+        doc.text(wrapped, marginX, y)
+        y += wrapped.length * 5.5 + 2
+      } else if (line.startsWith('- ') || line.startsWith('* ')) {
+        doc.setFontSize(9.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(30, 30, 30)
+        const text = line.replace(/^[-*]\s+/, '').replace(/\*\*(.+?)\*\*/g, '$1')
+        const wrapped = doc.splitTextToSize(`• ${text}`, maxWidth - 4)
+        checkPage(wrapped.length * 5)
+        doc.text(wrapped, marginX + 3, y)
+        y += wrapped.length * 5 + 1
+      } else {
+        doc.setFontSize(9.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(30, 30, 30)
+        const text = line.replace(/\*\*(.+?)\*\*/g, '$1')
+        const wrapped = doc.splitTextToSize(text, maxWidth)
+        checkPage(wrapped.length * 5)
+        doc.text(wrapped, marginX, y)
+        y += wrapped.length * 5 + 1.5
+      }
+    }
+
+    doc.save(nombreArchivo)
   }
 
   const reiniciar = () => {
@@ -340,7 +426,7 @@ export default function LicitacionPropuestaPage() {
           onClick={descargar}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
         >
-          <Download size={15} /> .txt
+          <Download size={15} /> PDF
         </button>
         <button
           onClick={reiniciar}
