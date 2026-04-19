@@ -459,6 +459,8 @@ async def busqueda_ia(
             "keyword": filtros_ia.get("keyword"),
             "region": filtros_ia.get("region"),
             "resumen": filtros_ia.get("resumen", ""),
+            "advertencia": filtros_ia.get("advertencia"),
+            "sugerencia": filtros_ia.get("sugerencia"),
         },
         "resultado": resultado,
     }

@@ -650,6 +650,8 @@ export default function LicitacionesPage() {
   // ── Estado IA ────────────────────────────────────────────────────────────
   const [iaConsulta, setIaConsulta] = useState('')
   const [iaResumen, setIaResumen] = useState<string | null>(null)
+  const [iaAdvertencia, setIaAdvertencia] = useState<string | null>(null)
+  const [iaSugerencia, setIaSugerencia] = useState<string | null>(null)
   const [propuestaModal, setPropuestaModal] = useState<{ prospectId: string; nombre: string } | null>(null)
   const [propuestaTexto, setPropuestaTexto] = useState<string | null>(null)
   const [propuestaCopied, setPropuestaCopied] = useState(false)
@@ -836,6 +838,8 @@ export default function LicitacionesPage() {
         setFiltros(f => ({ ...f, region: filtros_extraidos.region }))
       }
       setIaResumen(filtros_extraidos.resumen || null)
+      setIaAdvertencia(filtros_extraidos.advertencia || null)
+      setIaSugerencia(filtros_extraidos.sugerencia || null)
       // Aplicar resultados
       setResultados(resultado.items ?? [])
       setTotalResultados(resultado.total ?? 0)
@@ -1260,7 +1264,24 @@ export default function LicitacionesPage() {
                 <div className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-100/60 px-3 py-1.5 rounded-lg">
                   <Sparkles size={11} />
                   <span>Entendí: <strong>{iaResumen}</strong></span>
-                  <button onClick={() => setIaResumen(null)} className="ml-auto text-indigo-300 hover:text-indigo-600"><X size={11} /></button>
+                  <button onClick={() => { setIaResumen(null); setIaAdvertencia(null); setIaSugerencia(null) }} className="ml-auto text-indigo-300 hover:text-indigo-600"><X size={11} /></button>
+                </div>
+              )}
+              {iaAdvertencia && !busquedaIAMutation.isPending && (
+                <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                  <span className="text-amber-500 mt-0.5">⚠️</span>
+                  <div className="flex-1">
+                    <p className="text-amber-800 font-medium">{iaAdvertencia}</p>
+                    {iaSugerencia && (
+                      <button
+                        onClick={() => { setIaConsulta(iaSugerencia); setIaAdvertencia(null) }}
+                        className="mt-1 text-amber-700 underline hover:text-amber-900"
+                      >
+                        Buscar: “{iaSugerencia}” →
+                      </button>
+                    )}
+                  </div>
+                  <button onClick={() => setIaAdvertencia(null)} className="text-amber-300 hover:text-amber-600"><X size={11} /></button>
                 </div>
               )}
             </div>

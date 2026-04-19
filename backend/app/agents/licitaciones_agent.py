@@ -111,14 +111,31 @@ Solo el JSON, sin texto adicional."""
     async def busqueda_ia(self, consulta: str, catalogo: dict) -> dict:
         regiones = catalogo.get("regiones", [])
         rubros = catalogo.get("rubros", [])
+        perfil = self._get_perfil_empresa()
 
         regiones_str = ", ".join(
             f'{r["nombre"]} (código {r["codigo"]})' for r in regiones
         ) if regiones else "todas las regiones de Chile"
         rubros_str = ", ".join(rubros) if rubros else "construcción, tecnología, salud, aseo, transporte, consultoría"
 
+        # Contexto del perfil de la empresa
+        rubros_empresa = ", ".join(perfil.get("rubros") or []) if perfil else ""
+        razon_social = perfil.get("razon_social") or "" if perfil else ""
+        descripcion_empresa = perfil.get("descripcion") or "" if perfil else ""
+        perfil_ctx = ""
+        if rubros_empresa:
+            perfil_ctx = f"""
+
+CONTEXTO DE LA EMPRESA DEL USUARIO:
+- Razón social: {razon_social or 'no especificada'}
+- Rubros en los que opera: {rubros_empresa}
+- Descripción: {descripcion_empresa[:200] if descripcion_empresa else 'no especificada'}
+
+EVALUÓ si la búsqueda del usuario tiene sentido para esta empresa.
+Si la búsqueda está FUERA de sus rubros, incluye una advertencia clara."""
+
         prompt = f"""Eres un asistente experto en licitaciones públicas chilenas de Mercado Público.
-El usuario describió lo que busca en lenguaje natural. Extrae los filtros de búsqueda.
+El usuario describió lo que busca en lenguaje natural. Extrae los filtros de búsqueda.{perfil_ctx}
 
 CONSULTA DEL USUARIO: "{consulta}"
 
@@ -131,12 +148,14 @@ Responde SOLO con un JSON válido:
   "region": "código numérico o null",
   "tipo_licitacion": null,
   "fecha_periodo_dias": 30,
-  "resumen": "frase corta de lo que entendiste (máx 15 palabras)"
+  "resumen": "frase corta de lo que entendiste (máx 15 palabras)",
+  "advertencia": "texto si la búsqueda no encaja con el perfil de la empresa, o null si encaja bien",
+  "sugerencia": "búsqueda alternativa más acorde al perfil de la empresa, o null"
 }}
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=300)
+        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=400)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
