@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams, NavLink } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
@@ -2663,28 +2664,71 @@ function PostulacionesPanel({
 
 // ── Menú de estados ───────────────────────────────────────────────────────────
 
+function EstadoMenuPortal({ anchorRef, onSelect, onClose }: { anchorRef: React.RefObject<HTMLButtonElement>; onSelect: (e: string) => void; onClose: () => void }) {
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null)
+
+  React.useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 4, left: rect.right - 180 })
+    }
+  }, [anchorRef])
+
+  if (!pos) return null
+
+  return ReactDOM.createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-2xl py-1 w-[180px]" style={{ top: pos.top, left: pos.left }}>
+        {Object.entries(ESTADOS_CONFIG).map(([key, cfg]) => (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+          >
+            <cfg.icon size={13} className="shrink-0" />
+            {cfg.label}
+          </button>
+        ))}
+        <div className="border-t border-gray-100 mt-1 pt-1">
+          <button
+            onClick={() => onSelect('')}
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-50"
+          >
+            <X size={13} /> Quitar estado
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
 function EstadoMenu({ onSelect, onClose }: { onSelect: (e: string) => void; onClose: () => void }) {
   return (
-    <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-xl py-1 min-w-[170px]">
-      {Object.entries(ESTADOS_CONFIG).map(([key, cfg]) => (
-        <button
-          key={key}
-          onClick={() => onSelect(key)}
-          className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
-        >
-          <cfg.icon size={11} />
-          {cfg.label}
-        </button>
-      ))}
-      <div className="border-t border-gray-100 mt-1 pt-1">
-        <button
-          onClick={() => onSelect('')}
-          className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:bg-gray-50"
-        >
-          <X size={11} /> Quitar estado
-        </button>
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl py-1 min-w-[180px]">
+        {Object.entries(ESTADOS_CONFIG).map(([key, cfg]) => (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+          >
+            <cfg.icon size={13} className="shrink-0" />
+            {cfg.label}
+          </button>
+        ))}
+        <div className="border-t border-gray-100 mt-1 pt-1">
+          <button
+            onClick={() => onSelect('')}
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-50"
+          >
+            <X size={13} /> Quitar estado
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -2799,21 +2843,28 @@ function PostulacionCard({
               <ClipboardList size={11} /> Analizar
             </button>
             <div className="relative">
-              <button
-                onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
-                disabled={updatingId === p.id}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {updatingId === p.id
-                  ? <Loader2 size={11} className="animate-spin" />
-                  : <><Flag size={11} /> Estado</>}
-              </button>
-              {estadoDropdown === p.id && (
-                <EstadoMenu
-                  onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
-                  onClose={() => setEstadoDropdown(null)}
-                />
-              )}
+              {(() => {
+                const btnRef = React.useRef<HTMLButtonElement>(null)
+                return <>
+                  <button
+                    ref={btnRef}
+                    onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
+                    disabled={updatingId === p.id}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {updatingId === p.id
+                      ? <Loader2 size={11} className="animate-spin" />
+                      : <><Flag size={11} /> Estado</>}
+                  </button>
+                  {estadoDropdown === p.id && (
+                    <EstadoMenuPortal
+                      anchorRef={btnRef}
+                      onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
+                      onClose={() => setEstadoDropdown(null)}
+                    />
+                  )}
+                </>
+              })()}
             </div>
             <button
               onClick={() => setShowNotas(v => !v)}
