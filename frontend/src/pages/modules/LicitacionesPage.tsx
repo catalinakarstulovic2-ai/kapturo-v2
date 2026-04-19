@@ -748,6 +748,21 @@ export default function LicitacionesPage() {
     } catch {}
   }, [perfilEmpresa])
 
+  // ── Limpiar resultados cuando cambian los filtros activos ────────────────
+  // Evita mostrar resultados de una búsqueda anterior con otros filtros
+  const prevFiltrosRef = useRef<string>('')
+  useEffect(() => {
+    const key = JSON.stringify({ rubrosSeleccionados, region: filtros.region, periodo: filtros.periodo })
+    if (prevFiltrosRef.current && prevFiltrosRef.current !== key) {
+      // Los filtros cambiaron después de una búsqueda — limpiar caché y resultados
+      setResultados([])
+      setTotalResultados(0)
+      setCacheInfo(null)
+      try { localStorage.removeItem('kapturo_licitaciones_cache') } catch {}
+    }
+    prevFiltrosRef.current = key
+  }, [rubrosSeleccionados, filtros.region, filtros.periodo])
+
   // ── Catálogo ────────────────────────────────────────────────────────────
   const { data: catalogo } = useQuery<Catalogo>({
     queryKey: ['licitaciones-catalogos'],
