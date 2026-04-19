@@ -62,12 +62,11 @@ async def buscar_prospectos(
         bg_db = SessionLocal()
         try:
             service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
-            # Manual: corre las MEJORES fuentes en paralelo (rápido, demo-ready)
-            # Las 5 fuentes más confiables: 3 TikTok hashtags + 2 cuentas TikTok
-            resultado = await service.buscar_fuentes_rapido()
-            logger.info(f"Búsqueda social completada (tenant {tenant_id}): {resultado}")
+            # Pipeline completo: Meta Ad Library → comentarios → perfil → LinkedIn fallback → Hunter
+            resultado = await service.buscar_con_biblioteca_anuncios()
+            logger.info(f"Búsqueda completa terminada (tenant {tenant_id}): {resultado}")
         except Exception as e:
-            logger.error(f"Búsqueda social background falló (tenant {tenant_id}): {e}", exc_info=True)
+            logger.error(f"Búsqueda background falló (tenant {tenant_id}): {e}", exc_info=True)
         finally:
             bg_db.close()
             _set_buscando(False)

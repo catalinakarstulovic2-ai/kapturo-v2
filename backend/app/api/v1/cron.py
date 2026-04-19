@@ -479,8 +479,6 @@ async def sync_inmobiliaria(
     """
     from app.models.tenant import TenantModule
     from app.services.inmobiliaria_service import InmobiliariaService
-    import math
-    from datetime import date
 
     BATCH_SIZE = 6
     modulos = db.query(TenantModule).filter(
@@ -491,31 +489,9 @@ async def sync_inmobiliaria(
     resultados = {}
     for modulo in modulos:
         try:
-            cfg = modulo.niche_config or {}
-            todas_fuentes = []
-            for h in cfg.get("hashtags_instagram", []):
-                todas_fuentes.append(("hashtag", h))
-            for c in cfg.get("cuentas_instagram", []):
-                todas_fuentes.append(("cuenta", c))
-            for g in cfg.get("grupos_facebook", []):
-                todas_fuentes.append(("fb_grupo", g))
-            for p in cfg.get("paginas_facebook", []):
-                todas_fuentes.append(("fb_pagina", p))
-            for v in cfg.get("videos_youtube", []):
-                todas_fuentes.append(("youtube", v))
-            for h in cfg.get("hashtags_tiktok", []):
-                todas_fuentes.append(("tiktok_hashtag", h))
-            for c in cfg.get("cuentas_tiktok", []):
-                todas_fuentes.append(("tiktok_cuenta", c))
-            for c in cfg.get("competidores_instagram", []):
-                todas_fuentes.append(("ig_seguidores", c))
-
-            n_batches = math.ceil(len(todas_fuentes) / BATCH_SIZE) or 1
-            idx = date.today().timetuple().tm_yday % n_batches
-            fuentes_hoy = todas_fuentes[idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]
-
             service = InmobiliariaService(db=db, tenant_id=str(modulo.tenant_id))
-            resultado = await service.buscar_fuentes(fuentes_hoy)
+            # Pipeline completo: Ad Library → comentarios → enriquecimiento → LinkedIn fallback
+            resultado = await service.buscar_con_biblioteca_anuncios()
             resultados[str(modulo.tenant_id)] = resultado
         except Exception as e:
             resultados[str(modulo.tenant_id)] = {"error": str(e)}

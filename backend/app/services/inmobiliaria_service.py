@@ -398,6 +398,179 @@ class InmobiliariaService:
             todas_fuentes.append(("ig_seguidores", c))
         return await self.buscar_fuentes(todas_fuentes)
 
+    async def buscar_con_biblioteca_anuncios(self) -> dict:
+        """
+        Pipeline completo para Leo (Uperland):
+        1. Meta Ad Library → obtiene URLs de anuncios de competidores/nicho
+        2. Scraping de comentarios de cada anuncio
+        3. Por cada comentarista con intención:
+           a. Intenta obtener perfil público de Instagram/TikTok
+           b. Si privado → busca en LinkedIn por nombre
+           c. Enriquece con Hunter.io si tiene website
+        4. Califica con Claude y guarda
+        Además corre las fuentes sociales normales (hashtags, cuentas).
+        """
+        from app.models.tenant import TenantModule
+        from app.modules.inmobiliaria.social_comments_client import SocialCommentsClient
+
+        modulo = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module == "inmobiliaria",
+            TenantModule.is_active == True,
+        ).first()
+
+        if not modulo or not modulo.niche_config:
+            return {"error": "Módulo inmobiliaria sin configuración"}
+
+        cfg = modulo.niche_config
+        client = SocialCommentsClient()
+
+        # ── 1. Meta Ad Library ───────────────────────────────────────────────
+        keywords_ads = cfg.get("ad_library_keywords") or [
+            "terrenos en florida", "invertir en usa", "land for sale florida",
+            "terrenos estados unidos", "inversión inmobiliaria usa",
+        ]
+        country = cfg.get("ad_library_country") or "US"
+
+        ad_urls = await client.meta_ad_library(keywords=keywords_ads, country=country, max_ads=30)
+        logger.info(f"Ad Library: {len(ad_urls)} URLs de anuncios encontradas")
+
+        # ── 2. Comentarios de cada anuncio ───────────────────────────────────
+        todos_comentarios: list[dict] = []
+
+        for ad_url in ad_urls[:20]:  # Límite para no gastar Apify en exceso
+            try:
+                comentarios = await client.facebook_anuncio(ad_url)
+                # Filtrar solo los que tienen intención real
+                con_intencion = [c for c in comentarios if client.tiene_intencion(c.get("texto", ""))]
+                todos_comentarios.extend(con_intencion)
+                logger.info(f"Anuncio {ad_url}: {len(comentarios)} comentarios → {len(con_intencion)} con intención")
+            except Exception as e:
+                logger.warning(f"Error scrapeando anuncio {ad_url}: {e}")
+            await asyncio.sleep(1)
+
+        # ── 3. Fuentes sociales normales (hashtags, cuentas, TikTok) ─────────
+        todas_fuentes = []
+        for h in cfg.get("hashtags_instagram", []):
+            todas_fuentes.append(("hashtag", h))
+        for c in cfg.get("cuentas_instagram", []):
+            todas_fuentes.append(("cuenta", c))
+        for h in cfg.get("hashtags_tiktok", [])[:3]:
+            todas_fuentes.append(("tiktok_hashtag", h))
+        for c in cfg.get("cuentas_tiktok", [])[:2]:
+            todas_fuentes.append(("tiktok_cuenta", c))
+        for g in cfg.get("grupos_facebook", []):
+            todas_fuentes.append(("fb_grupo", g))
+        for v in cfg.get("videos_youtube", []):
+            todas_fuentes.append(("youtube", v))
+
+        if todas_fuentes:
+            resultado_fuentes = await self.buscar_fuentes(todas_fuentes)
+            guardados_fuentes = resultado_fuentes.get("guardados", 0)
+            calificados_fuentes = resultado_fuentes.get("calificados", 0)
+        else:
+            guardados_fuentes = calificados_fuentes = 0
+
+        # ── 4. Procesar comentaristas de anuncios con enriquecimiento ─────────
+        guardados = calificados = duplicados = 0
+        config_scorer = {
+            "producto": cfg.get("producto", ""),
+            "nicho": cfg.get("nicho", ""),
+            "empresa": cfg.get("empresa", ""),
+            "comprador_ideal": cfg.get("comprador_ideal", ""),
+            "paises_objetivo": cfg.get("paises_objetivo", []),
+        }
+
+        for c in todos_comentarios:
+            username = c.get("autor_username", "")
+            nombre = c.get("autor_nombre", "") or username
+
+            p_dict = {
+                "contact_name": nombre,
+                "company_name": f"Lead anuncio — {c.get('fuente', 'meta_ads')}",
+                "website": c.get("autor_url", ""),
+                "notes": c.get("texto", ""),
+                "source": ProspectSource.apify_social,
+                "source_url": c.get("post_url", ""),
+                "source_module": "inmobiliaria",
+                "tenant_id": self.tenant_id,
+            }
+
+            if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+
+            # Intentar enriquecer el perfil del comentarista
+            if username:
+                perfil_ig = await client.perfil_instagram_publico(username)
+                if perfil_ig:
+                    # Perfil público → datos del perfil
+                    p_dict["contact_name"] = perfil_ig.get("nombre") or nombre
+                    p_dict["notes"] = f"{c.get('texto', '')} | Bio: {perfil_ig.get('bio', '')}".strip(" |")
+                    website = perfil_ig.get("website", "")
+                    if website:
+                        p_dict["website"] = website
+                        # Enriquecer con Hunter si tiene web
+                        try:
+                            enrich = await self.hunter.enriquecer_prospecto(website)
+                            if enrich.get("enriched"):
+                                if enrich.get("email"):
+                                    p_dict["email"] = enrich["email"]
+                                if enrich.get("contact_name"):
+                                    p_dict["contact_name"] = enrich["contact_name"]
+                                if enrich.get("linkedin_url"):
+                                    p_dict["linkedin_url"] = enrich["linkedin_url"]
+                        except Exception:
+                            pass
+                else:
+                    # Perfil privado → buscar en LinkedIn por nombre
+                    if nombre and nombre != username:
+                        pais_target = (cfg.get("paises_objetivo") or [""])[0]
+                        perfil_li = await client.buscar_linkedin_por_nombre(nombre, pais=pais_target)
+                        if perfil_li:
+                            p_dict["contact_name"] = perfil_li.get("nombre") or nombre
+                            p_dict["contact_title"] = perfil_li.get("titulo", "")
+                            p_dict["company_name"] = perfil_li.get("empresa") or p_dict["company_name"]
+                            p_dict["linkedin_url"] = perfil_li.get("linkedin_url", "")
+                            p_dict["city"] = perfil_li.get("ubicacion", "")
+
+            # Calificar y guardar
+            try:
+                score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config=config_scorer)
+            except Exception as e:
+                logger.warning(f"Scorer falló: {e}")
+                score, razon, tipo_lead, accion = 50.0, "Score pendiente", "sin_clasificar", "revisar"
+
+            p_dict["score"] = score
+            p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
+            p_dict["is_qualified"] = score >= 65
+
+            try:
+                await self._guardar(p_dict)
+                self.db.commit()
+                guardados += 1
+                if score >= 65:
+                    calificados += 1
+            except Exception as e:
+                logger.error(f"Error guardando lead de anuncio: {e}", exc_info=True)
+                self.db.rollback()
+
+            await asyncio.sleep(0.5)  # Suave throttle para no saturar APIs
+
+        resultado = {
+            "ad_urls_encontradas": len(ad_urls),
+            "comentarios_con_intencion": len(todos_comentarios),
+            "guardados_anuncios": guardados,
+            "calificados_anuncios": calificados,
+            "duplicados_anuncios": duplicados,
+            "guardados_fuentes_sociales": guardados_fuentes,
+            "calificados_fuentes_sociales": calificados_fuentes,
+            "total_guardados": guardados + guardados_fuentes,
+            "total_calificados": calificados + calificados_fuentes,
+        }
+        logger.info(f"buscar_con_biblioteca_anuncios finalizado: {resultado}")
+        return resultado
+
     async def buscar_fuentes_rapido(self) -> dict:
         """
         Búsqueda manual rápida: corre las mejores fuentes EN PARALELO.

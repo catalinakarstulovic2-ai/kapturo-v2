@@ -275,3 +275,112 @@ class SocialCommentsClient:
         })
         return [self.normalizar_seguidor(r, f"ig_seguidores_{username}") for r in raw
                 if r.get("username")]
+
+    # ── Meta Ad Library ───────────────────────────────────────────────────────
+
+    async def meta_ad_library(self, keywords: list[str], country: str = "US", max_ads: int = 30) -> list[str]:
+        """
+        Busca anuncios en la Meta Ad Library y retorna las URLs
+        de las publicaciones para luego scrapear sus comentarios.
+        """
+        actor_id = "apify~facebook-ads-library-scraper"
+        ad_urls: list[str] = []
+        for keyword in keywords:
+            try:
+                raw = await self._run_actor(actor_id, {
+                    "searchTerms": [keyword],
+                    "country": country,
+                    "adType": "all",
+                    "publisherPlatforms": ["facebook", "instagram"],
+                    "maxResults": max_ads,
+                })
+                for ad in raw:
+                    # El actor devuelve snapshotUrl o links dentro del anuncio
+                    # Intentamos extraer la URL del post original del anuncio
+                    link = (
+                        ad.get("adArchiveUrl") or
+                        ad.get("adSnapshotUrl") or
+                        ad.get("snapshot", {}).get("link_url") or
+                        ad.get("snapshot", {}).get("page_profile_uri") or
+                        ""
+                    )
+                    # Si tiene ID de anuncio, construimos URL directa de FB
+                    ad_id = ad.get("adArchiveId") or ad.get("id") or ""
+                    page_id = ad.get("pageId") or ad.get("page_id") or ""
+                    if ad_id and page_id:
+                        fb_url = f"https://www.facebook.com/ads/archive/render_ad/?id={ad_id}&access_token="
+                        # Preferir el link directo del post si existe
+                        post_url = ad.get("snapshot", {}).get("link_url") or link
+                        if post_url and "facebook.com" in post_url:
+                            ad_urls.append(post_url)
+                    elif link and ("facebook.com" in link or "instagram.com" in link):
+                        ad_urls.append(link)
+                logger.info(f"Meta Ad Library keyword '{keyword}': {len(raw)} anuncios")
+            except Exception as e:
+                logger.warning(f"Meta Ad Library keyword '{keyword}' falló: {e}")
+                continue
+        # Deduplicar
+        vistos = set()
+        urls_unicas = [u for u in ad_urls if u not in vistos and not vistos.add(u)]
+        logger.info(f"Meta Ad Library total: {len(urls_unicas)} URLs únicas de anuncios")
+        return urls_unicas
+
+    async def perfil_instagram_publico(self, username: str) -> dict | None:
+        """
+        Intenta obtener datos del perfil Instagram. Retorna None si es privado.
+        """
+        try:
+            raw = await self._run_actor("apify~instagram-scraper", {
+                "directUrls": [f"https://www.instagram.com/{username}/"],
+                "resultsType": "details",
+                "resultsLimit": 1,
+            })
+            if not raw:
+                return None
+            perfil = raw[0]
+            # Si es privado, no hay posts ni datos útiles
+            if perfil.get("private") or perfil.get("isPrivate"):
+                return None
+            return {
+                "nombre": perfil.get("fullName") or perfil.get("username", ""),
+                "bio": perfil.get("biography", ""),
+                "seguidores": perfil.get("followersCount", 0),
+                "url": f"https://www.instagram.com/{username}/",
+                "website": perfil.get("externalUrl") or "",
+                "privado": False,
+            }
+        except Exception as e:
+            logger.warning(f"perfil_instagram_publico @{username}: {e}")
+            return None
+
+    async def buscar_linkedin_por_nombre(self, nombre: str, pais: str = "") -> dict | None:
+        """
+        Busca un perfil LinkedIn por nombre completo usando Apify.
+        Usado como fallback cuando el perfil social es privado.
+        """
+        try:
+            query = f"{nombre} {pais}".strip()
+            raw = await self._run_actor("bebity~linkedin-profile-scraper", {
+                "searchQueries": [query],
+                "maxResults": 3,
+            })
+            if not raw:
+                return None
+            # Tomamos el primer resultado con nombre similar
+            nombre_lower = nombre.lower()
+            for perfil in raw:
+                full_name = (perfil.get("fullName") or perfil.get("name") or "").lower()
+                # Match si comparte al menos una palabra del nombre
+                palabras = [p for p in nombre_lower.split() if len(p) > 3]
+                if any(p in full_name for p in palabras):
+                    return {
+                        "nombre": perfil.get("fullName") or perfil.get("name", ""),
+                        "titulo": perfil.get("headline") or perfil.get("title", ""),
+                        "linkedin_url": perfil.get("linkedInUrl") or perfil.get("profileUrl", ""),
+                        "ubicacion": perfil.get("location") or "",
+                        "empresa": (perfil.get("experiences") or [{}])[0].get("companyName", "") if isinstance((perfil.get("experiences") or []), list) and perfil.get("experiences") else "",
+                    }
+            return None
+        except Exception as e:
+            logger.warning(f"LinkedIn por nombre '{nombre}': {e}")
+            return None
