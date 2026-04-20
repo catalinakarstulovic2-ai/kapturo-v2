@@ -34,6 +34,9 @@ export interface Prospect {
   is_qualified: boolean
   status: 'new' | 'qualified' | 'disqualified' | 'contacted' | 'responded' | 'converted'
   source_module?: string
+  // Inmobiliaria-specific
+  signal_text?: string
+  fuente_inmobiliaria?: string
   // Prospector-specific
   web_status?: 'sin_web' | 'solo_redes' | 'tiene_web'
   source_url?: string
