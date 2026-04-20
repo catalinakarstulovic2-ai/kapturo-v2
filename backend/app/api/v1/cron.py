@@ -618,3 +618,42 @@ async def run_alertas_licitaciones(
         "sin_email_o_rubros": sin_email,
         "errores": errores,
     }
+
+
+@router.post("/linkedin-prospecting")
+async def cron_linkedin_prospecting(
+    db: Session = Depends(get_db),
+    _: None = Depends(_verify_cron),
+):
+    """
+    Ejecuta el pipeline LinkedIn para todos los tenants con módulo inmobiliaria activo.
+
+    Correr 1x por semana desde Railway Cron (lunes 9am Chile = 12:00 UTC):
+      Path:   POST /api/v1/cron/linkedin-prospecting
+      Header: X-Cron-Secret: <CRON_SECRET>
+      Cron:   0 12 * * 1
+
+    Flujo: Google Search → dev_fusion enriquecimiento → Claude calificación → BD
+    """
+    from app.models.tenant import TenantModule
+    from app.services.inmobiliaria_service import InmobiliariaService
+
+    modulos = db.query(TenantModule).filter(
+        TenantModule.module == "inmobiliaria",
+        TenantModule.is_active == True,
+    ).all()
+
+    resultados = {}
+    for modulo in modulos:
+        try:
+            service = InmobiliariaService(db=db, tenant_id=str(modulo.tenant_id))
+            resultado = await service.buscar_linkedin_leads()
+            resultados[str(modulo.tenant_id)] = resultado
+        except Exception as e:
+            resultados[str(modulo.tenant_id)] = {"error": str(e)}
+
+    return {
+        "status": "ok",
+        "tenants": len(modulos),
+        "resultados": resultados,
+    }
