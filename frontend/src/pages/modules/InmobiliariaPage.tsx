@@ -404,7 +404,7 @@ export default function InmobiliariaPage() {
 
             {/* Fuentes */}
             <div className="flex flex-wrap justify-center gap-2">
-              {['Instagram', 'Facebook', 'YouTube', 'Grupos'].map(f => (
+              {['Instagram', 'TikTok', 'Facebook', 'YouTube', 'Meta Ads', 'LinkedIn'].map(f => (
                 <span key={f} className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-600 shadow-sm border border-gray-100">
                   {f}
                 </span>
@@ -493,6 +493,12 @@ export default function InmobiliariaPage() {
                           </span>
                         )}
                       </div>
+                      {/* Comentario visible sin expandir */}
+                      {p.signal_text && (
+                        <div className="text-xs text-gray-500 italic truncate max-w-xl">
+                          💬 "{p.signal_text.slice(0, 120)}{p.signal_text.length > 120 ? '…' : ''}"
+                        </div>
+                      )}
                     </div>
 
                     {/* Chevron + Descartar */}
@@ -527,10 +533,20 @@ export default function InmobiliariaPage() {
                           </span>
                         )}
                         {p.linkedin_url && (
-                          <a href={p.linkedin_url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
-                            <Linkedin size={12} /> Ver LinkedIn
-                          </a>
+                          (() => {
+                            const url = p.linkedin_url
+                            const isTikTok = url.includes('tiktok.com')
+                            const isInstagram = url.includes('instagram.com')
+                            const isLinkedIn = url.includes('linkedin.com')
+                            const label = isTikTok ? '📱 Ver TikTok' : isInstagram ? '📸 Ver Instagram' : '🔗 Ver LinkedIn'
+                            const cls = isTikTok ? 'text-black' : isInstagram ? 'text-pink-600' : 'text-blue-600'
+                            return (
+                              <a href={url} target="_blank" rel="noopener noreferrer"
+                                className={`flex items-center gap-1.5 text-xs hover:underline font-medium ${cls}`}>
+                                {isLinkedIn ? <Linkedin size={12} /> : <ExternalLink size={12} />} {label}
+                              </a>
+                            )
+                          })()
                         )}
                         {p.source_url && (
                           <a href={p.source_url} target="_blank" rel="noopener noreferrer"
@@ -542,10 +558,11 @@ export default function InmobiliariaPage() {
                           <span className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</span>
                         )}
                       </div>
-                      {/* Texto del comentario/post */}
-                      {p.notes && (
-                        <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
-                          "{p.notes.slice(0, 200)}{p.notes.length > 200 ? '…' : ''}"
+                      {/* Comentario que escribió — señal de intención */}
+                      {(p.signal_text || p.notes) && (
+                        <div className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
+                          <span className="font-medium text-amber-700 block mb-1">💬 Lo que dijo:</span>
+                          "{(p.signal_text || p.notes || '').slice(0, 250)}{(p.signal_text || p.notes || '').length > 250 ? '…' : ''}"
                         </div>
                       )}
                       {/* Razón del score */}

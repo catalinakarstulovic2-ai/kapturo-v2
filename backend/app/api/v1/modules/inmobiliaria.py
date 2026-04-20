@@ -62,9 +62,16 @@ async def buscar_prospectos(
         bg_db = SessionLocal()
         try:
             service = InmobiliariaService(db=bg_db, tenant_id=tenant_id)
-            # Pipeline completo: Meta Ad Library → comentarios → perfil → LinkedIn fallback → Hunter
-            resultado = await service.buscar_con_biblioteca_anuncios()
-            logger.info(f"Búsqueda completa terminada (tenant {tenant_id}): {resultado}")
+            # Solo TikTok — el único actor confiable en plan STARTER (<20s)
+            resultados = await asyncio.gather(
+                service.buscar_fuentes_rapido(),
+                return_exceptions=True,
+            )
+            for r in resultados:
+                if isinstance(r, Exception):
+                    logger.warning(f"Un pipeline falló (tenant {tenant_id}): {r}")
+                else:
+                    logger.info(f"Pipeline terminado (tenant {tenant_id}): {r}")
         except Exception as e:
             logger.error(f"Búsqueda background falló (tenant {tenant_id}): {e}", exc_info=True)
         finally:
@@ -136,13 +143,16 @@ async def listar_prospectos(
     current_user=Depends(get_current_user),
 ):
     service = ProspectorService(db=db, tenant_id=str(current_user.tenant_id))
-    return await service.obtener_prospectos(
+    result = await service.obtener_prospectos(
         modulo="inmobiliaria",
         solo_calificados=solo_calificados,
         score_minimo=score_minimo,
         pagina=pagina,
         por_pagina=por_pagina,
     )
+    for p in result.get("prospectos", []):
+        p["fuente_inmobiliaria"] = p.get("signal_text") or ""
+    return result
 
 
 @router.post("/buscar-empresas")
@@ -284,9 +294,12 @@ async def listar_descartados(
 ):
     """Lista los prospectos descartados del módulo inmobiliaria."""
     service = ProspectorService(db=db, tenant_id=str(current_user.tenant_id))
-    return await service.obtener_prospectos(
+    result = await service.obtener_prospectos(
         modulo="inmobiliaria",
         solo_excluidos=True,
         pagina=pagina,
         por_pagina=por_pagina,
     )
+    for p in result.get("prospectos", []):
+        p["fuente_inmobiliaria"] = p.get("signal_text") or ""
+    return result

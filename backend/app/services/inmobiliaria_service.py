@@ -157,9 +157,11 @@ class InmobiliariaService:
 
     async def _guardar(self, p_dict: dict):
         """Guarda un prospecto ya procesado en la BD."""
+        # Campos que no existen en el modelo Prospect — los descartamos
+        CAMPOS_EXTRA = {"fuente_inmobiliaria"}
         prospect = Prospect(
             tenant_id=self.tenant_id,
-            **{k: v for k, v in p_dict.items() if k != "tenant_id"},
+            **{k: v for k, v in p_dict.items() if k != "tenant_id" and k not in CAMPOS_EXTRA},
         )
         self.db.add(prospect)
         self.db.flush()
@@ -222,14 +224,15 @@ class InmobiliariaService:
             return {"error": "Modulo inmobiliaria sin configuracion"}
 
         cfg = modulo.niche_config
-        client = SocialCommentsClient()
+        client = SocialCommentsClient(intent_keywords=cfg.get("intent_keywords", []))
         todos = []
 
         for i, (tipo, valor) in enumerate(fuentes):
             # Para cron: delay aleatorio 3-10s anti-ban
             # Para manual (pocos fuentes): delay mínimo 1s
             if i > 0:
-                delay = random.uniform(1, 3) if len(fuentes) <= 10 else random.uniform(3, 10)
+                # Delays más conservadores: mínimo 5s manual, hasta 15s en cron
+                delay = random.uniform(5, 8) if len(fuentes) <= 12 else random.uniform(8, 15)
                 await asyncio.sleep(delay)
             try:
                 antes = len(todos)
@@ -258,18 +261,31 @@ class InmobiliariaService:
         guardados = calificados = duplicados = 0
 
         for c in todos:
+            texto_comentario = c.get("texto", "") or ""
+            autor_url = c.get("autor_url", "") or ""
             p_dict = {
                 "contact_name": c["autor_nombre"] or c["autor_username"],
                 "company_name": f"Lead social — {c['fuente']}",
-                "website": c["autor_url"],
-                "notes": c["texto"],
+                "website": autor_url,
+                "notes": texto_comentario,
+                "signal_text": texto_comentario,  # FIX: el comentario real, no el nombre de fuente
+                "fuente_inmobiliaria": c["fuente"],  # fuente separada del texto
                 "source": ProspectSource.apify_social,
                 "source_url": c["post_url"],
                 "source_module": "inmobiliaria",
                 "tenant_id": self.tenant_id,
             }
+            # Guardar URL de perfil social para contacto directo
+            if autor_url and ("instagram.com" in autor_url or "tiktok.com" in autor_url):
+                p_dict["linkedin_url"] = autor_url  # usamos este campo para el link de perfil social
 
             if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+
+            # Descartar comentarios ruido (muy cortos y sin contacto)
+            texto = p_dict.get("notes", "") or ""
+            if len(texto.strip()) < 10 and not p_dict.get("email") and not p_dict.get("linkedin_url"):
                 duplicados += 1
                 continue
 
@@ -288,6 +304,7 @@ class InmobiliariaService:
             p_dict["score"] = score
             p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
             p_dict["is_qualified"] = score >= 65
+            p_dict["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
 
             try:
                 await self._guardar(p_dict)
@@ -380,7 +397,8 @@ class InmobiliariaService:
             return {"error": "Modulo inmobiliaria sin configuracion"}
         cfg = modulo.niche_config
         todas_fuentes = []
-        for h in cfg.get("hashtags_instagram", []):
+        # Máximo 6 hashtags IG (los más relevantes) — evitar ban por volumen
+        for h in cfg.get("hashtags_instagram", [])[:6]:
             todas_fuentes.append(("hashtag", h))
         for c in cfg.get("cuentas_instagram", []):
             todas_fuentes.append(("cuenta", c))
@@ -390,12 +408,12 @@ class InmobiliariaService:
             todas_fuentes.append(("fb_pagina", p))
         for v in cfg.get("videos_youtube", []):
             todas_fuentes.append(("youtube", v))
-        for h in cfg.get("hashtags_tiktok", []):
+        # Máximo 6 hashtags TikTok — evitar ban por volumen
+        for h in cfg.get("hashtags_tiktok", [])[:6]:
             todas_fuentes.append(("tiktok_hashtag", h))
         for c in cfg.get("cuentas_tiktok", []):
             todas_fuentes.append(("tiktok_cuenta", c))
-        for c in cfg.get("competidores_instagram", []):
-            todas_fuentes.append(("ig_seguidores", c))
+        # ⚠️ instagram_seguidores DESACTIVADO — viola ToS de IG → causa bans
         return await self.buscar_fuentes(todas_fuentes)
 
     async def buscar_con_biblioteca_anuncios(self) -> dict:
@@ -423,7 +441,7 @@ class InmobiliariaService:
             return {"error": "Módulo inmobiliaria sin configuración"}
 
         cfg = modulo.niche_config
-        client = SocialCommentsClient()
+        client = SocialCommentsClient(intent_keywords=cfg.get("intent_keywords", []))
 
         # ── 1. Meta Ad Library ───────────────────────────────────────────────
         keywords_ads = cfg.get("ad_library_keywords") or [
@@ -485,18 +503,30 @@ class InmobiliariaService:
             username = c.get("autor_username", "")
             nombre = c.get("autor_nombre", "") or username
 
+            texto_comentario = c.get("texto", "") or ""
+            autor_url = c.get("autor_url", "") or ""
             p_dict = {
                 "contact_name": nombre,
                 "company_name": f"Lead anuncio — {c.get('fuente', 'meta_ads')}",
-                "website": c.get("autor_url", ""),
-                "notes": c.get("texto", ""),
+                "website": autor_url,
+                "notes": texto_comentario,
+                "signal_text": texto_comentario,  # FIX: el comentario real
+                "fuente_inmobiliaria": c.get("fuente", "meta_ads"),
                 "source": ProspectSource.apify_social,
                 "source_url": c.get("post_url", ""),
                 "source_module": "inmobiliaria",
                 "tenant_id": self.tenant_id,
             }
+            if autor_url and ("instagram.com" in autor_url or "tiktok.com" in autor_url):
+                p_dict["linkedin_url"] = autor_url
 
             if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+
+            # Descartar comentarios ruido
+            texto = p_dict.get("notes", "") or ""
+            if len(texto.strip()) < 10 and not p_dict.get("email") and not p_dict.get("linkedin_url"):
                 duplicados += 1
                 continue
 
@@ -544,6 +574,7 @@ class InmobiliariaService:
             p_dict["score"] = score
             p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
             p_dict["is_qualified"] = score >= 65
+            p_dict["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
 
             try:
                 await self._guardar(p_dict)
@@ -588,7 +619,7 @@ class InmobiliariaService:
             return {"error": "Modulo inmobiliaria sin configuracion"}
 
         cfg = modulo.niche_config
-        client = SocialCommentsClient()
+        client = SocialCommentsClient(intent_keywords=cfg.get("intent_keywords", []))
 
         # 2 hashtags + 1 cuenta TikTok por run — reduce costo Apify ~60%
         hashtags_tt = cfg.get("hashtags_tiktok", [])[:2]
@@ -617,17 +648,28 @@ class InmobiliariaService:
 
         guardados = calificados = duplicados = 0
         for c in todos:
+            texto_comentario = c.get("texto", "") or ""
+            autor_url = c.get("autor_url", "") or ""
             p_dict = {
                 "contact_name": c["autor_nombre"] or c["autor_username"],
                 "company_name": f"Lead social — {c['fuente']}",
-                "website": c["autor_url"],
-                "notes": c["texto"],
+                "website": autor_url,
+                "notes": texto_comentario,
+                "signal_text": texto_comentario,  # FIX: el comentario real
+                "fuente_inmobiliaria": c["fuente"],
                 "source": ProspectSource.apify_social,
                 "source_url": c["post_url"],
                 "source_module": "inmobiliaria",
                 "tenant_id": self.tenant_id,
             }
+            if autor_url and ("instagram.com" in autor_url or "tiktok.com" in autor_url):
+                p_dict["linkedin_url"] = autor_url
             if not await self._es_nuevo(p_dict):
+                duplicados += 1
+                continue
+            # Descartar comentarios ruido
+            texto = p_dict.get("notes", "") or ""
+            if len(texto.strip()) < 10 and not p_dict.get("email") and not p_dict.get("linkedin_url"):
                 duplicados += 1
                 continue
             try:
@@ -644,6 +686,7 @@ class InmobiliariaService:
             p_dict["score"] = score
             p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
             p_dict["is_qualified"] = score >= 65
+            p_dict["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
             try:
                 await self._guardar(p_dict)
                 self.db.commit()

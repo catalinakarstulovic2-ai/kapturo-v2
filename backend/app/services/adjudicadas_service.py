@@ -353,23 +353,27 @@ class AdjudicadasService:
     async def buscar_por_adjudicarse_live(self, filtros: dict, pagina: int = 1) -> dict:
         """
         Fallback live para 'Por adjudicarse' cuando el caché está vacío.
-        Busca licitaciones PUBLICADAS (aún en plazo) en los últimos N días
-        y devuelve el mismo formato que get_por_adjudicarse_cached.
+        Busca licitaciones PUBLICADAS (aún en plazo) en los últimos N días.
+
+        Fase 1: recolecta todos los códigos del listado (rápido).
+        Fase 2: carga detalles completos solo para la página actual.
+        Esto garantiza que organismo, región, monto y fechas estén completos.
         """
-        from datetime import datetime as dt, timedelta
+        from datetime import datetime as dt, timedelta, date as date_t
 
-        POR_PAGINA = 50
-        periodo    = min(int(filtros.get("periodo") or 30), 30)   # máx 30 días para live
-        region     = filtros.get("region")
+        POR_PAGINA  = 50
+        periodo     = min(int(filtros.get("periodo") or 30), 60)
+        region      = filtros.get("region")
         keyword_raw = (filtros.get("keyword") or "").lower().strip()
-        keywords   = [k.strip() for k in keyword_raw.split(",") if k.strip()]
-        monto_min  = float(filtros.get("monto_minimo") or 0)
+        keywords    = [k.strip() for k in keyword_raw.split(",") if k.strip()]
+        monto_min   = float(filtros.get("monto_minimo") or 0)
 
-        # Fecha: últimos N días (la API acepta fechas pasadas)
-        hoy  = dt.now()
+        hoy = dt.now()
         fechas = [(hoy - timedelta(days=i)).strftime("%d%m%Y") for i in range(1, periodo + 1)]
 
+        # ── Fase 1: recolectar lista de ítems (rápido, sin detalle) ─────
         sem = asyncio.Semaphore(8)
+
         async def fetch_dia(fecha: str) -> list[dict]:
             async with sem:
                 try:
@@ -389,70 +393,71 @@ class AdjudicadasService:
                     vistos.add(cod)
                     todos.append(item)
 
-        # Filtro keyword
+        # Filtro keyword sobre Nombre del listado (ligero)
         if keywords:
-            todos = [
-                i for i in todos
-                if any(kw in (i.get("Nombre") or "").lower() for kw in keywords)
-            ]
+            todos = [i for i in todos if any(kw in (i.get("Nombre") or "").lower() for kw in keywords)]
 
-        # Normalizar a formato del caché
-        def _normalizar_publicada(item: dict) -> dict:
-            from datetime import date as date_t
-            fecha_cierre_raw = (
-                item.get("FechaCierre") or
-                item.get("FechaPublicacion") or ""
-            )
-            fecha_cierre = None
-            for fmt in ("%d/%m/%Y %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y"):
-                try:
-                    fecha_cierre = dt.strptime(fecha_cierre_raw, fmt).date().isoformat()
-                    break
-                except Exception:
-                    pass
-
-            monto_raw = 0
-            try:
-                valor = item.get("Montos", {}).get("Total") or item.get("Monto") or 0
-                s = str(valor).strip()
-                if s and s != "0":
-                    if ',' in s:
-                        s = s.replace('.', '').replace(',', '.')
-                    else:
-                        s = s.replace('.', '')
-                    monto_raw = float(s) if s else 0
-            except Exception:
-                pass
-
-            return {
-                "codigo":           item.get("CodigoExterno", ""),
-                "nombre":           item.get("Nombre", ""),
-                "organismo":        item.get("Comprador", {}).get("NombreOrganismo", ""),
-                "region":           item.get("Comprador", {}).get("Region", ""),
-                "fecha_cierre":     fecha_cierre,
-                "monto_estimado":   monto_raw,
-                "ofertantes":       [],
-                "ofertantes_count": 0,
-            }
-
-        from datetime import date as date_t
-        hoy_str = date_t.today().isoformat()
-        resultados_todos = [
-            r for r in (_normalizar_publicada(i) for i in todos)
-            if r["fecha_cierre"] and r["fecha_cierre"] >= hoy_str  # sólo las que aún no cierran
-        ]
-
-        if monto_min:
-            resultados_todos = [r for r in resultados_todos if (r["monto_estimado"] or 0) >= monto_min]
-
-        total  = len(resultados_todos)
+        total  = len(todos)
         inicio = (pagina - 1) * POR_PAGINA
+        codigos_pagina = [i["CodigoExterno"] for i in todos[inicio:inicio + POR_PAGINA]]
+
+        # ── Fase 2: cargar detalles completos para la página actual ──────
+        sem2 = asyncio.Semaphore(5)
+
+        async def fetch_detalle(codigo: str):
+            async with sem2:
+                for intento in range(3):
+                    try:
+                        return await self.client.obtener_detalle(codigo)
+                    except Exception:
+                        if intento < 2:
+                            await asyncio.sleep(0.8 * (intento + 1))
+                            continue
+                return None
+
+        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
+        detalles_ok = [d for d in detalles if d is not None]
+
+        # Normalizar con LicitacionNormalizada para extraer todos los campos
+        region_keys = REGION_CODE_TO_KEYWORDS.get((region or "").strip(), [])
+        hoy_str = date_t.today().isoformat()
+        resultados_pagina = []
+
+        for det in detalles_ok:
+            try:
+                n = LicitacionNormalizada(det, tipo_busqueda="licitador_a")
+                # Solo las que aún no han cerrado
+                if n.fecha_cierre and n.fecha_cierre < hoy_str:
+                    continue
+                # Post-filtro región sobre texto real devuelto por la API
+                if region_keys:
+                    reg_text = (n.region or "").lower()
+                    if not any(kw in reg_text for kw in region_keys):
+                        continue
+                monto = n.monto or 0
+                if monto_min and monto < monto_min:
+                    continue
+                resultados_pagina.append({
+                    "codigo":                      n.codigo,
+                    "nombre":                      n.nombre,
+                    "organismo":                   n.organismo_nombre,
+                    "organismo_rut":               n.organismo_rut,
+                    "region":                      n.region,
+                    "fecha_cierre":                n.fecha_cierre,
+                    "fecha_estimada_adjudicacion": n.fecha_estimada_adjudicacion,
+                    "fecha_publicacion":           n.fecha_publicacion,
+                    "monto_estimado":              monto if monto else None,
+                    "ofertantes":                  [],
+                    "ofertantes_count":            0,
+                })
+            except Exception:
+                continue
 
         return {
             "total":      total,
             "pagina":     pagina,
             "por_pagina": POR_PAGINA,
-            "resultados": resultados_todos[inicio:inicio + POR_PAGINA],
+            "resultados": resultados_pagina,
         }
 
     # ── Guardar al pipeline ──────────────────────────────────────────────────

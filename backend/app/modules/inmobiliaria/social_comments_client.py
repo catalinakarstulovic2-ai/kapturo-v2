@@ -6,55 +6,51 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 APIFY_BASE = "https://api.apify.com/v2/acts"
 
-INTENT_KEYWORDS = [
+# ── Keywords GENÉRICAS universales — aplican a CUALQUIER nicho ────────────────
+# Solo señales de intención de compra que NO dependen del producto.
+# Las keywords específicas del nicho (ej: "florida", "departamento", "terreno")
+# van en niche_config["intent_keywords"] de cada tenant en la BD.
+INTENT_KEYWORDS_GENERICAS = [
     # Intención de compra directa
     "quiero comprar", "quiero invertir", "me interesa comprar",
-    "cómo compro", "como compro", "cómo invierto", "como invierto",
-    "quiero un terreno", "busco terreno", "busco lote", "busco parcela",
-    "tienen terrenos", "tienen disponible", "quiero información",
-    # Precio / financiamiento — señales calientes para Leo
-    "cuánto cuesta", "cuanto cuesta", "cuánto vale", "cuanto vale",
-    "cuánto es", "cuanto es", "precio", "costo", "desde $", "$14",
+    "como compro", "como invierto", "tienen disponible",
+    # Precio / financiamiento
+    "cuanto cuesta", "cuanto vale", "precio", "costo", "desde $",
     "financiamiento", "financiado", "cuotas", "plan de pago",
-    "sin licencia", "sin ser residente",
     # Contacto / seguimiento
-    "más info", "mas info", "información", "info", "whatsapp", "contacto",
-    "me pueden contactar", "cómo los contacto", "como los contacto",
-    "me escriben", "me llaman", "dm", "inbox",
-    # Mercado Florida / LATAM específico
-    "florida", "inverness", "terreno en usa", "terreno en estados unidos",
-    "invertir en usa", "invertir en florida", "comprar en usa",
-    "propiedad en florida", "lote en florida", "tierra en florida",
-    # Dolarización y patrimonio — perfil chileno/argentino (nuevos hashtags v2)
-    "dolarizar", "dolarizacion", "patrimonio en usa", "patrimonio fuera",
-    "sacar dinero de", "invertir fuera", "fuga de capitales",
-    "primera propiedad", "primera inversión", "primera inversion",
-    # Agentes LATAM buscando oportunidad de negocio (potencial referido)
-    "cómo puedo vender", "como puedo vender", "quiero ser agente",
-    "quiero vender terrenos", "programa de referidos", "sin licencia americana",
-    "puedo ganar comisión", "puedo ganar comision",
-    # Inglés (compradores de USA, residentes hispanos)
-    "how much", "interested", "price", "contact", "where can i",
-    "i want to buy", "looking for land", "interested in buying",
-    "payment plan", "how to buy", "can i invest", "how do i buy",
+    "mas info", "informacion", "info", "whatsapp", "contacto",
+    "me pueden contactar", "me escriben", "dm", "inbox",
+    # Inglés
+    "how much", "interested", "price", "contact",
+    "i want to buy", "interested in buying", "payment plan", "how to buy",
+    # Primera propiedad (universal)
+    "primera propiedad", "primera inversion",
 ]
 
-EXCLUSION_KEYWORDS = [
-    # Spam puro
-    "follow me", "sígueme", "check my profile", "check my bio",
+# ── Exclusiones UNIVERSALES — spam + intermediarios ────────────────────────────
+# Estas aplican a TODOS los nichos. Los intermediarios NO son compradores directos.
+EXCLUSION_KEYWORDS_UNIVERSALES = [
+    # Spam
+    "follow me", "check my profile", "check my bio",
     "link in bio", "visit my page", "visit my website", "wholesale",
-    # Agentes y realtors — NO son compradores, los descartamos
+    # Intermediarios — realtors, corredores, brokers
     "soy agente", "soy corredor", "soy realtor", "soy broker",
     "agente inmobiliario", "corredor inmobiliario", "broker inmobiliario",
     "tengo cartera", "mis clientes buscan", "para mis clientes",
-    "para un cliente", "tengo clientes", "mi cartera de clientes",
+    "tengo clientes", "mi cartera de clientes",
     "trabajo en bienes", "trabajo en real estate", "work in real estate",
-    "i am a realtor", "i'm a realtor", "i am an agent", "real estate agent",
-    "comisión", "comision", "ganar comision", "ganar comisión",
+    "i am a realtor", "i am an agent", "real estate agent",
+    # Creadores de contenido / asesores — educan pero no compran
+    "mis seguidores", "en mi canal", "sigan mi cuenta",
+    "les comparto", "les dejo el link",
 ]
 
-
 class SocialCommentsClient:
+
+    def __init__(self, intent_keywords: list = None):
+        # Keywords específicas del nicho del tenant (de niche_config["intent_keywords"])
+        # Se combinan con INTENT_KEYWORDS_GENERICAS en tiene_intencion()
+        self._intent_keywords = intent_keywords or []
 
     async def _run_actor(self, actor_id: str, run_input: dict) -> list[dict]:
         url = f"{APIFY_BASE}/{actor_id}/run-sync-get-dataset-items"
@@ -70,13 +66,14 @@ class SocialCommentsClient:
             logger.warning(f"Apify {actor_id} falló: {e}")
             return []
 
-    def tiene_intencion(self, texto: str) -> bool:
+    def tiene_intencion(self, texto: str, extra_keywords: list = None) -> bool:
         t = texto.lower()
         # Spam y agentes/realtors → descartar
-        if any(ex in t for ex in EXCLUSION_KEYWORDS):
+        if any(ex in t for ex in EXCLUSION_KEYWORDS_UNIVERSALES):
             return False
-        # Intención de compra / inversión
-        return any(kw in t for kw in INTENT_KEYWORDS)
+        # Intención de compra / inversión: genéricas + keywords del tenant + extra opcionales
+        todas = INTENT_KEYWORDS_GENERICAS + self._intent_keywords + (extra_keywords or [])
+        return any(kw in t for kw in todas)
 
     def normalizar(self, raw: dict, fuente: str) -> dict:
         return {
@@ -94,7 +91,7 @@ class SocialCommentsClient:
         posts = await self._run_actor("apify~instagram-scraper", {
             "directUrls": [f"https://www.instagram.com/{username}/"],
             "resultsType": "posts",
-            "resultsLimit": 12,
+            "resultsLimit": 8,  # reducido de 12 → menos agresivo anti-ban
         })
         resultado = []
         for post in posts:
@@ -117,8 +114,8 @@ class SocialCommentsClient:
     async def facebook_pagina(self, url: str) -> list[dict]:
         raw = await self._run_actor("apify~facebook-posts-scraper", {
             "startUrls": [{"url": url}],
-            "maxPosts": 15,
-            "maxPostComments": 100,
+            "maxPosts": 8,            # reducido de 15 → anti-ban
+            "maxPostComments": 40,   # reducido de 100 → anti-ban
         })
         return [self.normalizar(r, "facebook_pagina") for r in raw
                 if (r.get("text") or r.get("comment") or "").strip()]
@@ -146,7 +143,7 @@ class SocialCommentsClient:
         # separado falla con 404 en la mayoría de posts (privados o Reels)
         posts = await self._run_actor("apify~instagram-hashtag-scraper", {
             "hashtags": [hashtag],
-            "resultsLimit": 20,
+            "resultsLimit": 10,  # reducido de 20 → menos agresivo anti-ban
         })
         resultado = []
         for post in posts:
@@ -168,7 +165,7 @@ class SocialCommentsClient:
     async def youtube(self, video_url: str) -> list[dict]:
         raw = await self._run_actor("apify~youtube-comment-scraper", {
             "videoUrls": [video_url],
-            "maxComments": 200,
+            "maxComments": 100,  # reducido de 200 → anti-ban
         })
         return [self.normalizar(r, "youtube") for r in raw
                 if (r.get("textDisplay") or r.get("text") or "").strip()]
@@ -280,10 +277,13 @@ class SocialCommentsClient:
 
     async def meta_ad_library(self, keywords: list[str], country: str = "US", max_ads: int = 30) -> list[str]:
         """
-        Busca anuncios en la Meta Ad Library y retorna las URLs
-        de las publicaciones para luego scrapear sus comentarios.
+        Busca anuncios en la Meta Ad Library.
+        Actor: apify~facebook-ads-scraper (el disponible en plan STARTER)
         """
-        actor_id = "apify~facebook-ads-library-scraper"
+        # apify~facebook-ads-scraper requiere plan de pago - deshabilitado
+        logger.info("Meta Ad Library deshabilitado (actor no disponible en plan STARTER)")
+        return []
+        actor_id = "apify~facebook-ads-scraper"
         ad_urls: list[str] = []
         for keyword in keywords:
             try:
@@ -355,30 +355,32 @@ class SocialCommentsClient:
 
     async def buscar_linkedin_por_nombre(self, nombre: str, pais: str = "") -> dict | None:
         """
-        Busca un perfil LinkedIn por nombre completo usando Apify.
-        Usado como fallback cuando el perfil social es privado.
+        Busca un perfil LinkedIn por nombre completo vía Google (site:linkedin.com).
+        Actor: apify~google-search-scraper (disponible en plan STARTER)
         """
         try:
-            query = f"{nombre} {pais}".strip()
-            raw = await self._run_actor("bebity~linkedin-profile-scraper", {
-                "searchQueries": [query],
-                "maxResults": 3,
+            query = f'site:linkedin.com/in "{nombre}" {pais}'.strip()
+            raw = await self._run_actor("apify~google-search-scraper", {
+                "queries": [query],
+                "resultsPerPage": 5,
+                "maxPagesPerQuery": 1,
             })
             if not raw:
                 return None
-            # Tomamos el primer resultado con nombre similar
             nombre_lower = nombre.lower()
-            for perfil in raw:
-                full_name = (perfil.get("fullName") or perfil.get("name") or "").lower()
-                # Match si comparte al menos una palabra del nombre
-                palabras = [p for p in nombre_lower.split() if len(p) > 3]
-                if any(p in full_name for p in palabras):
+            palabras = [p for p in nombre_lower.split() if len(p) > 3]
+            for item in raw:
+                url = item.get("url") or item.get("link") or ""
+                title = (item.get("title") or "").lower()
+                if "linkedin.com/in/" not in url:
+                    continue
+                if not palabras or any(p in title for p in palabras):
                     return {
-                        "nombre": perfil.get("fullName") or perfil.get("name", ""),
-                        "titulo": perfil.get("headline") or perfil.get("title", ""),
-                        "linkedin_url": perfil.get("linkedInUrl") or perfil.get("profileUrl", ""),
-                        "ubicacion": perfil.get("location") or "",
-                        "empresa": (perfil.get("experiences") or [{}])[0].get("companyName", "") if isinstance((perfil.get("experiences") or []), list) and perfil.get("experiences") else "",
+                        "nombre": item.get("title", "").split(" - ")[0].strip(),
+                        "titulo": item.get("description", "")[:100],
+                        "linkedin_url": url,
+                        "ubicacion": "",
+                        "empresa": "",
                     }
             return None
         except Exception as e:

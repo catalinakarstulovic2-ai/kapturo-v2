@@ -89,11 +89,30 @@ class LinkedInClient:
         Busca perfiles LinkedIn por texto (cargo + país).
         Usa bebity/linkedin-profile-scraper con búsqueda por keyword.
         """
-        raw = await self._run_actor("bebity~linkedin-profile-scraper", {
-            "searchUrl": f"https://www.linkedin.com/search/results/people/?keywords={query.replace(' ', '%20')}&origin=GLOBAL_SEARCH_HEADER",
-            "count": max_results,
+        # Usamos Google Search para encontrar perfiles LinkedIn (bebity no disponible)
+        raw = await self._run_actor("apify~google-search-scraper", {
+            "queries": [f"site:linkedin.com/in {query}"],
+            "maxPagesPerQuery": 1,
+            "resultsPerPage": min(max_results, 10),
+            "countryCode": "us",
+            "languageCode": "en",
         })
-        return [self.normalizar(r) for r in raw if self._es_valido(r)]
+        # Google results: {title, description, url}
+        perfiles = []
+        for r in raw:
+            url = r.get("url", "")
+            if "linkedin.com/in/" not in url:
+                continue
+            title = r.get("title", "")
+            desc = r.get("description", "")
+            nombre = title.split(" - ")[0].strip() if " - " in title else title.split(" |")[0].strip()
+            perfiles.append({
+                "nombre": nombre,
+                "linkedin_url": url,
+                "source": "apify_linkedin",
+                "notes": desc[:300] if desc else f"Perfil encontrado vía búsqueda: {query}",
+            })
+        return perfiles
 
     async def buscar_multiples(self, queries: list[str], max_por_query: int = 20) -> list[dict]:
         """Corre múltiples queries y devuelve todos los perfiles únicos (por linkedin_url)."""

@@ -120,7 +120,7 @@ ACCIÓN RECOMENDADA — elige UNA:
 Devuelve SOLO este JSON (sin texto extra):
 {{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "comprador_directo", "accion_recomendada": "<accion>"}}"""
 
-        return f"""Eres un experto en ventas. Califica este perfil profesional como potencial comprador de terrenos en Florida para {empresa}.
+        return f"""Eres un experto en ventas. Califica este perfil profesional como potencial comprador de {producto} para {empresa}.
 
 El producto: {producto}
 El comprador ideal: {comprador_ideal}

@@ -114,15 +114,26 @@ class LicitacionNormalizada:
 
     def _parse_monto(self, valor) -> Optional[float]:
         try:
+            # Si ya es número (int/float), retornar directamente sin manipular
+            if isinstance(valor, (int, float)):
+                return float(valor) if valor else None
             s = str(valor or "").strip()
             if not s:
                 return None
-            # La API puede devolver "24968688,0" (coma decimal) o "24.968.688" (puntos de miles)
-            # Si tiene coma: eliminar puntos de miles y convertir coma a punto decimal
-            # Si no tiene coma: eliminar puntos de miles directamente
+            # La API puede devolver:
+            #   "460000000.0"  → float con decimal anglosajón (NO eliminar el punto)
+            #   "24968688,0"   → coma decimal latina
+            #   "24.968.688"   → puntos de miles (sin coma)
+            # Regla: si tiene coma → formato latino (puntos=miles, coma=decimal)
+            # Si tiene punto Y no parece formato de miles (ej: un solo punto al final) → decimal anglosajón
             if ',' in s:
+                # Formato latino: 24.968.688,50
                 s = s.replace('.', '').replace(',', '.')
+            elif s.count('.') == 1:
+                # Un solo punto → separador decimal anglosajón (ej: "460000000.0")
+                pass  # float(s) lo maneja directamente
             else:
+                # Múltiples puntos → separadores de miles (ej: "24.968.688")
                 s = s.replace('.', '')
             return float(s) if s else None
         except (ValueError, AttributeError):

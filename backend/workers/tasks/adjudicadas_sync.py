@@ -209,7 +209,18 @@ async def _sync_async():
             monto_est = None
             try:
                 m = detalle.get("MontoEstimado")
-                monto_est = float(str(m).replace(".", "").replace(",", "")) if m else None
+                if m:
+                    if isinstance(m, (int, float)):
+                        monto_est = float(m)
+                    else:
+                        s = str(m).strip()
+                        if ',' in s:
+                            s = s.replace('.', '').replace(',', '.')
+                        elif s.count('.') == 1:
+                            pass  # decimal anglosajón: "460000000.0"
+                        else:
+                            s = s.replace('.', '')
+                        monto_est = float(s) if s else None
             except Exception:
                 pass
 
