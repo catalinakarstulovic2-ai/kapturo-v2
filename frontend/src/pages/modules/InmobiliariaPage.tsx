@@ -65,7 +65,7 @@ export default function InmobiliariaPage() {
       api.get('/inmobiliaria/prospectos', { params: { por_pagina: 200 } }).then(r => r.data),
   })
 
-  const allProspects: Prospect[] = data?.prospectos ?? []
+  const allProspects: Prospect[] = (data?.prospectos ?? []).filter((p: Prospect) => (p as any).source !== 'apify_linkedin')
 
   const { data: dataPapelera, refetch: refetchPapelera } = useQuery({
     queryKey: ['inmobiliaria-descartados'],
@@ -237,7 +237,7 @@ export default function InmobiliariaPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Inmobiliaria</h1>
-            <p className="text-gray-500 text-sm">Leads · Instagram · Facebook · YouTube · Comentarios sociales</p>
+            <p className="text-gray-500 text-sm">Leads · LinkedIn · Instagram · Facebook · YouTube</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

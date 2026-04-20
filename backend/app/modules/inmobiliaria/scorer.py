@@ -120,40 +120,42 @@ ACCIÓN RECOMENDADA — elige UNA:
 Devuelve SOLO este JSON (sin texto extra):
 {{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "comprador_directo", "accion_recomendada": "<accion>"}}"""
 
-        return f"""Eres un experto en ventas. Califica este perfil profesional como potencial comprador de {producto} para {empresa}.
+        return f"""Eres un experto en ventas inmobiliarias para {empresa}.
 
-El producto: {producto}
-El comprador ideal: {comprador_ideal}
+PRODUCTO: {producto}
+COMPRADOR IDEAL: {comprador_ideal}
 
-IMPORTANTE: Solo nos interesan compradores directos con capacidad económica real.
-Descarta inmediatamente: agentes inmobiliarios, realtors, corredores, brokers, o cualquier persona que trabaje en bienes raíces.
+CONTEXTO CLAVE: El producto es accesible desde $14,990 USD, sin necesidad de residencia americana, financiable en cuotas, 100% online. El comprador no tiene que ser millonario — basta con que sea una persona con ingresos estables y deseo de diversificar patrimonio en USA. Los países objetivo son: {paises_str}.
 
-PERFIL:
+REGLA ABSOLUTA: Descarta inmediatamente (score 0) a cualquier persona cuyo cargo sea: agente inmobiliario, realtor, broker, corredor de propiedades, real estate agent, listing agent, property manager. Estos son competencia o intermediarios, NUNCA compradores.
+
+PERFIL A CALIFICAR:
 - Nombre: {p.get('contact_name', '')}
 - Cargo: {p.get('contact_title', '')}
 - Empresa: {p.get('company_name', '')}
 - Industria: {p.get('industry', '')}
-- País: {p.get('country', '')}
-- Ciudad: {p.get('city', '')}
-- LinkedIn: {'Disponible' if p.get('linkedin_url') else 'No'}
-- Email: {'Verificado' if p.get('email') else 'No disponible'}
+- País/Ciudad: {p.get('country', '')} / {p.get('city', '')}
+- LinkedIn: {'Sí — puede contactarse directamente' if p.get('linkedin_url') else 'No'}
+- Email: {'Verificado' if p.get('email') else 'No'}
 
-TABLA DE PUNTUACIÓN (suma los puntos que apliquen):
-+35 → Cargo de alta decisión o dueño: CEO, founder, co-founder, owner, president, propietario, dueño, socio
-+25 → Cargo profesional con ingresos altos: médico, abogado, arquitecto, ingeniero senior, director, gerente general
-+20 → Industria con liquidez: {industrias_str}
-+15 → País objetivo: {paises_str}
-+10 → LinkedIn disponible (puede contactarse directamente)
-+10 → Email verificado
--100 → Es agente, realtor, corredor, broker o trabaja en bienes raíces → score 0, descartar
+TABLA DE PUNTUACIÓN:
++40 → Dueño o alto cargo con capital: CEO, founder, owner, co-founder, president, propietario, dueño, socio, director general, gerente general
++25 → Profesional independiente con ingresos altos: médico, abogado, arquitecto, ingeniero senior, consultor
++20 → Industria con liquidez disponible: {industrias_str}
++15 → País LATAM objetivo: {paises_str}
++10 → LinkedIn disponible (contacto directo posible)
++10 → Email disponible
++5  → Menciona USA, Miami, Florida, inversiones, patrimonio, dolarizar en su perfil
+-20 → Solo empleado sin cargo de decisión (analista, asistente, coordinator)
+-100 → Agente inmobiliario, realtor, broker, corredor → score 0 automático
 
-ACCIÓN RECOMENDADA:
-- "contactar_hoy": score >= 65, perfil sólido con capacidad clara
-- "nutrir_contenido": score 40-64, perfil prometedor pero sin suficiente señal
-- "descartar": agente inmobiliario o sin capacidad aparente
+ACCIÓN:
+- "contactar_hoy": score >= 65 → contacto directo de ventas
+- "nutrir_contenido": score 40-64 → enviar contenido educativo primero
+- "descartar": agente o sin capacidad real
 
-Devuelve SOLO este JSON:
-{{"score": <número 0-100>, "razon": "<1-2 oraciones>", "tipo_lead": "perfil_capacidad", "accion_recomendada": "<accion>"}}"""
+Devuelve SOLO este JSON (sin texto adicional):
+{{"score": <0-100>, "razon": "<máximo 2 oraciones explicando por qué califica o no>", "tipo_lead": "perfil_capacidad", "accion_recomendada": "<accion>"}}"""
 
     def _parse_score(self, text: str) -> tuple[float, str, str, str]:
         try:

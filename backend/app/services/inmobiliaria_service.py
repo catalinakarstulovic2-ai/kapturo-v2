@@ -328,10 +328,12 @@ class InmobiliariaService:
 
     async def buscar_linkedin_leads(self) -> dict:
         """
-        Busca perfiles LinkedIn usando las queries definidas en niche_config.
-        Cada perfil se califica con Claude y se guarda como prospecto.
+        Busca perfiles LinkedIn usando flujo de 2 fases:
+          1. Google Search -> URLs de LinkedIn
+          2. curious_coder -> datos reales del perfil
+        Las queries se toman de niche_config.linkedin_queries o se usan defaults de Florida.
         """
-        from app.modules.inmobiliaria.linkedin_client import LinkedInClient
+        from app.modules.inmobiliaria.linkedin_client import LinkedInClient, DEFAULT_QUERIES_FLORIDA
         from app.models.tenant import TenantModule
 
         modulo = self.db.query(TenantModule).filter(
@@ -341,18 +343,15 @@ class InmobiliariaService:
         ).first()
 
         if not modulo or not modulo.niche_config:
-            return {"error": "Módulo inmobiliaria sin configuración"}
+            return {"error": "Modulo inmobiliaria sin configuracion"}
 
         cfg = modulo.niche_config
-        queries = cfg.get("linkedin_queries") or []
-        if not queries:
-            return {"error": "No hay linkedin_queries en la configuración del módulo"}
+        queries = cfg.get("linkedin_queries") or DEFAULT_QUERIES_FLORIDA
 
         client = LinkedInClient()
-        perfiles = await client.buscar_multiples(queries, max_por_query=20)
+        perfiles = await client.buscar_perfiles_florida(queries=queries, max_por_query=8)
 
         guardados = calificados = duplicados = 0
-
         for perfil in perfiles:
             perfil["source_module"] = "inmobiliaria"
             perfil["tenant_id"] = self.tenant_id
@@ -604,11 +603,13 @@ class InmobiliariaService:
 
     async def buscar_fuentes_rapido(self) -> dict:
         """
-        Búsqueda manual rápida: corre las mejores fuentes EN PARALELO.
-        TikTok hashtags + cuentas TikTok → resultados en ~60s en vez de 30+ min.
+        Busqueda rapida con LinkedIn de 2 fases:
+          1. Google Search -> URLs de LinkedIn (perfiles de altos cargos en Florida)
+          2. curious_coder -> nombre, cargo, empresa, ubicacion reales
+          3. Claude califica cada perfil y guarda los calificados
         """
         from app.models.tenant import TenantModule
-        from app.modules.inmobiliaria.social_comments_client import SocialCommentsClient
+        from app.modules.inmobiliaria.linkedin_client import LinkedInClient, DEFAULT_QUERIES_FLORIDA
 
         modulo = self.db.query(TenantModule).filter(
             TenantModule.tenant_id == self.tenant_id,
@@ -619,84 +620,56 @@ class InmobiliariaService:
             return {"error": "Modulo inmobiliaria sin configuracion"}
 
         cfg = modulo.niche_config
-        client = SocialCommentsClient(intent_keywords=cfg.get("intent_keywords", []))
+        queries = cfg.get("linkedin_queries") or DEFAULT_QUERIES_FLORIDA
 
-        # 2 hashtags + 1 cuenta TikTok por run — reduce costo Apify ~60%
-        hashtags_tt = cfg.get("hashtags_tiktok", [])[:2]
-        cuentas_tt = cfg.get("cuentas_tiktok", [])[:1]
-
-        tareas = []
-        etiquetas = []
-        for h in hashtags_tt:
-            tareas.append(client.tiktok_hashtag(h))
-            etiquetas.append(f"tiktok_hashtag:{h}")
-        for c in cuentas_tt:
-            tareas.append(client.tiktok_cuenta(c))
-            etiquetas.append(f"tiktok_cuenta:{c}")
-
-        resultados = await asyncio.gather(*tareas, return_exceptions=True)
-
-        todos = []
-        for etiqueta, res in zip(etiquetas, resultados):
-            if isinstance(res, Exception):
-                logger.warning(f"Fuente {etiqueta} falló: {res}")
-            else:
-                logger.info(f"Fuente {etiqueta} → {len(res)} items")
-                todos.extend(res)
-
-        logger.info(f"buscar_fuentes_rapido: {len(todos)} items totales de {len(tareas)} fuentes paralelas")
+        logger.info(f"buscar_fuentes_rapido: iniciando LinkedIn con {len(queries)} queries")
+        client = LinkedInClient()
+        perfiles = await client.buscar_perfiles_florida(queries=queries, max_por_query=8)
+        logger.info(f"buscar_fuentes_rapido: {len(perfiles)} perfiles encontrados")
 
         guardados = calificados = duplicados = 0
-        for c in todos:
-            texto_comentario = c.get("texto", "") or ""
-            autor_url = c.get("autor_url", "") or ""
-            p_dict = {
-                "contact_name": c["autor_nombre"] or c["autor_username"],
-                "company_name": f"Lead social — {c['fuente']}",
-                "website": autor_url,
-                "notes": texto_comentario,
-                "signal_text": texto_comentario,  # FIX: el comentario real
-                "fuente_inmobiliaria": c["fuente"],
-                "source": ProspectSource.apify_social,
-                "source_url": c["post_url"],
-                "source_module": "inmobiliaria",
-                "tenant_id": self.tenant_id,
-            }
-            if autor_url and ("instagram.com" in autor_url or "tiktok.com" in autor_url):
-                p_dict["linkedin_url"] = autor_url
-            if not await self._es_nuevo(p_dict):
+        for perfil in perfiles:
+            perfil["source_module"] = "inmobiliaria"
+            perfil["tenant_id"] = self.tenant_id
+
+            if not await self._es_nuevo(perfil):
                 duplicados += 1
                 continue
-            # Descartar comentarios ruido
-            texto = p_dict.get("notes", "") or ""
-            if len(texto.strip()) < 10 and not p_dict.get("email") and not p_dict.get("linkedin_url"):
-                duplicados += 1
-                continue
+
             try:
-                score, razon, tipo_lead, accion = await self.scorer.calificar(p_dict, config={
-                    "producto": cfg.get("producto", ""),
-                    "nicho": cfg.get("nicho", ""),
+                score, razon, tipo_lead, accion = await self.scorer.calificar(perfil, config={
+                    "producto": cfg.get("producto", "terrenos en Florida"),
                     "empresa": cfg.get("empresa", ""),
-                    "comprador_ideal": cfg.get("comprador_ideal", ""),
-                    "paises_objetivo": cfg.get("paises_objetivo", []),
+                    "comprador_ideal": cfg.get("comprador_ideal", "CEO, founder o inversor con capital para real estate en Florida"),
+                    "paises_objetivo": cfg.get("paises_objetivo", ["mexico", "colombia", "venezuela", "argentina", "chile", "peru", "usa"]),
+                    "industrias_objetivo": cfg.get("industrias_objetivo", ["technology", "finance", "construction", "real estate", "healthcare", "energy"]),
+                    "cargos_objetivo": cfg.get("cargos_objetivo", ["ceo", "founder", "owner", "president", "managing partner", "director", "investor"]),
                 })
             except Exception as scorer_err:
-                logger.warning(f"Scorer falló para {p_dict.get('contact_name')}: {scorer_err}")
-                score, razon, tipo_lead, accion = 50.0, "Score pendiente (error en calificación)", "sin_clasificar", "revisar"
-            p_dict["score"] = score
-            p_dict["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
-            p_dict["is_qualified"] = score >= 65
-            p_dict["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
+                logger.warning(f"Scorer fallo para {perfil.get('contact_name')}: {scorer_err}")
+                score, razon, tipo_lead, accion = 50.0, "Score pendiente", "sin_clasificar", "revisar"
+
+            perfil["score"] = score
+            perfil["score_reason"] = f"{razon} | tipo: {tipo_lead} | accion: {accion}"
+            perfil["is_qualified"] = score >= 65
+            perfil["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
             try:
-                await self._guardar(p_dict)
+                await self._guardar(perfil)
                 self.db.commit()
                 guardados += 1
                 if score >= 65:
                     calificados += 1
             except Exception as guardar_err:
-                logger.error(f"Error guardando prospecto {p_dict.get('contact_name')}: {guardar_err}", exc_info=True)
+                logger.error(f"Error guardando {perfil.get('contact_name')}: {guardar_err}", exc_info=True)
                 self.db.rollback()
 
-        resultado = {"fuentes": len(tareas), "total_encontrados": len(todos), "guardados": guardados, "calificados": calificados, "duplicados": duplicados}
+        resultado = {
+            "fuente": "linkedin_2fases",
+            "queries_usadas": len(queries),
+            "perfiles_encontrados": len(perfiles),
+            "guardados": guardados,
+            "calificados": calificados,
+            "duplicados": duplicados,
+        }
         logger.info(f"buscar_fuentes_rapido finalizado: {resultado}")
         return resultado

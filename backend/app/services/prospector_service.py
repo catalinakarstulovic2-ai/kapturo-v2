@@ -536,6 +536,7 @@ Devuelve SOLO el mensaje de WhatsApp, sin explicaciones."""
             "excluido": p.excluido or False,
             "alarma_fecha": p.alarma_fecha.isoformat() if p.alarma_fecha else None,
             "alarma_motivo": p.alarma_motivo,
+            "signal_text": p.signal_text,
             "in_pipeline": p.id in (pipeline_ids or set()),
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }

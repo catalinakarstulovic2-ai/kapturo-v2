@@ -12,6 +12,7 @@ class ProspectSource(str, enum.Enum):
     apify_social = "apify_social"
     apify_maps = "apify_maps"
     google_maps = "google_maps"
+    apify_linkedin = "apify_linkedin"
     manual = "manual"
 
 

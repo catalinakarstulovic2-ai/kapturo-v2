@@ -12,6 +12,7 @@ import LicitacionesPage from './pages/modules/LicitacionesPage'
 import AdjudicadasPage from './pages/modules/AdjudicadasPage'
 import ProspectorPage from './pages/modules/ProspectorPage'
 import InmobiliariaPage from './pages/modules/InmobiliariaPage'
+import LinkedInProspectingPage from './pages/modules/LinkedInProspectingPage'
 import ProspeccionPage from './pages/modules/ProspeccionPage'
 import AgentsPage from './pages/agents/AgentsPage'
 import SettingsPage from './pages/settings/SettingsPage'
@@ -66,6 +67,7 @@ export default function App() {
           {/* Aliases para compatibilidad con links viejos */}
           <Route path="prospector" element={<Navigate to="/prospeccion" replace />} />
           <Route path="inmobiliaria" element={<InmobiliariaPage />} />
+          <Route path="linkedin-prospecting" element={<LinkedInProspectingPage />} />
           <Route path="conversaciones" element={<InboxPage />} />
           <Route path="propuestas/licitaciones" element={<LicitacionPropuestaPage />} />
           <Route path="agentes" element={<AgentsPage />} />
