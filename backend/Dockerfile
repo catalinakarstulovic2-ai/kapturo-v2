@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8000
 
 # Arrancar — Railway inyecta PORT automáticamente
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["sh", "-c", "echo '=== INICIO ===' && echo 'PORT='$PORT && python -c 'import main; print(\"IMPORT OK\")' && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
