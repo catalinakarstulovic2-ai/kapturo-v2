@@ -393,9 +393,10 @@ async def enviar_email_prospecto(
         raise HTTPException(status_code=400, detail="Asunto y cuerpo son obligatorios")
 
     # Convertir texto plano a HTML simple
+    parrafos = ''.join(f'<p style="margin: 0 0 16px 0;">{linea}</p>' for linea in cuerpo.split('\n') if linea.strip())
     html = f"""
     <div style="font-family: Georgia, serif; max-width: 620px; margin: 0 auto; color: #1f2937; line-height: 1.7;">
-        {''.join(f'<p style="margin: 0 0 16px 0;">{linea}</p>' for linea in cuerpo.split('\n') if linea.strip())}
+        {parrafos}
     </div>
     """
 
