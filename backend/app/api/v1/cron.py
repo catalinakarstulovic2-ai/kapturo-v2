@@ -9,8 +9,11 @@ Endpoints:
   POST /cron/sync-licitaciones  — precarga licitaciones_cache para los 6 estados
 """
 import asyncio
+import logging
 import os
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import Optional

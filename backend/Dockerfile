@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8000
 
 # Arrancar — Railway inyecta PORT automáticamente
-CMD ["sh", "-c", "python create_tables.py && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "python create_tables.py || echo 'create_tables warning, continuing' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
