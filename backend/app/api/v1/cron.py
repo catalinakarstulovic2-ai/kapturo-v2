@@ -627,33 +627,47 @@ async def cron_linkedin_prospecting(
 ):
     """
     Ejecuta el pipeline LinkedIn para todos los tenants con módulo inmobiliaria activo.
+    Corre en background con timeout máximo de 10 minutos por tenant.
 
     Correr 1x por semana desde Railway Cron (lunes 9am Chile = 12:00 UTC):
       Path:   POST /api/v1/cron/linkedin-prospecting
       Header: X-Cron-Secret: <CRON_SECRET>
       Cron:   0 12 * * 1
-
-    Flujo: Google Search → dev_fusion enriquecimiento → Claude calificación → BD
     """
+    from fastapi.background import BackgroundTasks
     from app.models.tenant import TenantModule
     from app.services.inmobiliaria_service import InmobiliariaService
+    from app.core.database import SessionLocal
 
     modulos = db.query(TenantModule).filter(
         TenantModule.module == "inmobiliaria",
         TenantModule.is_active == True,
     ).all()
 
-    resultados = {}
-    for modulo in modulos:
-        try:
-            service = InmobiliariaService(db=db, tenant_id=str(modulo.tenant_id))
-            resultado = await service.buscar_linkedin_leads()
-            resultados[str(modulo.tenant_id)] = resultado
-        except Exception as e:
-            resultados[str(modulo.tenant_id)] = {"error": str(e)}
+    tenant_ids = [str(m.tenant_id) for m in modulos]
+
+    async def _run_background():
+        for tenant_id in tenant_ids:
+            _db = SessionLocal()
+            try:
+                service = InmobiliariaService(db=_db, tenant_id=tenant_id)
+                # Timeout máximo de 8 minutos por tenant
+                await asyncio.wait_for(
+                    service.buscar_linkedin_leads(),
+                    timeout=480,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[cron/linkedin] Timeout para tenant {tenant_id}")
+            except Exception as e:
+                logger.error(f"[cron/linkedin] Error tenant {tenant_id}: {e}")
+            finally:
+                _db.close()
+
+    # Disparar en background y responder de inmediato
+    asyncio.create_task(_run_background())
 
     return {
-        "status": "ok",
-        "tenants": len(modulos),
-        "resultados": resultados,
+        "status": "iniciado",
+        "tenants": len(tenant_ids),
+        "mensaje": "LinkedIn prospecting corriendo en background (max 8min/tenant)",
     }

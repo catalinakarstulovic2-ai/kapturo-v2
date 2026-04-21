@@ -217,10 +217,15 @@ class LinkedInClient:
         max_por_query: max URLs a extraer por query de Google (max 10)
         """
         queries = queries or DEFAULT_QUERIES_FLORIDA
+        # Limitar queries para no exceder tiempo (máx 5 por ejecución)
+        queries = queries[:5]
 
-        # Fase 1: obtener URLs en paralelo
+        # Fase 1: obtener URLs en paralelo (con timeout individual de 45s)
         logger.info(f"LinkedIn Fase 1: {len(queries)} queries en Google Search")
-        tasks = [self.buscar_urls_google(q, max_results=max_por_query) for q in queries]
+        tasks = [
+            asyncio.wait_for(self.buscar_urls_google(q, max_results=max_por_query), timeout=45)
+            for q in queries
+        ]
         resultados = await asyncio.gather(*tasks, return_exceptions=True)
 
         todas_urls: list[str] = []
@@ -233,13 +238,15 @@ class LinkedInClient:
                     vistas.add(url)
                     todas_urls.append(url)
 
+        # Cap de URLs para controlar tiempo total (máx 30 perfiles por run)
+        todas_urls = todas_urls[:30]
         logger.info(f"LinkedIn Fase 1 completa: {len(todas_urls)} URLs unicas")
 
         if not todas_urls:
             logger.warning("No se encontraron URLs de LinkedIn en Google Search")
             return []
 
-        # Fase 2: enriquecer con curious_coder
+        # Fase 2: enriquecer con dev_fusion (con timeout de 3 min por batch)
         logger.info(f"LinkedIn Fase 2: enriqueciendo {len(todas_urls)} perfiles")
         perfiles = await self.enriquecer_perfiles(todas_urls)
         logger.info(f"LinkedIn Fase 2 completa: {len(perfiles)} perfiles listos")

@@ -99,18 +99,19 @@ m.niche_config = {
     "posts_anuncios_meta": [],
     "competidores": ["terrenoenflorida", "firstlandusa", "inversionenflorida"],
     # ── LinkedIn (búsqueda activa de perfiles con capacidad de compra) ────────────
-    # Queries que Apify usa para buscar perfiles con cargo/país de interés
+    # OJO: el scraper agrega 'site:linkedin.com/in' automáticamente.
+    # Buscar COMPRADORES LATAM con capital — NO realtors ni brokers de Florida.
     "linkedin_queries": [
-        "inversionista inmobiliario latinoamerica",
-        "empresario chile inversión",
-        "CEO chile inversión",
-        "investor latin america real estate",
-        "empresario colombia estados unidos",
-        "founder mexico usa inversiones",
-        "empresario argentina propiedad usa",
-        "doctor chile inversiones",
-        "abogado chile inversiones",
-        "ingéniero chile inversión",
+        'CEO OR founder Chile "inversión" OR "patrimonio" OR "inversiones"',
+        'dueño OR propietario Chile "USA" OR "Florida" OR "internacional"',
+        'CEO OR gerente Colombia "inversión" OR "estados unidos" OR "USA"',
+        'founder OR director Mexico "inversión" OR "real estate" OR "USA"',
+        'empresario Venezuela OR Argentina Miami OR Florida OR "inversión internacional"',
+        'médico OR doctor Chile OR Colombia OR México "inversión" OR "patrimonio"',
+        'abogado OR arquitecto Chile OR Colombia "inversión" OR "bienes raices"',
+        '"family office" OR "wealth management" "Latin America" OR LATAM',
+        'investor OR inversionista "Latin America" OR LATAM "real estate" OR property',
+        'president OR "managing director" Peru OR Ecuador OR Panama "inversión"',
     ],
 }
 

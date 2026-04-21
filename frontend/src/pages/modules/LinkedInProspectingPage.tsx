@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import {
   Linkedin, Loader2, Search, Globe, ExternalLink, Users,
   UserCheck, TrendingUp, Mail, Phone, Copy, Building2, MapPin, Briefcase, Star,
+  Send, X, Pencil,
 } from 'lucide-react'
 import ScoreBadge from '../../components/ui/ScoreBadge'
 import type { Prospect } from '../../types'
@@ -45,7 +46,14 @@ export default function LinkedInProspectingPage() {
   })
 
   const allProspects: Prospect[] = data?.prospectos ?? []
-  const liLeads = allProspects.filter(p => (p as any).source === 'apify_linkedin')
+  const liLeads = allProspects
+    .filter(p => (p as any).source === 'apify_linkedin')
+    .filter(p => p.contact_name && p.contact_name !== 'Perfil LinkedIn')
+    .sort((a, b) => {
+      const aScore = (a.email ? 2 : 0) + (a.phone ? 1 : 0)
+      const bScore = (b.email ? 2 : 0) + (b.phone ? 1 : 0)
+      return bScore - aScore
+    })
 
   const { data: estadoBusqueda } = useQuery({
     queryKey: ['inmobiliaria-estado-busqueda'],
@@ -130,9 +138,65 @@ export default function LinkedInProspectingPage() {
   const calificados = liLeads.filter(p => p.is_qualified).length
   const conContacto = liLeads.filter(p => p.email || p.phone || p.linkedin_url).length
 
+  const [enriqueciendo, setEnriqueciendo] = useState<string | null>(null)
+
+  const enriquecerLead = async (p: Prospect) => {
+    setEnriqueciendo(p.id)
+    try {
+      const res = await api.post(`/inmobiliaria/prospectos/${p.id}/enriquecer`)
+      if (res.data.ok) {
+        toast.success(`Email encontrado: ${res.data.email}`)
+        qc.invalidateQueries({ queryKey: ['inmobiliaria-prospectos'] })
+      } else {
+        toast.error('No se encontró email con Hunter.io')
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || 'Error al enriquecer')
+    } finally {
+      setEnriqueciendo(null)
+    }
+  }
+
   const copiar = (texto: string, label: string) => {
     navigator.clipboard.writeText(texto)
     toast.success(`${label} copiado`)
+  }
+
+  // ── Modal email ──────────────────────────────────────────────────────────
+  const [emailModal, setEmailModal] = useState<{
+    prospect: Prospect
+    asunto: string
+    cuerpo: string
+    loading: boolean
+    sending: boolean
+  } | null>(null)
+
+  const abrirModalEmail = async (p: Prospect) => {
+    if (!p.email) { toast.error('Este lead no tiene email'); return }
+    setEmailModal({ prospect: p, asunto: '', cuerpo: '', loading: true, sending: false })
+    try {
+      const res = await api.post(`/inmobiliaria/prospectos/${p.id}/generar-email`)
+      setEmailModal(prev => prev ? { ...prev, asunto: res.data.asunto, cuerpo: res.data.cuerpo, loading: false } : null)
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || 'Error generando borrador')
+      setEmailModal(null)
+    }
+  }
+
+  const enviarEmail = async () => {
+    if (!emailModal) return
+    setEmailModal(prev => prev ? { ...prev, sending: true } : null)
+    try {
+      await api.post(`/inmobiliaria/prospectos/${emailModal.prospect.id}/enviar-email`, {
+        asunto: emailModal.asunto,
+        cuerpo: emailModal.cuerpo,
+      })
+      toast.success(`Email enviado a ${emailModal.prospect.email}`)
+      setEmailModal(null)
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || 'Error al enviar')
+      setEmailModal(prev => prev ? { ...prev, sending: false } : null)
+    }
   }
 
   return (
@@ -183,41 +247,6 @@ export default function LinkedInProspectingPage() {
           ))}
         </div>
       )}
-
-      {/* Cómo funciona */}
-      <div className="card p-5 border-l-4 border-[#0A66C2]">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">¿Cómo funciona?</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="font-semibold text-gray-700 mb-1">🔍 Fase 1 — Google Search</p>
-            <p className="text-gray-500">Busca URLs de perfiles LinkedIn con queries LATAM específicas (sin cookies)</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="font-semibold text-gray-700 mb-1">👤 Fase 2 — Enriquecimiento</p>
-            <p className="text-gray-500">Extrae nombre real, cargo, empresa y ubicación de cada perfil</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="font-semibold text-gray-700 mb-1">⭐ Fase 3 — Calificación IA</p>
-            <p className="text-gray-500">Claude puntúa 0–100. Score ≥ 65 pasa a Inmobiliaria como prospecto</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Queries activas */}
-      <div className="card p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <Search size={14} className="text-gray-400" />
-          Búsquedas activas ({QUERIES_DISPLAY.length} queries)
-        </h3>
-        <div className="space-y-1.5">
-          {QUERIES_DISPLAY.map((q, i) => (
-            <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-gray-50 text-xs text-gray-600">
-              <Globe size={11} className="text-[#0A66C2] flex-shrink-0" />
-              {q}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Leads encontrados — tabla */}
       {liLeads.length > 0 && (
@@ -316,9 +345,29 @@ export default function LinkedInProspectingPage() {
                       )}
                     </div>
 
-                    {/* Score */}
-                    <div className="sm:flex sm:justify-end">
+                    {/* Score + acción */}
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2">
                       <ScoreBadge score={p.score} />
+                      {p.email ? (
+                        <button
+                          onClick={() => abrirModalEmail(p)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+                        >
+                          <Mail size={11} />
+                          Email IA
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => enriquecerLead(p)}
+                          disabled={enriqueciendo === p.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                        >
+                          {enriqueciendo === p.id
+                            ? <Loader2 size={11} className="animate-spin" />
+                            : <Search size={11} />}
+                          {enriqueciendo === p.id ? 'Buscando...' : 'Buscar email'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -348,6 +397,71 @@ export default function LinkedInProspectingPage() {
                   )}
                 </div>
               ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal email */}
+      {emailModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !emailModal.sending && setEmailModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Redactar email — {emailModal.prospect.contact_name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Para: {emailModal.prospect.email}</p>
+              </div>
+              <button onClick={() => !emailModal.sending && setEmailModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            {emailModal.loading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 size={28} className="animate-spin text-indigo-500" />
+                <p className="text-sm text-gray-500">Generando borrador con IA...</p>
+              </div>
+            ) : (
+              <div className="px-6 py-5 space-y-4">
+                {/* Asunto */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Asunto</label>
+                  <input
+                    className="mt-1.5 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    value={emailModal.asunto}
+                    onChange={e => setEmailModal(prev => prev ? { ...prev, asunto: e.target.value } : null)}
+                  />
+                </div>
+                {/* Cuerpo */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mensaje</label>
+                  <textarea
+                    rows={10}
+                    className="mt-1.5 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none leading-relaxed"
+                    value={emailModal.cuerpo}
+                    onChange={e => setEmailModal(prev => prev ? { ...prev, cuerpo: e.target.value } : null)}
+                  />
+                </div>
+                {/* Acciones */}
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-gray-400 flex items-center gap-1"><Pencil size={11} /> Puedes editar el borrador antes de enviar</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEmailModal(null)}
+                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    >Cancelar</button>
+                    <button
+                      onClick={enviarEmail}
+                      disabled={emailModal.sending}
+                      className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    >
+                      {emailModal.sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      {emailModal.sending ? 'Enviando...' : 'Enviar email'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

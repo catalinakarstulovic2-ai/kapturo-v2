@@ -303,3 +303,163 @@ async def listar_descartados(
     for p in result.get("prospectos", []):
         p["fuente_inmobiliaria"] = p.get("signal_text") or ""
     return result
+
+
+# ── Email con IA ──────────────────────────────────────────────────────────────
+
+@router.post("/prospectos/{prospect_id}/generar-email")
+async def generar_email_prospecto(
+    prospect_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Genera un borrador de email personalizado para el prospecto usando WriterAgent.
+    Devuelve asunto + cuerpo listos para revisar antes de enviar.
+    """
+    from app.agents.writer_agent import WriterAgent
+    from app.models.prospect import Prospect
+
+    prospect = db.query(Prospect).filter(
+        Prospect.id == prospect_id,
+        Prospect.tenant_id == current_user.tenant_id,
+    ).first()
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+    if not prospect.email:
+        raise HTTPException(status_code=400, detail="Este prospecto no tiene email")
+
+    agent = WriterAgent(db=db, tenant_id=str(current_user.tenant_id))
+    resultado = await agent.run(
+        prospect_id=prospect_id,
+        canal="email",
+    )
+    if "error" in resultado:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+
+    # Separar asunto del cuerpo (el agente pone [ASUNTO: ...] al inicio)
+    cuerpo_completo = resultado["body"]
+    asunto = ""
+    cuerpo = cuerpo_completo
+    if "[ASUNTO:" in cuerpo_completo:
+        try:
+            inicio = cuerpo_completo.index("[ASUNTO:") + 8
+            fin = cuerpo_completo.index("]", inicio)
+            asunto = cuerpo_completo[inicio:fin].strip()
+            cuerpo = cuerpo_completo[fin + 1:].strip()
+        except ValueError:
+            pass
+
+    return {
+        "prospect_id": prospect_id,
+        "prospect_email": prospect.email,
+        "prospect_name": prospect.contact_name or prospect.company_name,
+        "asunto": asunto or f"Oportunidad de inversión en Florida — {prospect.contact_name or 'te contacto'}",
+        "cuerpo": cuerpo,
+        "message_id": resultado.get("message_id"),
+    }
+
+
+@router.post("/prospectos/{prospect_id}/enviar-email")
+async def enviar_email_prospecto(
+    prospect_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Envía el email aprobado por el usuario al prospecto.
+    Guarda el envío en el historial del prospecto.
+
+    Body: { "asunto": str, "cuerpo": str }
+    """
+    import json
+    from datetime import datetime, timezone
+    from app.models.prospect import Prospect
+    from app.services.email_service import EmailService
+
+    prospect = db.query(Prospect).filter(
+        Prospect.id == prospect_id,
+        Prospect.tenant_id == current_user.tenant_id,
+    ).first()
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+    if not prospect.email:
+        raise HTTPException(status_code=400, detail="Este prospecto no tiene email")
+
+    asunto = payload.get("asunto", "").strip()
+    cuerpo = payload.get("cuerpo", "").strip()
+    if not asunto or not cuerpo:
+        raise HTTPException(status_code=400, detail="Asunto y cuerpo son obligatorios")
+
+    # Convertir texto plano a HTML simple
+    html = f"""
+    <div style="font-family: Georgia, serif; max-width: 620px; margin: 0 auto; color: #1f2937; line-height: 1.7;">
+        {''.join(f'<p style="margin: 0 0 16px 0;">{linea}</p>' for linea in cuerpo.split('\n') if linea.strip())}
+    </div>
+    """
+
+    email_service = EmailService()
+    try:
+        await email_service.send(
+            to=prospect.email,
+            subject=asunto,
+            html=html,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar email: {str(e)}")
+
+    # Guardar en historial del prospecto
+    ahora = datetime.now(timezone.utc).isoformat()
+    entrada = {"text": f"📧 Email enviado: '{asunto}'", "created_at": ahora}
+    historial = []
+    if prospect.notes_history:
+        try:
+            historial = json.loads(prospect.notes_history)
+        except Exception:
+            historial = []
+    historial.append(entrada)
+    prospect.notes_history = json.dumps(historial, ensure_ascii=False)
+    db.commit()
+
+    return {"ok": True, "enviado_a": prospect.email, "asunto": asunto}
+
+
+@router.post("/prospectos/{prospect_id}/enriquecer")
+async def enriquecer_prospecto(
+    prospect_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """
+    Enriquece un lead de LinkedIn buscando su email con Hunter.io.
+    Actualiza el prospecto en BD si encuentra email.
+    """
+    from app.modules.prospector.hunter_client import HunterClient
+    from app.models.tenant import Tenant
+
+    prospect = db.query(Prospect).filter(
+        Prospect.id == prospect_id,
+        Prospect.tenant_id == current_user.tenant_id,
+    ).first()
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    keys = tenant.api_keys or {} if tenant else {}
+    hunter = HunterClient(api_key=keys.get("hunter_api_key") or None)
+
+    contact_name = prospect.contact_name or prospect.company_name or ""
+    result = await hunter.enriquecer_linkedin_lead(
+        contact_name=contact_name,
+        company_name=prospect.company_name or "",
+        website=prospect.website,
+    )
+
+    if result["enriched"]:
+        prospect.email = result["email"]
+        db.commit()
+        db.refresh(prospect)
+        return {"ok": True, "email": result["email"], "confidence": result.get("confidence")}
+    else:
+        return {"ok": False, "email": None, "mensaje": "No se encontró email con Hunter.io"}

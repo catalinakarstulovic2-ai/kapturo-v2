@@ -16,7 +16,7 @@ import httpx
 from app.core.config import settings
 
 RESEND_API_URL = "https://api.resend.com/emails"
-FROM_ADDRESS = "Kapturo <notificaciones@kapturo.cl>"
+FROM_ADDRESS = "Kapturo <onboarding@resend.dev>"
 
 
 class EmailService:

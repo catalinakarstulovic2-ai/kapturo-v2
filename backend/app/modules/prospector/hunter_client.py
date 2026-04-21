@@ -96,6 +96,72 @@ class HunterClient:
         except Exception:
             return []
 
+    async def email_finder(self, first_name: str, last_name: str, domain: str) -> dict | None:
+        """
+        Busca el email de una persona específica dado nombre + dominio.
+        Endpoint: /email-finder
+        """
+        if not self.api_key or not domain or not first_name:
+            return None
+        params = {
+            "domain": domain,
+            "first_name": first_name,
+            "last_name": last_name or "",
+            "api_key": self.api_key,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get(f"{HUNTER_BASE}/email-finder", params=params)
+                if r.status_code != 200:
+                    return None
+                data = r.json().get("data", {})
+                email = data.get("email")
+                confidence = data.get("score", 0)
+                if email and confidence >= 50:
+                    return {
+                        "email": email,
+                        "confidence": confidence,
+                    }
+                return None
+        except Exception:
+            return None
+
+    async def enriquecer_linkedin_lead(self, contact_name: str, company_name: str, website: str | None) -> dict:
+        """
+        Enriquece un lead de LinkedIn buscando su email con Hunter.io.
+        Estrategia:
+          1. Si tiene website → extract domain → email-finder con nombre
+          2. Si no → domain-search por nombre de empresa (intenta .com)
+        """
+        result = {"email": "", "enriched": False}
+        if not contact_name:
+            return result
+
+        parts = contact_name.strip().split()
+        first_name = parts[0] if parts else ""
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+        # Intentar con website
+        domain = _extract_domain(website) if website else None
+
+        # Fallback: adivinar dominio desde company_name
+        if not domain and company_name:
+            slug = company_name.lower().strip()
+            # Limpiar caracteres comunes
+            for char in [" ", ",", ".", "s.a.", "ltda", "spa", "inc", "corp", "llc"]:
+                slug = slug.replace(char, "")
+            domain = f"{slug}.com"
+
+        if not domain:
+            return result
+
+        found = await self.email_finder(first_name, last_name, domain)
+        if found:
+            result["email"] = found["email"]
+            result["confidence"] = found["confidence"]
+            result["enriched"] = True
+        return result
+
     async def enriquecer_prospecto(self, website: str) -> dict:
         """
         Helper: dado un website extrae el mejor contacto disponible.
