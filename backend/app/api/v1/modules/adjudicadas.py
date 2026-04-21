@@ -145,18 +145,44 @@ async def preview(
             return result
 
         if pestana == "adjudicadas":
-            result = svc.buscar_adjudicadas_desde_cache(filtros, pagina)
+            try:
+                result = svc.buscar_adjudicadas_desde_cache(filtros, pagina)
+            except Exception:
+                result = {"total": 0, "pagina": pagina, "por_pagina": 50, "resultados": []}
             if result["total"] > 0:
                 return result
-            # Fallback a live si el cache aún no tiene adjudicadas (primer día tras deploy)
-            return await svc.buscar_adjudicadas(filtros, pagina)
+            # Fallback a live — con timeout de 25 s para evitar que Railway corte la conexión
+            import asyncio as _asyncio
+            try:
+                return await _asyncio.wait_for(
+                    svc.buscar_adjudicadas(filtros, pagina),
+                    timeout=25.0,
+                )
+            except _asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=503,
+                    detail="El catálogo de adjudicadas está siendo procesado. Inténtalo en unos minutos o vuelve esta noche cuando el sync automático haya corrido.",
+                )
 
         if pestana in ("cerrada", "desierta", "revocada", "suspendida"):
-            result = svc.buscar_desde_cache(pestana, filtros, pagina)
+            try:
+                result = svc.buscar_desde_cache(pestana, filtros, pagina)
+            except Exception:
+                result = {"total": 0, "pagina": pagina, "por_pagina": 50, "resultados": []}
             if result["total"] > 0:
                 return result
-            # Fallback a live si no hay datos en cache para este estado
-            return await svc.buscar_por_estado_live(pestana, filtros, pagina)
+            # Fallback a live — con timeout de 25 s
+            import asyncio as _asyncio
+            try:
+                return await _asyncio.wait_for(
+                    svc.buscar_por_estado_live(pestana, filtros, pagina),
+                    timeout=25.0,
+                )
+            except _asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Los datos de '{pestana}' están siendo procesados. El catálogo se actualiza automáticamente esta noche.",
+                )
     finally:
         _BUSQUEDAS_EN_VUELO.discard(tenant_id)
 
