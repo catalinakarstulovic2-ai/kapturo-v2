@@ -19,8 +19,13 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 if ENVIRONMENT == "production":
-    # En producción acepta cualquier origen *.up.railway.app + el dominio configurado
-    allowed_origins = ["*"]
+    allowed_origins = [
+        "https://app.kapturo.cl",
+        "https://kapturo.cl",
+        "https://www.kapturo.cl",
+    ]
+    if FRONTEND_URL:
+        allowed_origins.append(FRONTEND_URL)
 else:
     allowed_origins = [
         "http://localhost:5173",
@@ -32,7 +37,7 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=ENVIRONMENT != "production",  # credentials no funciona con allow_origins=["*"]
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
