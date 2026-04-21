@@ -1458,9 +1458,17 @@ export default function AdjudicadasPage() {
                                       </span>
                                     </div>
                                     {item.ofertantes.length === 0 ? (
-                                      <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-100 rounded-xl px-3.5 py-3">
-                                        <p className="text-xs font-semibold text-amber-700">🔒 En evaluación</p>
-                                        <p className="text-[11px] text-amber-600 leading-snug">El organismo aún no ha abierto el cuadro de ofertas. Los datos estarán disponibles una vez que se adjudique o declare desierta.</p>
+                                      <div className="flex flex-col gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3">
+                                        <p className="text-xs font-semibold text-gray-600">🔍 Ver en Mercado Público</p>
+                                        <p className="text-[11px] text-gray-500 leading-snug">La API pública no expone el cuadro de ofertas. Consúltalo directamente:</p>
+                                        <a
+                                          href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
+                                          target="_blank" rel="noopener noreferrer"
+                                          onClick={e => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 underline"
+                                        >
+                                          <ExternalLink size={11} /> Cuadro de ofertas
+                                        </a>
                                       </div>
                                     ) : (
                                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
