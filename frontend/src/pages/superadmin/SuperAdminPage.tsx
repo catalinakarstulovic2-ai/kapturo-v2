@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
+import toast from 'react-hot-toast'
 import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
@@ -187,8 +188,9 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
   })
   const saveRubrosMutation = useMutation({
     mutationFn: (rubros: string[]) => api.put(`/admin/tenants/${tenantId}/adjudicadas-rubros`, { rubros }),
-    onSuccess: () => {
+    onSuccess: (_, rubros) => {
       qc.invalidateQueries({ queryKey: ['admin-rubros', tenantId] })
+      toast.success(`${rubros.length} rubros guardados correctamente`)
       setShowRubros(false)
     },
     onError: (err: any) => alert(`Error: ${err?.response?.data?.detail ?? err?.message}`),
