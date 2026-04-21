@@ -50,9 +50,13 @@ export default function LinkedInProspectingPage() {
     .filter(p => (p as any).source === 'apify_linkedin')
     .filter(p => p.contact_name && p.contact_name !== 'Perfil LinkedIn')
     .sort((a, b) => {
-      const aScore = (a.email ? 2 : 0) + (a.phone ? 1 : 0)
-      const bScore = (b.email ? 2 : 0) + (b.phone ? 1 : 0)
-      return bScore - aScore
+      // 1º score IA (mayor primero)
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0)
+      if (scoreDiff !== 0) return scoreDiff
+      // 2º disponibilidad de contacto: email+tel > solo email > solo tel > nada
+      const aContact = (a.email ? 2 : 0) + (a.phone ? 1 : 0)
+      const bContact = (b.email ? 2 : 0) + (b.phone ? 1 : 0)
+      return bContact - aContact
     })
 
   const { data: estadoBusqueda } = useQuery({
@@ -270,9 +274,7 @@ export default function LinkedInProspectingPage() {
 
           {/* Filas */}
           <div className="divide-y divide-gray-100">
-            {[...liLeads]
-              .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-              .map(p => (
+            {liLeads.map(p => (
                 <div key={p.id} className="px-5 py-4 hover:bg-gray-50/60 transition-colors">
 
                   {/* Fila principal — columnas de contacto */}
