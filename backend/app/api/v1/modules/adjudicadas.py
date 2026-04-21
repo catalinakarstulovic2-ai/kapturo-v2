@@ -144,10 +144,19 @@ async def preview(
                 return live
             return result
 
-        if pestana in ("cerrada", "desierta", "revocada", "suspendida"):
-            return await svc.buscar_por_estado_live(pestana, filtros, pagina)
+        if pestana == "adjudicadas":
+            result = svc.buscar_adjudicadas_desde_cache(filtros, pagina)
+            if result["total"] > 0:
+                return result
+            # Fallback a live si el cache aún no tiene adjudicadas (primer día tras deploy)
+            return await svc.buscar_adjudicadas(filtros, pagina)
 
-        return await svc.buscar_adjudicadas(filtros, pagina)
+        if pestana in ("cerrada", "desierta", "revocada", "suspendida"):
+            result = svc.buscar_desde_cache(pestana, filtros, pagina)
+            if result["total"] > 0:
+                return result
+            # Fallback a live si no hay datos en cache para este estado
+            return await svc.buscar_por_estado_live(pestana, filtros, pagina)
     finally:
         _BUSQUEDAS_EN_VUELO.discard(tenant_id)
 
@@ -369,3 +378,34 @@ async def generar_propuesta(
         formato=body.formato,
         contexto_juan=contexto_juan,
     )
+
+
+@router.get("/buscar-codigo")
+async def buscar_por_codigo(
+    codigo: str = Query(..., description="Código de licitación, ej: 1305525-20-LE26"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Busca una licitación específica por su código en la API de Mercado Público.
+    Devuelve el detalle normalizado directamente.
+    """
+    from app.modules.licitaciones.normalizer import LicitacionNormalizada
+    client = MercadoPublicoClient()
+    try:
+        det = await client.obtener_detalle(codigo.strip())
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    n = LicitacionNormalizada(det)
+    return {
+        "encontrado": True,
+        "codigo": n.codigo,
+        "nombre": n.nombre,
+        "organismo": n.organismo,
+        "region": n.region,
+        "estado": det.get("Estado", ""),
+        "fecha_cierre": n.fecha_cierre,
+        "fecha_adjudicacion": n.fecha_adjudicacion,
+        "monto_estimado": n.monto,
+        "url": f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={n.codigo}",
+    }

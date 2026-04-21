@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, BookmarkPlus, CheckCircle2, Bell,
   ExternalLink, RefreshCw, Trash2, Kanban,
   Phone, Mail, Globe, Linkedin, User as UserIcon, AlertCircle,
-  Download, Bookmark, BookOpen, X,
+  Download, Bookmark, BookOpen, X, Hash,
   Sparkles, Calendar,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -127,6 +127,17 @@ export default function AdjudicadasPage() {
   const [showBusquedas, setShowBusquedas]           = useState(false)
   const [nombreBusqueda, setNombreBusqueda]         = useState('')
   const [showSaveModal, setShowSaveModal]           = useState(false)
+  const [sortOrder, setSortOrder]                   = useState<'fecha_desc' | 'fecha_asc' | 'az' | 'za' | 'none'>('none')
+  const [codigoBusqueda, setCodigoBusqueda]         = useState('')
+  const [activeTab, setActiveTab]                   = useState<'none' | 'busquedas' | 'guardar' | 'codigo'>('none')
+  const [codigoInput, setCodigoInput]               = useState('')
+  const [codigoResult, setCodigoResult]             = useState<any | null>(null)
+  const [codigoBuscando, setCodigoBuscando]         = useState(false)
+  const [codigoError, setCodigoError]               = useState('')
+  const [regionesSeleccionadas, setRegionesSeleccionadas] = useState<string[]>([])
+  const [regionQuery, setRegionQuery]               = useState('')
+  const [showRegionDropdown, setShowRegionDropdown] = useState(false)
+  const regionRef = useRef<HTMLDivElement>(null)
 
   // Estados para propuesta IA + configuración
   const [modalPropuesta, setModalPropuesta] = useState<{
@@ -178,7 +189,8 @@ export default function AdjudicadasPage() {
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const params = new URLSearchParams({ pestana, pagina: String(pagina) })
-      if (filtros.region)       params.set('region', filtros.region)
+      if (regionesSeleccionadas.length === 1) params.set('region', regionesSeleccionadas[0])
+      else if (filtros.region)               params.set('region', filtros.region)
       if (filtros.periodo)      params.set('periodo', filtros.periodo)
       if (filtros.monto_minimo) params.set('monto_minimo', filtros.monto_minimo)
       const kw = rubrosSeleccionados.length > 0 ? rubrosSeleccionados.join(',') : filtros.keyword
@@ -301,17 +313,67 @@ export default function AdjudicadasPage() {
   const _montoField = (r: any): number =>
     r.monto_adjudicado ?? r.monto_estimado ?? 0
 
-  const sortedResultados = sortMonto === 'none'
-    ? resultados
-    : [...resultados].sort((a, b) =>
-        sortMonto === 'asc'
-          ? _montoField(a) - _montoField(b)
-          : _montoField(b) - _montoField(a)
+  const _dateField = (r: any): number => {
+    const d = r.fecha_cierre || r.fecha_adjudicacion || r.fecha_publicacion || ''
+    return d ? new Date(d).getTime() : 0
+  }
+
+  const baseResultados = (() => {
+    let items = resultados
+    if (codigoBusqueda.trim()) {
+      const q = codigoBusqueda.trim().toLowerCase()
+      items = items.filter(r =>
+        (r.codigo || '').toLowerCase().includes(q) ||
+        (r.nombre || '').toLowerCase().includes(q)
       )
+    }
+    if (regionesSeleccionadas.length > 1) {
+      // Filtro local multi-región — usamos el texto de región que devuelve la API
+      const REGION_KEYWORDS: Record<string, string[]> = {
+        '13': ['metropolitana', 'santiago'],
+        '5':  ['valparaíso', 'valparaiso'],
+        '8':  ['biobío', 'biobio'],
+        '9':  ['araucanía', 'araucania'],
+        '7':  ['maule'],
+        '10': ['los lagos'],
+        '4':  ['coquimbo'],
+        '6':  ["o'higgins", 'ohiggins', 'libertador'],
+        '16': ['ñuble', 'nuble'],
+        '2':  ['antofagasta'],
+        '1':  ['tarapacá', 'tarapaca'],
+        '3':  ['atacama'],
+        '11': ['aysén', 'aysen'],
+        '12': ['magallanes'],
+        '14': ['los ríos', 'los rios'],
+        '15': ['arica', 'parinacota'],
+      }
+      items = items.filter(r => {
+        const regionStr = (r.region || '').toLowerCase()
+        return regionesSeleccionadas.some(cod =>
+          (REGION_KEYWORDS[cod] || []).some(kw => regionStr.includes(kw))
+        )
+      })
+    }
+    return items
+  })()
+
+  const sortedResultados = (() => {
+    if (sortMonto !== 'none') {
+      return [...baseResultados].sort((a, b) =>
+        sortMonto === 'asc' ? _montoField(a) - _montoField(b) : _montoField(b) - _montoField(a)
+      )
+    }
+    if (sortOrder === 'fecha_desc') return [...baseResultados].sort((a, b) => _dateField(b) - _dateField(a))
+    if (sortOrder === 'fecha_asc')  return [...baseResultados].sort((a, b) => _dateField(a) - _dateField(b))
+    if (sortOrder === 'az')  return [...baseResultados].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))
+    if (sortOrder === 'za')  return [...baseResultados].sort((a, b) => (b.nombre || '').localeCompare(a.nombre || '', 'es'))
+    return baseResultados
+  })()
 
   const toggleSortMonto = () => {
     const next = sortMonto === 'none' ? 'desc' : sortMonto === 'desc' ? 'asc' : 'none'
     setSortMonto(next as 'none' | 'asc' | 'desc')
+    if (next !== 'none') setSortOrder('none')
   }
 
   return (
@@ -614,27 +676,97 @@ export default function AdjudicadasPage() {
 
         {/* Grid de filtros */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Región</label>
-            <select className="input text-sm" value={filtros.region} onChange={setF('region')}>
-              <option value="">Todas las regiones</option>
-              <option value="13">Metropolitana</option>
-              <option value="5">Valparaíso</option>
-              <option value="8">Biobío</option>
-              <option value="9">La Araucanía</option>
-              <option value="7">Maule</option>
-              <option value="10">Los Lagos</option>
-              <option value="4">Coquimbo</option>
-              <option value="6">O'Higgins</option>
-              <option value="16">Ñuble</option>
-              <option value="2">Antofagasta</option>
-              <option value="1">Tarapacá</option>
-              <option value="3">Atacama</option>
-              <option value="11">Aysén</option>
-              <option value="12">Magallanes</option>
-              <option value="14">Los Ríos</option>
-              <option value="15">Arica y Parinacota</option>
-            </select>
+          <div ref={regionRef} className="relative col-span-2 md:col-span-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Región / Ciudad</label>
+            {(() => {
+              const REGIONES = [
+                { codigo: '2',  nombre: 'Antofagasta',        ciudades: ['antofagasta', 'calama', 'tocopilla', 'mejillones', 'tal tal'] },
+                { codigo: '15', nombre: 'Arica y Parinacota', ciudades: ['arica', 'putre', 'general lagos'] },
+                { codigo: '11', nombre: 'Aysén',              ciudades: ['coyhaique', 'puerto aysén', 'chile chico', 'cochrane'] },
+                { codigo: '8',  nombre: 'Biobío',             ciudades: ['concepción', 'talcahuano', 'los ángeles', 'chillán', 'coronel', 'hualpén', 'san pedro de la paz', 'lota', 'penco'] },
+                { codigo: '4',  nombre: 'Coquimbo',           ciudades: ['la serena', 'coquimbo', 'ovalle', 'illapel', 'vicuña', 'andacollo'] },
+                { codigo: '9',  nombre: 'La Araucanía',       ciudades: ['temuco', 'padre las casas', 'villarrica', 'angol', 'pucón', 'nueva imperial', 'victoria'] },
+                { codigo: '12', nombre: 'Magallanes',         ciudades: ['punta arenas', 'puerto natales', 'porvenir'] },
+                { codigo: '7',  nombre: 'Maule',              ciudades: ['talca', 'curicó', 'linares', 'cauquenes', 'molina', 'constitución', 'parral'] },
+                { codigo: '13', nombre: 'Metropolitana',      ciudades: ['santiago', 'providencia', 'las condes', 'maipú', 'pudahuel', 'quilicura', 'puente alto', 'peñalolén', 'la florida', 'ñuñoa', 'vitacura', 'lo barnechea'] },
+                { codigo: '16', nombre: 'Ñuble',              ciudades: ['chillán', 'chillán viejo', 'san carlos', 'bulnes', 'coihueco'] },
+                { codigo: '6',  nombre: "O'Higgins",          ciudades: ['rancagua', 'san fernando', 'pichilemu', 'santa cruz', 'rengo', 'machali'] },
+                { codigo: '10', nombre: 'Los Lagos',          ciudades: ['puerto montt', 'osorno', 'castro', 'puerto varas', 'ancud', 'calbuco'] },
+                { codigo: '14', nombre: 'Los Ríos',           ciudades: ['valdivia', 'la unión', 'río bueno', 'panguipulli'] },
+                { codigo: '1',  nombre: 'Tarapacá',           ciudades: ['iquique', 'alto hospicio', 'pozo almonte'] },
+                { codigo: '3',  nombre: 'Atacama',            ciudades: ['copiapó', 'vallenar', 'caldera', 'tierra amarilla'] },
+                { codigo: '5',  nombre: 'Valparaíso',         ciudades: ['valparaíso', 'viña del mar', 'quilpué', 'villa alemana', 'san antonio', 'quillota', 'los andes', 'la calera', 'limache', 'concón'] },
+              ]
+              const q = regionQuery.toLowerCase()
+              const filtradas = q
+                ? REGIONES.filter(r =>
+                    r.nombre.toLowerCase().includes(q) ||
+                    r.ciudades.some(c => c.includes(q))
+                  )
+                : REGIONES
+              const toggle = (codigo: string) => {
+                setRegionesSeleccionadas(prev =>
+                  prev.includes(codigo) ? prev.filter(c => c !== codigo) : [...prev, codigo]
+                )
+              }
+              return (
+                <>
+                  <div
+                    className="input text-sm min-h-[38px] flex flex-wrap gap-1 cursor-text items-center"
+                    onClick={() => setShowRegionDropdown(true)}
+                  >
+                    {regionesSeleccionadas.length === 0 && !showRegionDropdown && (
+                      <span className="text-gray-400 text-sm">Todas las regiones</span>
+                    )}
+                    {regionesSeleccionadas.map(cod => {
+                      const r = REGIONES.find(x => x.codigo === cod)
+                      return r ? (
+                        <span key={cod} className="flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                          {r.nombre}
+                          <button onClick={e => { e.stopPropagation(); toggle(cod) }} className="hover:text-violet-900"><X size={10} /></button>
+                        </span>
+                      ) : null
+                    })}
+                    {showRegionDropdown && (
+                      <input
+                        autoFocus
+                        className="flex-1 min-w-[100px] outline-none text-sm bg-transparent"
+                        placeholder="Buscar región o ciudad…"
+                        value={regionQuery}
+                        onChange={e => setRegionQuery(e.target.value)}
+                        onBlur={() => setTimeout(() => { setShowRegionDropdown(false); setRegionQuery('') }, 150)}
+                      />
+                    )}
+                  </div>
+                  {showRegionDropdown && filtradas.length > 0 && (
+                    <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                      {filtradas.map(r => {
+                        const sel = regionesSeleccionadas.includes(r.codigo)
+                        const ciudadMatch = q ? r.ciudades.find(c => c.includes(q)) : null
+                        return (
+                          <button
+                            key={r.codigo}
+                            onMouseDown={e => { e.preventDefault(); toggle(r.codigo) }}
+                            className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-violet-50 transition-colors ${
+                              sel ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700'
+                            }`}
+                          >
+                            <span>
+                              {r.nombre}
+                              {ciudadMatch && <span className="ml-1 text-xs text-gray-400">· {ciudadMatch}</span>}
+                            </span>
+                            {sel && <span className="text-violet-500 text-xs">✓</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {regionesSeleccionadas.length > 0 && (
+                    <button onClick={() => setRegionesSeleccionadas([])} className="mt-1 text-[11px] text-gray-400 hover:text-red-400">Limpiar selección</button>
+                  )}
+                </>
+              )
+            })()}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Antigüedad</label>
@@ -654,33 +786,61 @@ export default function AdjudicadasPage() {
             <input
               type="text" className="input text-sm" placeholder="Ej: construcción…"
               value={filtros.keyword} onChange={setF('keyword')}
-              disabled={rubrosSeleccionados.length > 0}
             />
           </div>
         </div>
 
         <div className="sticky bottom-0 -mx-5 -mb-5 px-5 pb-4 pt-3 bg-white/90 backdrop-blur-sm border-t border-gray-100 rounded-b-2xl">
 
-          {/* Búsquedas guardadas panel */}
-          {showBusquedas && busquedasGuardadas.length > 0 && (
-            <div className="mb-3 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-600">Búsquedas guardadas</span>
-                <button onClick={() => setShowBusquedas(false)} className="text-gray-400 hover:text-gray-600"><X size={12} /></button>
-              </div>
+          {/* Tabs secundarios */}
+          <div className="grid grid-cols-4 gap-1.5 mb-2 bg-gray-100 p-1 rounded-xl">
+            {([
+              { id: 'busquedas', icon: BookOpen, label: 'Mis búsquedas', badge: busquedasGuardadas.length || null },
+              { id: 'guardar',   icon: Bookmark, label: 'Guardar',       badge: null },
+              { id: 'codigo',    icon: Hash,     label: 'Por código',    badge: null },
+            ] as const).map(({ id, icon: Icon, label, badge }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(t => t === id ? 'none' : id)}
+                className={clsx(
+                  'flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-[11px] font-semibold transition-all',
+                  activeTab === id
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'
+                )}
+              >
+                <Icon size={13} />
+                <span className="leading-tight text-center">{label}</span>
+                {badge ? <span className="px-1.5 py-0.5 rounded-full bg-violet-500 text-white text-[9px] font-bold">{badge}</span> : null}
+              </button>
+            ))}
+            {/* Botón Buscar licitaciones dentro del grid como 4to tab */}
+            <button
+              className="flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-[11px] font-semibold transition-all bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+              onClick={() => { setActiveTab('none'); buscarMutation.mutate(1) }}
+              disabled={buscarMutation.isPending}
+            >
+              {buscarMutation.isPending
+                ? <><Loader2 size={13} className="animate-spin" /><span>Buscando…</span></>
+                : <><Search size={13} /><span>Buscar</span></>}
+            </button>
+          </div>
+
+          {/* Panel Mis búsquedas */}
+          {activeTab === 'busquedas' && busquedasGuardadas.length > 0 && (
+            <div className="mb-2 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
               <div className="divide-y divide-gray-50 max-h-44 overflow-y-auto">
                 {busquedasGuardadas.map(b => (
                   <div key={b.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 group">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-800 truncate">{b.nombre}</p>
-                      <p className="text-[11px] text-gray-400">{b.fecha} · {{ adjudicadas: 'Adjudicadas', por_adjudicarse: 'Publicadas', cerrada: 'Cerradas', desierta: 'Desiertas', revocada: 'Revocadas', suspendida: 'Suspendidas' }[b.pestana] ?? b.pestana} {b.rubrosSeleccionados.length > 0 && `· ${b.rubrosSeleccionados.length} rubros`}</p>
+                      <p className="text-[11px] text-gray-400">{b.fecha} · {{ adjudicadas: 'Adjudicadas', por_adjudicarse: 'Publicadas', cerrada: 'Cerradas', desierta: 'Desiertas', revocada: 'Revocadas', suspendida: 'Suspendidas' }[b.pestana] ?? b.pestana}</p>
                     </div>
-                    <button onClick={() => handleCargarBusqueda(b)}
-                      className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors shrink-0">
+                    <button onClick={() => { handleCargarBusqueda(b); setActiveTab('none') }}
+                      className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50">
                       Cargar
                     </button>
-                    <button onClick={() => eliminarBusqueda(b.id)}
-                      className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                    <button onClick={() => eliminarBusqueda(b.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100">
                       <X size={11} />
                     </button>
                   </div>
@@ -688,11 +848,14 @@ export default function AdjudicadasPage() {
               </div>
             </div>
           )}
+          {activeTab === 'busquedas' && busquedasGuardadas.length === 0 && (
+            <p className="text-xs text-gray-400 text-center mb-2 py-2">No tienes búsquedas guardadas aún.</p>
+          )}
 
-          {/* Modal guardar búsqueda */}
-          {showSaveModal && (
-            <div className="mb-3 border border-brand-200 rounded-xl p-3 bg-brand-50">
-              <p className="text-xs font-semibold text-brand-700 mb-2">Nombre para esta búsqueda</p>
+          {/* Panel Guardar */}
+          {activeTab === 'guardar' && (
+            <div className="mb-2 border border-violet-200 rounded-xl p-3 bg-violet-50">
+              <p className="text-xs font-semibold text-violet-700 mb-2">Nombre para esta búsqueda</p>
               <div className="flex gap-2">
                 <input
                   autoFocus
@@ -701,63 +864,86 @@ export default function AdjudicadasPage() {
                   onChange={e => setNombreBusqueda(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleGuardarBusqueda()}
                   placeholder="Ej: Construcción Araucanía 30 días"
-                  className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-brand-200 bg-white outline-none focus:border-brand-400"
+                  className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-violet-200 bg-white outline-none focus:border-violet-400"
                 />
                 <button onClick={handleGuardarBusqueda}
-                  className="text-sm px-3 py-1.5 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors">
+                  className="text-sm px-3 py-1.5 rounded-lg bg-violet-600 text-white font-medium hover:bg-violet-700">
                   Guardar
-                </button>
-                <button onClick={() => setShowSaveModal(false)}
-                  className="text-gray-400 hover:text-gray-600 px-1">
-                  <X size={14} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* Botones secundarios */}
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={() => { setShowBusquedas(v => !v); setShowSaveModal(false) }}
-              className={clsx(
-                'flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-xl border-2 transition-all',
-                showBusquedas
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : busquedasGuardadas.length > 0
-                    ? 'border-brand-300 bg-white text-brand-600 hover:bg-brand-50'
-                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+          {/* Panel Buscar por código — llama a la API real */}
+          {activeTab === 'codigo' && (
+            <div className="mb-2 border border-gray-200 rounded-xl p-3 bg-white shadow-sm">
+              <p className="text-xs font-semibold text-gray-600 mb-2">Buscar licitación por código exacto</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Hash size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Ej: 1305525-20-LE26"
+                    value={codigoInput}
+                    onChange={e => { setCodigoInput(e.target.value); setCodigoResult(null); setCodigoError('') }}
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter' && codigoInput.trim()) {
+                        setCodigoBuscando(true); setCodigoError(''); setCodigoResult(null)
+                        try {
+                          const r = await api.get(`/modules/adjudicadas/buscar-codigo?codigo=${encodeURIComponent(codigoInput.trim())}`)
+                          setCodigoResult(r.data)
+                        } catch { setCodigoError('No se encontró esa licitación.') }
+                        finally { setCodigoBuscando(false) }
+                      }
+                    }}
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-violet-500 bg-white font-mono"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!codigoInput.trim()) return
+                    setCodigoBuscando(true); setCodigoError(''); setCodigoResult(null)
+                    try {
+                      const r = await api.get(`/modules/adjudicadas/buscar-codigo?codigo=${encodeURIComponent(codigoInput.trim())}`)
+                      setCodigoResult(r.data)
+                    } catch { setCodigoError('No se encontró esa licitación.') }
+                    finally { setCodigoBuscando(false) }
+                  }}
+                  disabled={codigoBuscando || !codigoInput.trim()}
+                  className="px-3 py-2 bg-violet-600 text-white text-sm rounded-lg font-medium hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {codigoBuscando ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                  Buscar
+                </button>
+              </div>
+              {codigoError && <p className="text-xs text-red-500 mt-2">{codigoError}</p>}
+              {codigoResult && (
+                <div className="mt-2 bg-gray-50 rounded-lg p-2.5 text-xs space-y-1">
+                  <p className="font-semibold text-gray-800 leading-snug">{codigoResult.nombre}</p>
+                  <p className="text-gray-500">{codigoResult.organismo} · {codigoResult.region}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 font-mono">{codigoResult.codigo}</span>
+                    <span className="text-gray-400">{codigoResult.estado}</span>
+                    {codigoResult.fecha_cierre && <span className="text-gray-400">Cierre: {codigoResult.fecha_cierre}</span>}
+                  </div>
+                  <a href={codigoResult.url} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-800 font-medium mt-1">
+                    Ver en Mercado Público →
+                  </a>
+                </div>
               )}
-            >
-              <BookOpen size={14} />
-              {busquedasGuardadas.length > 0
-                ? <span>Mis búsquedas <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-brand-500 text-white text-[10px] font-bold">{busquedasGuardadas.length}</span></span>
-                : 'Mis búsquedas'}
-            </button>
-            {resultados.length > 0 && (
-              <button
-                onClick={() => { setShowSaveModal(v => !v); setShowBusquedas(false) }}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-xl border-2 transition-all',
-                  showSaveModal
-                    ? 'border-accent-500 bg-accent-50 text-accent-700'
-                    : 'border-accent-300 bg-white text-accent-600 hover:bg-accent-50'
-                )}
-              >
-                <Bookmark size={14} /> Guardar búsqueda
-              </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          <button
-            className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm text-white transition-all"
-            style={{ background: buscarMutation.isPending ? '#9CA3AF' : 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', boxShadow: buscarMutation.isPending ? 'none' : '0 4px 14px rgba(109,40,217,0.35)' }}
-            onClick={() => buscarMutation.mutate(1)}
-            disabled={buscarMutation.isPending}
-          >
-            {buscarMutation.isPending
-              ? <><Loader2 size={16} className="animate-spin" /> Buscando…</>
-              : <><Search size={16} /> Buscar licitaciones</>}
-          </button>
+          {buscarMutation.isPending && (
+            <button
+              onClick={() => { abortRef.current?.abort(); buscarMutation.reset() }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm text-red-600 bg-red-50 border-2 border-red-200 hover:bg-red-100 transition-all"
+            >
+              <X size={14} /> Detener búsqueda
+            </button>
+          )}
         </div>
       </div>
 
@@ -1291,30 +1477,44 @@ export default function AdjudicadasPage() {
 
       {/* ── Tabla: Estados históricos (cerrada / desierta / revocada / suspendida) ── */}
       {(['cerrada', 'desierta', 'revocada', 'suspendida'] as Pestana[]).includes(pestana) && resultados.length > 0 && (() => {
-        const items = resultados as unknown as PorAdjudicarsItem[]
         const ESTADO_LABEL: Record<string, string> = {
           cerrada:    'cerradas',
           desierta:   'desiertas',
           revocada:   'revocadas',
           suspendida: 'suspendidas',
         }
+        const items = (sortedResultados as unknown as PorAdjudicarsItem[])
         return (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
-              <span className="text-sm font-semibold text-gray-700">
-                {totalResultados.toLocaleString('es-CL')} licitaciones {ESTADO_LABEL[pestana] ?? pestana}
-                {totalResultados > 50 && (
-                  <span className="ml-1 text-gray-400 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
-                <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending}
-                  className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40">
-                  <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
-                </button>
-                <button onClick={limpiar} className="text-xs text-red-400 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-100 hover:bg-red-50 transition-colors">
-                  <Trash2 size={11} /> Limpiar
-                </button>
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-semibold text-gray-700">
+                  {totalResultados.toLocaleString('es-CL')} licitaciones {ESTADO_LABEL[pestana] ?? pestana}
+                  {codigoBusqueda && <span className="ml-1 text-violet-600 font-normal">· filtrando por "{codigoBusqueda}"</span>}
+                  {totalResultados > 50 && (
+                    <span className="ml-1 text-gray-400 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={sortOrder}
+                    onChange={e => { setSortOrder(e.target.value as any); setSortMonto('none') }}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-violet-400 text-gray-600"
+                  >
+                    <option value="none">Ordenar por…</option>
+                    <option value="fecha_desc">Más reciente</option>
+                    <option value="fecha_asc">Más antigua</option>
+                    <option value="az">Nombre A → Z</option>
+                    <option value="za">Nombre Z → A</option>
+                  </select>
+                  <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending}
+                    className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40">
+                    <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
+                  </button>
+                  <button onClick={limpiar} className="text-xs text-red-400 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-100 hover:bg-red-50 transition-colors">
+                    <Trash2 size={11} /> Limpiar
+                  </button>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">

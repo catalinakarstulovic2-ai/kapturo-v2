@@ -276,6 +276,131 @@ class AdjudicadasService:
                 continue
         return resultado
 
+    # ── Búsqueda desde caché (sin llamadas a la API de MP) ───────────────────
+
+    def buscar_desde_cache(self, estado: str, filtros: dict, pagina: int = 1) -> dict:
+        """
+        Lee licitaciones de licitaciones_cache filtrando por estado.
+        Usada para: cerrada, adjudicada, desierta, revocada, suspendida.
+        Respuesta <50 ms — cero llamadas a la API de Mercado Público.
+        """
+        import json as _json
+        from app.models.licitacion_cache import LicitacionCache
+        from sqlalchemy import or_
+
+        POR_PAGINA = 50
+
+        q = self.db.query(LicitacionCache).filter(LicitacionCache.estado == estado)
+
+        keyword_raw = (filtros.get("keyword") or "").strip()
+        for kw in [k.strip() for k in keyword_raw.split(",") if k.strip()]:
+            q = q.filter(LicitacionCache.nombre.ilike(f"%{kw}%"))
+
+        region = filtros.get("region")
+        if region:
+            region_keys = REGION_CODE_TO_KEYWORDS.get(region.strip(), [])
+            if region_keys:
+                q = q.filter(or_(*[LicitacionCache.region.ilike(f"%{kw}%") for kw in region_keys]))
+
+        monto_min = float(filtros.get("monto_minimo") or 0)
+        if monto_min:
+            q = q.filter(LicitacionCache.monto_estimado >= monto_min)
+
+        total = q.count()
+        items = (
+            q.order_by(LicitacionCache.fecha_cierre.desc())
+             .offset((pagina - 1) * POR_PAGINA)
+             .limit(POR_PAGINA)
+             .all()
+        )
+
+        resultados = []
+        for item in items:
+            ofertantes = []
+            if item.ofertantes_json:
+                try:
+                    raw = _json.loads(item.ofertantes_json)
+                    # Excluir el winner (es_adjudicado) de la lista de ofertantes
+                    ofertantes = [o for o in raw if not o.get("es_adjudicado")]
+                except Exception:
+                    pass
+            resultados.append({
+                "codigo":             item.codigo,
+                "nombre":             item.nombre,
+                "organismo":          item.organismo,
+                "region":             item.region,
+                "fecha_cierre":       item.fecha_cierre,
+                "fecha_adjudicacion": item.fecha_adjudicacion,
+                "monto_estimado":     item.monto_estimado,
+                "ofertantes":         ofertantes,
+                "ofertantes_count":   item.ofertantes_count or len(ofertantes),
+            })
+
+        return {"total": total, "pagina": pagina, "por_pagina": POR_PAGINA, "resultados": resultados}
+
+    def buscar_adjudicadas_desde_cache(self, filtros: dict, pagina: int = 1) -> dict:
+        """
+        Lee licitaciones adjudicadas de licitaciones_cache.
+        Extrae el ganador del ofertantes_json (es_adjudicado=True).
+        Devuelve formato AdjudicadaItem — cero llamadas a la API de MP.
+        """
+        import json as _json
+        from app.models.licitacion_cache import LicitacionCache
+        from sqlalchemy import or_
+
+        POR_PAGINA = 50
+
+        q = self.db.query(LicitacionCache).filter(LicitacionCache.estado == "adjudicada")
+
+        keyword_raw = (filtros.get("keyword") or "").strip()
+        for kw in [k.strip() for k in keyword_raw.split(",") if k.strip()]:
+            q = q.filter(LicitacionCache.nombre.ilike(f"%{kw}%"))
+
+        region = filtros.get("region")
+        if region:
+            region_keys = REGION_CODE_TO_KEYWORDS.get(region.strip(), [])
+            if region_keys:
+                q = q.filter(or_(*[LicitacionCache.region.ilike(f"%{kw}%") for kw in region_keys]))
+
+        monto_min = float(filtros.get("monto_minimo") or 0)
+        if monto_min:
+            q = q.filter(LicitacionCache.monto_estimado >= monto_min)
+
+        total = q.count()
+        items = (
+            q.order_by(LicitacionCache.fecha_adjudicacion.desc())
+             .offset((pagina - 1) * POR_PAGINA)
+             .limit(POR_PAGINA)
+             .all()
+        )
+
+        resultados = []
+        for item in items:
+            winner: dict = {}
+            if item.ofertantes_json:
+                try:
+                    for o in _json.loads(item.ofertantes_json):
+                        if o.get("es_adjudicado"):
+                            winner = o
+                            break
+                except Exception:
+                    pass
+            monto = item.monto_estimado or 0
+            resultados.append({
+                "codigo":              item.codigo,
+                "nombre":              item.nombre,
+                "organismo":           item.organismo,
+                "region":              item.region,
+                "fecha_adjudicacion":  item.fecha_adjudicacion,
+                "rut_adjudicado":      winner.get("rut", ""),
+                "nombre_adjudicado":   winner.get("nombre", ""),
+                "monto_adjudicado":    monto,
+                "poliza_seriedad":     round(monto * 0.01, 0),
+                "poliza_cumplimiento": round(monto * 0.05, 0),
+            })
+
+        return {"total": total, "pagina": pagina, "por_pagina": POR_PAGINA, "resultados": resultados}
+
     # ── Por adjudicarse — desde caché ────────────────────────────────────────
 
     def get_por_adjudicarse_cached(self, filtros: dict, pagina: int = 1) -> dict:
@@ -545,6 +670,22 @@ class AdjudicadasService:
                 monto = n.monto or 0
                 if monto_min and monto < monto_min:
                     continue
+                # Extraer oferentes del detalle de la API
+                ofertantes_raw = det.get("Ofertas", {}).get("Listado") or []
+                ofertantes = []
+                for of in ofertantes_raw:
+                    nombre = of.get("NombreProveedor") or of.get("Nombre") or ""
+                    rut    = of.get("RutProveedor") or of.get("Rut") or ""
+                    monto_of = None
+                    for campo in ("TotalOferta", "MontoTotal", "Monto", "ValorOferta"):
+                        v = of.get(campo)
+                        if v is not None:
+                            try:
+                                monto_of = float(str(v).replace("$", "").replace(".", "").replace(",", ".").strip())
+                            except Exception:
+                                pass
+                            break
+                    ofertantes.append({"nombre": nombre, "rut": rut, "monto_oferta": monto_of})
                 resultados_pagina.append({
                     "codigo":                       n.codigo,
                     "nombre":                       n.nombre,
@@ -555,8 +696,8 @@ class AdjudicadasService:
                     "fecha_estimada_adjudicacion":  n.fecha_estimada_adjudicacion,
                     "fecha_publicacion":            n.fecha_publicacion,
                     "monto_estimado":               monto if monto else None,
-                    "ofertantes":                   [],
-                    "ofertantes_count":             0,
+                    "ofertantes":                   ofertantes,
+                    "ofertantes_count":             len(ofertantes),
                 })
             except Exception:
                 continue
@@ -622,7 +763,7 @@ class AdjudicadasService:
     # ── Scraping de web corporativa ─────────────────────────────────────────
 
     _EMAIL_RE = re.compile(
-        r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b'
+        r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.(?!png|jpg|jpeg|gif|webp|svg|ico|bmp|pdf|css|js|php|asp|html|xml|json)[A-Za-z]{2,6}\b'
     )
     _PHONE_RE = re.compile(
         r'(?<![\d\+])(\+?56[\s\-]?)?(?:9\d{8}|[2-8]\d{7,8})(?![\d])'
@@ -632,7 +773,16 @@ class AdjudicadasService:
         'googleapis.com', 'doubleclick.net', 'facebook.com', 'google.com',
         'twitter.com', 'instagram.com', 'whatsapp.com', 'apple.com',
         'microsoft.com', 'amazon.com', 'jquery.com', 'bootstrapcdn.com',
+        'mail.com', 'tudominio.com', 'dominio.com', 'empresa.com',
+        'correo.com', 'miempresa.com', 'miemail.com',
     }
+    _BAD_EMAIL_PREFIXES = {
+        'nombre', 'email', 'correo', 'usuario', 'user', 'info@', 'noreply',
+        'no-reply', 'test', 'demo', 'example', 'sample', 'contact',
+        'contacto', 'admin', 'webmaster', 'postmaster', 'mail', 'tu',
+        'your', 'mi', 'my', 'ejemplo', 'placeholder',
+    }
+    _IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'}
     _SOCIAL_DOMAINS = [
         'instagram.com', 'facebook.com', 'twitter.com', 'tiktok.com',
         't.me', 'wa.me', 'youtube.com', 'linkedin.com',
@@ -677,7 +827,21 @@ class AdjudicadasService:
                 continue
             for e in self._EMAIL_RE.findall(html):
                 e_low = e.lower()
-                if not any(d in e_low for d in self._BAD_EMAIL_DOMAINS) and len(e) < 80:
+                # Filtrar dominios malos
+                if any(d in e_low for d in self._BAD_EMAIL_DOMAINS):
+                    continue
+                # Filtrar extensiones de imagen (nombre@2x-768.png etc.)
+                if any(e_low.endswith(ext) for ext in self._IMAGE_EXTENSIONS):
+                    continue
+                # Filtrar prefijos placeholder
+                local_part = e_low.split('@')[0]
+                if any(local_part == bad or local_part.startswith(bad) for bad in self._BAD_EMAIL_PREFIXES):
+                    continue
+                # Filtrar TLD inválidos (imágenes tienen e.g. @2x-768×483)
+                tld = e_low.rsplit('.', 1)[-1]
+                if len(tld) > 6 or not tld.isalpha():
+                    continue
+                if len(e) < 80:
                     emails.add(e_low)
             for p in self._PHONE_RE.findall(html):
                 clean = re.sub(r'[\s\-]', '', p)

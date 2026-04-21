@@ -264,6 +264,92 @@ async def _sync_async():
                 insertadas += 1
 
         db.commit()
+        logger.info("Cerradas: procesadas %d", len([d for d in detalles if d]))
+
+        # ── 3. Barrido de ADJUDICADAS (con detalle completo, 14 días) ─────────
+        logger.info("Iniciando barrido de ADJUDICADAS (%d días)…", DIAS_CERRADAS)
+
+        listas_adj = await asyncio.gather(*[fetch_lista(f, "adjudicada") for f in fechas_cer])
+
+        adj_vistos: set[str] = set()
+        adj_todos: list[dict] = []
+        for lista in listas_adj:
+            for item in lista:
+                cod = item.get("CodigoExterno")
+                if cod and cod not in adj_vistos:
+                    adj_vistos.add(cod)
+                    adj_todos.append(item)
+
+        logger.info("Adjudicadas únicas: %d — obteniendo detalles…", len(adj_todos))
+
+        from app.modules.licitaciones.normalizer import LicitacionNormalizada
+
+        codigos_adj = [i["CodigoExterno"] for i in adj_todos if i.get("CodigoExterno")]
+        detalles_adj = await asyncio.gather(*[fetch_detalle(c) for c in codigos_adj])
+
+        for detalle in detalles_adj:
+            if not detalle:
+                continue
+            codigo = detalle.get("CodigoExterno", "")
+            if not codigo:
+                continue
+            try:
+                n = LicitacionNormalizada(detalle, tipo_busqueda="licitador_b")
+                # Guardar winner con flag es_adjudicado para distinguirlo de ofertantes
+                winner = [{
+                    "rut":          n.adjudicado_rut or "",
+                    "nombre":       n.adjudicado_nombre or "",
+                    "monto_oferta": n.monto_adjudicado or 0,
+                    "es_adjudicado": True,
+                }]
+                fechas_det  = detalle.get("Fechas") or {}
+                f_cierre = _fmt_fecha(fechas_det.get("FechaCierre") or detalle.get("FechaCierre", ""))
+                f_pub    = _fmt_fecha(fechas_det.get("FechaPublicacion") or detalle.get("FechaPublicacion", ""))
+                f_adj    = n.fecha_adjudicacion or ""
+
+                existente = db.query(LicitacionCache).filter_by(codigo=codigo).first()
+                if existente:
+                    if existente.estado != "adjudicada":
+                        existente.estado_anterior = existente.estado
+                        existente.estado = "adjudicada"
+                        if existente.estado_anterior == "cerrada":
+                            existente.alerta_nueva = True
+                            existente.alerta_leida = False
+                            logger.info("🔔 ALERTA: %s pasó de cerrada → adjudicada", codigo)
+                    existente.organismo          = n.organismo_nombre or existente.organismo
+                    existente.region             = n.region or existente.region
+                    existente.monto_estimado     = n.monto_adjudicado or existente.monto_estimado
+                    existente.fecha_cierre       = f_cierre or existente.fecha_cierre
+                    existente.fecha_publicacion  = f_pub or existente.fecha_publicacion
+                    existente.fecha_adjudicacion = f_adj or existente.fecha_adjudicacion
+                    existente.ofertantes_json    = json.dumps(winner, ensure_ascii=False)
+                    existente.ofertantes_count   = 1
+                    existente.raw_data           = json.dumps(detalle, ensure_ascii=False)
+                    existente.updated_at         = datetime.now(timezone.utc)
+                    actualizadas += 1
+                else:
+                    nueva = LicitacionCache(
+                        codigo=codigo,
+                        estado="adjudicada",
+                        nombre=n.nombre or detalle.get("Nombre", ""),
+                        organismo=n.organismo_nombre,
+                        region=n.region,
+                        monto_estimado=n.monto_adjudicado,
+                        fecha_publicacion=f_pub,
+                        fecha_cierre=f_cierre,
+                        fecha_adjudicacion=f_adj,
+                        ofertantes_json=json.dumps(winner, ensure_ascii=False),
+                        ofertantes_count=1,
+                        raw_data=json.dumps(detalle, ensure_ascii=False),
+                    )
+                    db.add(nueva)
+                    insertadas += 1
+            except Exception as e:
+                logger.warning("Error normalizando adjudicada %s: %s", codigo, e)
+                errores += 1
+                continue
+
+        db.commit()
         logger.info(
             "Sync completo: +%d insertadas, ~%d actualizadas, %d errores",
             insertadas, actualizadas, errores,
@@ -274,6 +360,7 @@ async def _sync_async():
             "errores": errores,
             "publicadas_procesadas": len(pub_todos),
             "cerradas_procesadas": len([d for d in detalles if d]),
+            "adjudicadas_procesadas": len([d for d in detalles_adj if d]),
         }
 
     except Exception as e:

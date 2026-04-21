@@ -107,6 +107,7 @@ class PipelineService:
                         "source_module": prospect.source_module if prospect else None,
                         "status": prospect.status if prospect else None,
                         "source": prospect.source if prospect else None,
+                        "linkedin_url": prospect.linkedin_url if prospect else None,
                         # Campos de licitación (adjudicadas)
                         "rut": prospect.rut if prospect else None,
                         "licitacion_nombre": prospect.licitacion_nombre if prospect else None,
