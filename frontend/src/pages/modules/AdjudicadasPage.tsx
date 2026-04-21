@@ -1375,7 +1375,7 @@ export default function AdjudicadasPage() {
                           <tr key={`${item.codigo}-exp`}>
                             <td colSpan={6} className="p-0 border-b border-gray-100">
                               <div className="bg-white border-t-2 border-violet-100 px-6 py-5">
-                                <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+                                <div className="grid grid-cols-1 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
 
                                   {/* Col 1: Detalles */}
                                   <div className="space-y-3 lg:pr-6 pb-5 lg:pb-0">
@@ -1449,7 +1449,36 @@ export default function AdjudicadasPage() {
                                     )}
                                   </div>
 
-                                  {/* Col 3: Contacto del organismo */}
+                                  {/* Col 3: Empresas oferentes */}
+                                  <div className="space-y-3 lg:px-6 py-5 lg:py-0">
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-blue-200">
+                                      <span className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-sm">🏢</span>
+                                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
+                                        Empresas oferentes {item.ofertantes_count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">{item.ofertantes_count}</span>}
+                                      </span>
+                                    </div>
+                                    {item.ofertantes.length === 0 ? (
+                                      <p className="text-xs text-gray-400 italic">Sin oferentes registrados aún</p>
+                                    ) : (
+                                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        {item.ofertantes.map((of, i) => (
+                                          <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                                            <div>
+                                              <p className="text-xs font-semibold text-gray-900 line-clamp-1">{of.nombre || '—'}</p>
+                                              {of.rut && <p className="text-[10px] text-gray-400 mt-0.5">RUT {of.rut}</p>}
+                                            </div>
+                                            {of.monto_oferta != null && of.monto_oferta > 0 && (
+                                              <span className="text-xs font-bold text-emerald-700 whitespace-nowrap shrink-0">
+                                                {formatCLP(of.monto_oferta)}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Col 4: Contacto del organismo */}
                                   <div className="space-y-3 lg:pl-6 pt-5 lg:pt-0">
                                     <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-emerald-200">
                                       <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏛️</span>
@@ -1519,6 +1548,17 @@ export default function AdjudicadasPage() {
                                         Buscar contacto
                                       </button>
                                     )}
+                                    <div className="pt-3 border-t border-gray-100 mt-2">
+                                      <button
+                                        onClick={e => { e.stopPropagation(); guardarMutation.mutate(item.codigo) }}
+                                        disabled={savingCodigo === item.codigo}
+                                        className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl font-semibold text-white disabled:opacity-50 transition-all active:scale-95 w-full justify-center"
+                                        style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', boxShadow: '0 3px 10px rgba(109,40,217,0.25)' }}
+                                      >
+                                        {savingCodigo === item.codigo ? <Loader2 size={13} className="animate-spin" /> : <BookmarkPlus size={13} />}
+                                        Guardar en pipeline
+                                      </button>
+                                    </div>
                                   </div>
 
                                 </div>
