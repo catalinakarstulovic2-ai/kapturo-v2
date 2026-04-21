@@ -137,12 +137,25 @@ async def preview(
             "keyword": effective_keyword,
         }
         if pestana == "por_adjudicarse":
-            result = svc.get_por_adjudicarse_cached(filtros, pagina)
-            if result["total"] == 0:
-                live = await svc.buscar_por_adjudicarse_live(filtros, pagina)
+            try:
+                result = svc.get_por_adjudicarse_cached(filtros, pagina)
+            except Exception:
+                result = {"total": 0, "pagina": pagina, "por_pagina": 50, "resultados": []}
+            if result["total"] > 0:
+                return result
+            import asyncio as _asyncio
+            try:
+                live = await _asyncio.wait_for(
+                    svc.buscar_por_adjudicarse_live(filtros, pagina),
+                    timeout=25.0,
+                )
                 live["_cache_empty"] = True
                 return live
-            return result
+            except _asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Las licitaciones publicadas están siendo procesadas. El catálogo se actualiza esta noche automáticamente.",
+                )
 
         if pestana == "adjudicadas":
             try:
