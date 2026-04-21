@@ -5,7 +5,7 @@ import api from '../../api/client'
 import toast from 'react-hot-toast'
 import {
   Trophy, Search, SlidersHorizontal, Loader2,
-  ChevronDown, ChevronUp, BookmarkPlus, CheckCircle2,
+  ChevronDown, ChevronUp, BookmarkPlus, CheckCircle2, Bell,
   ExternalLink, RefreshCw, Trash2, Kanban,
   Phone, Mail, Globe, Linkedin, User as UserIcon, AlertCircle,
   Download, Bookmark, BookOpen, X,
@@ -1469,6 +1469,10 @@ export default function AdjudicadasPage() {
                                         >
                                           <ExternalLink size={11} /> Cuadro de ofertas
                                         </a>
+                                        <div className="flex items-start gap-1.5 mt-1 pt-2 border-t border-gray-200">
+                                          <Bell size={10} className="text-violet-400 shrink-0 mt-0.5" />
+                                          <p className="text-[10px] text-gray-400 leading-snug">Cuando esta licitación pase a adjudicada recibirás una alerta en el dashboard.</p>
+                                        </div>
                                       </div>
                                     ) : (
                                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
