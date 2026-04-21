@@ -909,7 +909,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
             <h3 className="font-bold text-gray-900 text-base truncate">{t.name}</h3>
             <Badge active={t.is_active} />
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">{t.slug} · {t.num_prospectos} prospectos</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t.slug} · {t.num_prospectos} prospectos{t.num_rubros != null ? ` · ${t.num_rubros} rubros MP` : ''}</p>
           {/* módulos como badges compactos */}
           {modulosActivos.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">

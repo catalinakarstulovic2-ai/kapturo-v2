@@ -89,6 +89,14 @@ def listar_tenants(
         num_prospectos = db.query(Prospect).filter(Prospect.tenant_id == t.id).count()
         modulos = [m.module for m in t.modules if m.is_active]
 
+        # Rubros habilitados de Mercado Público
+        num_rubros = None
+        adj_mod = next((m for m in t.modules if m.is_active and str(m.module) == 'adjudicadas'), None)
+        if adj_mod and adj_mod.niche_config:
+            rubros = adj_mod.niche_config.get('rubros_habilitados')
+            if rubros is not None:
+                num_rubros = len(rubros)
+
         resultado.append({
             "id": t.id,
             "name": t.name,
@@ -98,6 +106,7 @@ def listar_tenants(
             "plan_id": t.plan_id,
             "num_usuarios": num_usuarios,
             "num_prospectos": num_prospectos,
+            "num_rubros": num_rubros,
             "modulos_activos": modulos,
             "created_at": t.created_at,
         })
