@@ -130,9 +130,16 @@ async def _sync_async():
             if existente:
                 # Solo actualizar estado si cambió
                 if existente.estado != estado.lower():
+                    estado_anterior = existente.estado
+                    existente.estado_anterior = estado_anterior
                     existente.estado = estado.lower()
                     existente.updated_at = datetime.now(timezone.utc)
                     actualizadas += 1
+                    # Alerta: cerrada → adjudicada o desierta
+                    if estado_anterior == "cerrada" and estado.lower() in ("adjudicada", "desierta", "revocada"):
+                        existente.alerta_nueva = True
+                        existente.alerta_leida = False
+                        logger.info("🔔 ALERTA: %s pasó de cerrada → %s", codigo, estado.lower())
             else:
                 nueva = LicitacionCache(
                     codigo=codigo,

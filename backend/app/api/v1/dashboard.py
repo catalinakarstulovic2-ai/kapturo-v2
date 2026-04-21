@@ -17,6 +17,20 @@ from app.models.licitacion_cache import LicitacionCache
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+@router.post("/alertas-licitacion/{codigo}/leer")
+def marcar_alerta_leida(
+    codigo: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Marca una alerta de cambio de estado como leída."""
+    row = db.query(LicitacionCache).filter_by(codigo=codigo).first()
+    if row:
+        row.alerta_leida = True
+        db.commit()
+    return {"ok": True}
+
+
 @router.get("/stats")
 def obtener_stats(
     current_user: User = Depends(get_current_user),
@@ -216,6 +230,29 @@ def obtener_stats(
         .count()
     )
 
+    # ── Alertas de cambio de estado en licitaciones ─────────────────────────
+    alertas_rows = (
+        db.query(LicitacionCache)
+        .filter(
+            LicitacionCache.alerta_nueva == True,
+            LicitacionCache.alerta_leida == False,
+        )
+        .order_by(LicitacionCache.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+    alertas_licitacion = [
+        {
+            "codigo":           r.codigo,
+            "nombre":           r.nombre,
+            "organismo":        r.organismo,
+            "estado_anterior":  r.estado_anterior,
+            "estado":           r.estado,
+            "updated_at":       r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in alertas_rows
+    ]
+
     # ── Licitaciones próximas a cerrar (caché global, sin filtro tenant) ──────
     hoy_str       = date.today().isoformat()
     en_7_dias_str = (date.today() + timedelta(days=7)).strftime("%Y-%m-%dT23:59:59")
@@ -261,4 +298,6 @@ def obtener_stats(
         "prospectos_sin_contactar":   prospectos_sin_contactar,
         # Licitaciones próximas
         "licitaciones_proximas":      licitaciones_proximas,
+        # Alertas de cambio de estado
+        "alertas_licitacion":         alertas_licitacion,
     }

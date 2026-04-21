@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, TrendingUp, Bell, Star, ArrowRight,
@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
   Building2, CreditCard, ShieldAlert,
   DollarSign, Clock, MessageCircle, UserX, Calendar, ExternalLink,
-  FileText, Settings,
+  FileText, Settings, X,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -162,6 +162,56 @@ function SuperAdminDashboard({
   )
 }
 
+function AlertasLicitacion({ alertas }: { alertas: any[] }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const marcarLeida = useMutation({
+    mutationFn: (codigo: string) => api.post(`/dashboard/alertas-licitacion/${codigo}/leer`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-stats'] }),
+  })
+  if (!alertas.length) return null
+  const estadoLabel: Record<string, string> = {
+    adjudicada: '🏆 Adjudicada',
+    desierta:   '⚠️ Desierta',
+    revocada:   '❌ Revocada',
+  }
+  const estadoColor: Record<string, string> = {
+    adjudicada: 'bg-emerald-50 border-emerald-200',
+    desierta:   'bg-amber-50 border-amber-200',
+    revocada:   'bg-red-50 border-red-200',
+  }
+  return (
+    <div className="space-y-2">
+      {alertas.map((a: any) => (
+        <div key={a.codigo} className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${estadoColor[a.estado] ?? 'bg-violet-50 border-violet-200'}`}>
+          <Bell size={15} className="text-violet-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">
+              {estadoLabel[a.estado] ?? a.estado} — <span className="line-clamp-1">{a.nombre}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">{a.organismo} · {a.codigo}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => navigate('/adjudicadas')}
+              className="text-xs font-semibold text-brand-600 hover:underline"
+            >
+              Ver
+            </button>
+            <button
+              onClick={() => marcarLeida.mutate(a.codigo)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Marcar como leída"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -242,6 +292,9 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
+
+      {/* ── Alertas de cambio de estado en licitaciones ─────────────────── */}
+      <AlertasLicitacion alertas={stats?.alertas_licitacion ?? []} />
 
       {/* Stat cards — fila 1: conteos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

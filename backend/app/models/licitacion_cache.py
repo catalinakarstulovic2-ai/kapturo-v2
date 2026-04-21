@@ -57,6 +57,11 @@ class LicitacionCache(Base):
     # ── Datos crudos ─────────────────────────────────────────────────────────
     raw_data: Mapped[str] = mapped_column(Text, nullable=True)  # JSON completo de la API
 
+    # ── Alertas de cambio de estado ──────────────────────────────────────────
+    estado_anterior: Mapped[str] = mapped_column(String(50), nullable=True)
+    alerta_nueva: Mapped[bool] = mapped_column(default=False, nullable=True)
+    alerta_leida: Mapped[bool] = mapped_column(default=False, nullable=True)
+
     # ── Control ──────────────────────────────────────────────────────────────
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
