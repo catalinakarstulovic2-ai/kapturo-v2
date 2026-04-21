@@ -1458,7 +1458,10 @@ export default function AdjudicadasPage() {
                                       </span>
                                     </div>
                                     {item.ofertantes.length === 0 ? (
-                                      <p className="text-xs text-gray-400 italic">Sin oferentes registrados aún</p>
+                                      <div className="flex flex-col gap-1.5 bg-amber-50 border border-amber-100 rounded-xl px-3.5 py-3">
+                                        <p className="text-xs font-semibold text-amber-700">🔒 En evaluación</p>
+                                        <p className="text-[11px] text-amber-600 leading-snug">El organismo aún no ha abierto el cuadro de ofertas. Los datos estarán disponibles una vez que se adjudique o declare desierta.</p>
+                                      </div>
                                     ) : (
                                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                         {item.ofertantes.map((of, i) => (
