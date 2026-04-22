@@ -29,7 +29,10 @@ export default function BugReportsTab() {
 
   useEffect(() => {
     api.get('/admin/bug-reports')
-      .then(r => setReports(Array.isArray(r.data) ? r.data : []))
+      .then(r => {
+        const data = r.data
+        setReports(Array.isArray(data) ? data : (data?.reports ?? []))
+      })
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
   }, [])
