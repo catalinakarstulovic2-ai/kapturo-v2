@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAuthStore } from '../../store/authStore'
 import FloatingNotes from '../ui/FloatingNotes'
+import BugReportButton from '../ui/BugReportButton'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)

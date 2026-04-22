@@ -1,6 +1,9 @@
 import { useAuthStore } from '../../store/authStore'
 import { useNotesStore } from '../../store/notesStore'
-import { LogOut, User, Menu, StickyNote } from 'lucide-react'
+import { LogOut, User, Menu, StickyNote, MessageSquareWarning } from 'lucide-react'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import BugReportButton from '../ui/BugReportButton'
 
 interface TopbarProps {
   onMenuClick: () => void
@@ -9,6 +12,9 @@ interface TopbarProps {
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout }     = useAuthStore()
   const { open, setOpen, tasks } = useNotesStore()
+  const [bugOpen, setBugOpen] = useState(false)
+  const location = useLocation()
+  const isMercadoPublico = location.pathname.startsWith('/adjudicadas')
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 md:px-6 gap-3">
@@ -21,6 +27,17 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </button>
 
       <div className="flex-1" />
+
+      {/* Botón Reportar problema — oculto en Mercado Público */}
+      {!isMercadoPublico && (
+        <button
+          onClick={() => setBugOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-red-100 hover:text-red-700 text-gray-600 transition-all"
+        >
+          <MessageSquareWarning size={15} />
+          <span className="hidden sm:inline">Reportar problema</span>
+        </button>
+      )}
 
       {/* Botón Notas — siempre visible */}
       <button
@@ -51,6 +68,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         <LogOut size={16} />
         <span className="hidden sm:inline">Salir</span>
       </button>
+      <BugReportButton externalOpen={bugOpen} onClose={() => setBugOpen(false)} />
     </header>
   )
 }

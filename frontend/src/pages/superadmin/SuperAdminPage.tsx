@@ -7,9 +7,12 @@ import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
   Eye, EyeOff, Loader2, DollarSign, SlidersHorizontal, RotateCcw, ChevronDown, Search,
+  Activity, Bug,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
+import ActivityTab from './ActivityTab'
+import BugReportsTab from './BugReportsTab'
 
 const MODULES = ['adjudicadas', 'licitaciones', 'prospector', 'inmobiliaria'] as const
 
@@ -34,7 +37,7 @@ const MODULE_LABELS: Record<string, string> = {
 }
 const ROLES   = ['admin', 'member'] as const
 
-type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats'
+type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats' | 'actividad' | 'reportes'
 
 function Badge({ active }: { active: boolean }) {
   return (
@@ -1775,10 +1778,12 @@ function PlanesTab() {
 
 type TabDef = { id: Tab; label: string; icon: any }
 const tabs: TabDef[] = [
-  { id: 'stats',    label: 'Resumen',  icon: BarChart2  },
-  { id: 'tenants',  label: 'Tenants',  icon: Building2  },
-  { id: 'usuarios', label: 'Usuarios', icon: Users      },
-  { id: 'planes',   label: 'Planes',   icon: CreditCard },
+  { id: 'stats',     label: 'Resumen',   icon: BarChart2  },
+  { id: 'tenants',   label: 'Tenants',   icon: Building2  },
+  { id: 'usuarios',  label: 'Usuarios',  icon: Users      },
+  { id: 'planes',    label: 'Planes',    icon: CreditCard },
+  { id: 'actividad', label: 'Actividad', icon: Activity   },
+  { id: 'reportes',  label: 'Reportes',  icon: Bug        },
 ]
 
 export default function SuperAdminPage() {
@@ -1811,10 +1816,12 @@ export default function SuperAdminPage() {
         ))}
       </div>
       <div>
-        {activeTab === 'stats'    && <StatsTab />}
-        {activeTab === 'tenants'  && <TenantsTab />}
-        {activeTab === 'usuarios' && <UsuariosTab />}
-        {activeTab === 'planes'   && <PlanesTab />}
+        {activeTab === 'stats'     && <StatsTab />}
+        {activeTab === 'tenants'   && <TenantsTab />}
+        {activeTab === 'usuarios'  && <UsuariosTab />}
+        {activeTab === 'planes'    && <PlanesTab />}
+        {activeTab === 'actividad' && <ActivityTab />}
+        {activeTab === 'reportes'  && <BugReportsTab />}
       </div>
     </div>
   )

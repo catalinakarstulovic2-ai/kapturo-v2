@@ -293,6 +293,40 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ── Guía rápida Licitaciones ─────────────────────────────────────── */}
+      {tieneLicitador && (
+        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-violet-900 flex items-center gap-2">
+              <Rocket size={15} className="text-violet-600" /> ¿Cómo usar Licitaciones?
+            </p>
+            <button onClick={() => navigate('/licitaciones')} className="text-xs text-violet-600 font-medium hover:underline flex items-center gap-1">
+              Ir a Licitaciones <ArrowRight size={11} />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { icon: Search,     title: 'Busca licitaciones',        desc: 'Filtra por rubro, región, monto o estado.' },
+              { icon: FileSearch, title: 'Guarda las que te interesan', desc: 'Quedan en "Mis Postulaciones" para seguirlas.' },
+              { icon: Bot,        title: 'Analiza con IA',            desc: 'La IA descarga las bases y evalúa si calificas.' },
+              { icon: FileText,   title: 'Genera documentos',         desc: 'Propuesta técnica, oferta económica o carta.' },
+              { icon: TrendingUp, title: 'Haz seguimiento',           desc: 'Cambia el estado: En preparación → Ganada.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white rounded-xl p-3 flex flex-col items-center text-center gap-1.5 border border-violet-100">
+                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                  <Icon size={15} className="text-violet-600" />
+                </div>
+                <p className="text-xs font-semibold text-gray-800 leading-tight">{title}</p>
+                <p className="text-[11px] text-gray-500 leading-snug">{desc}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-violet-500 mt-3 text-center">
+            💡 La IA tarda ~30 seg en analizar las bases. Puedes seguir navegando mientras trabaja.
+          </p>
+        </div>
+      )}
+
       {/* ── Alertas de cambio de estado en licitaciones ─────────────────── */}
       <AlertasLicitacion alertas={stats?.alertas_licitacion ?? []} />
 

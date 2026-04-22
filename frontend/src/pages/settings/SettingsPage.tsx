@@ -109,7 +109,10 @@ function RubroCategoria({ cat, seleccionados, onToggle }: {
   onToggle: (r: string) => void
 }) {
   const activosEnCat = cat.rubros.filter(r => seleccionados.includes(r))
+  const disponibles = cat.rubros.filter(r => !seleccionados.includes(r))
   const [open, setOpen] = useState(true)
+  // Si todos los rubros de la categoría están seleccionados, no mostrar
+  if (disponibles.length === 0 && activosEnCat.length === 0) return null
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
       <button onClick={() => setOpen(o => !o)}
@@ -117,21 +120,20 @@ function RubroCategoria({ cat, seleccionados, onToggle }: {
         <span className="text-sm leading-none">{cat.emoji}</span>
         <span className="flex-1 text-xs font-semibold text-gray-700 uppercase tracking-wide">{cat.label}</span>
         {activosEnCat.length > 0 && (
-          <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-full">{activosEnCat.length}</span>
+          <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-full">{activosEnCat.length} ✓</span>
         )}
-        <ChevronRight size={12} className={`text-gray-300 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+        {disponibles.length > 0 && (
+          <ChevronRight size={12} className={`text-gray-300 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+        )}
       </button>
-      {open && (
+      {open && disponibles.length > 0 && (
         <div className="grid grid-cols-3 gap-1 px-3 pb-3 pt-1 bg-gray-50/50">
-          {cat.rubros.map(r => {
-            const activo = seleccionados.includes(r)
-            return (
-              <button key={r} onClick={() => onToggle(r)}
-                className={`py-2 rounded-lg text-[11px] font-medium border capitalize transition-colors text-center leading-tight ${
-                  activo ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
-                }`}>{r}</button>
-            )
-          })}
+          {disponibles.map(r => (
+            <button key={r} onClick={() => onToggle(r)}
+              className="py-2 rounded-lg text-[11px] font-medium border capitalize transition-colors text-center leading-tight bg-white text-gray-600 border-gray-200 active:bg-gray-50">
+              {r}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -298,8 +300,63 @@ export default function SettingsPage() {
   const [newDoc, setNewDoc] = useState({ nombre: '', tipo: 'presentacion', url: '' })
   const [buscarRubro, setBuscarRubro] = useState('')
   const [activeSheet, setActiveSheet] = useState<string | null>(null)
+  const [rubrosDetectados, setRubrosDetectados] = useState<string[]>([])
   const openSheet = (k: string) => setActiveSheet(k)
   const closeSheet = () => setActiveSheet(null)
+
+  // Detecta rubros automáticamente del texto de descripción
+  const detectarRubrosDeTexto = (texto: string): string[] => {
+    const t = texto.toLowerCase()
+    const MAPA: Record<string, string[]> = {
+      'aseo':               ['aseo','limpieza','cleaning','sanitiz'],
+      'limpieza':           ['limpieza','limpiar','aseo'],
+      'mantención':         ['mantención','mantenimiento','mantener'],
+      'seguridad':          ['seguridad','guardia','vigilancia'],
+      'residuos':           ['residuo','basura','reciclaje','desecho'],
+      'construcción':       ['construc','edifici','obra','hormigón','paviment'],
+      'infraestructura':    ['infraestructura','vialidad','puente','camino'],
+      'obras civiles':      ['obra civil','ingeniería civil'],
+      'arquitectura':       ['arquitectura','diseño de espacios'],
+      'forestal':           ['forestal','madera','silvicultura','árbol'],
+      'tecnología':         ['tecnolog','digital','it ','sistemas','automatización'],
+      'informática':        ['informática','computación','software','hardware'],
+      'software':           ['software','aplicación','app','plataforma','sistema informático'],
+      'telecomunicaciones': ['telecom','telecomunicaciones','fibra','red','internet'],
+      'salud':              ['salud','clínica','hospital','médic','sanitario'],
+      'farmacéutico':       ['farmacéutico','farmacia','medicamento','fármaco'],
+      'médico':             ['médico','medicina','doctor'],
+      'hospitalario':       ['hospital','hospitalario','sanitario'],
+      'laboratorio':        ['laboratorio','análisis','examen','muestra'],
+      'veterinario':        ['veterinario','animal','mascotas'],
+      'transporte':         ['transporte','traslado','flota','camión','vehículo'],
+      'logística':          ['logística','distribución','almacén','bodega','cadena de suministro'],
+      'vehículos':          ['vehículo','automóvil','maquinaria pesada'],
+      'combustible':        ['combustible','petróleo','bencina','gas'],
+      'consultoría':        ['consultoría','asesoría','consultor','asesor'],
+      'jurídico':           ['jurídico','legal','abogado','derecho'],
+      'marketing':          ['marketing','publicidad','comunicación','marca'],
+      'recursos humanos':   ['recursos humanos','reclutamiento','selección de personal','rrhh'],
+      'seguros':            ['seguro','póliza','riesgo'],
+      'educación':          ['educación','colegio','escuela','enseñanza','pedagog'],
+      'capacitación':       ['capacitación','entrenamiento','formación','curso'],
+      'deportes':           ['deporte','actividad física','recreación'],
+      'alimentos':          ['alimento','comida','alimentación','catering','gastronom'],
+      'agrícola':           ['agrícola','agricultura','campo','cultivo','cosecha'],
+      'minería':            ['miner','extracción','yacimiento'],
+      'energía':            ['energía','solar','eléctric','fotovoltaico','renovable'],
+      'maquinaria':         ['maquinaria','equipo','herramienta','torno'],
+      'mobiliario':         ['mobiliario','mueble','silla','escritorio'],
+      'vestuario':          ['vestuario','ropa','indumentaria'],
+      'uniformes':          ['uniforme','ropa de trabajo'],
+      'imprenta':           ['imprenta','impresión','señalética','gráfica'],
+      'hotelería':          ['hotel','hospedaje','turismo','alojamiento'],
+    }
+    const encontrados: string[] = []
+    for (const [rubro, palabras] of Object.entries(MAPA)) {
+      if (palabras.some(p => t.includes(p))) encontrados.push(rubro)
+    }
+    return encontrados
+  }
 
   const { data: licitProfile, isLoading: licitLoading } = useQuery({
     queryKey: ['licitaciones-profile'],
@@ -774,17 +831,17 @@ export default function SettingsPage() {
                 </button>
 
                 {/* Alertas */}
-                <button onClick={() => openSheet('alertas')} className="w-full flex items-center gap-3 px-4 py-4 text-left active:bg-gray-50">
+                <button onClick={() => openSheet('alertas')} className="w-full flex items-center gap-3 px-4 py-4 text-left active:bg-gray-50 opacity-70">
                   <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                     <Mail size={16} className="text-amber-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">Alertas por email</p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">
-                      {licitForm.email_alertas ? `${licitForm.email_alertas} · ${licitForm.frecuencia_alertas}` : 'Recibe avisos de nuevas licitaciones'}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">Alertas por email</p>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">Próximamente</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">Recibe avisos de nuevas licitaciones</p>
                   </div>
-                  {licitForm.email_alertas && <CheckCircle size={15} className="text-emerald-500 shrink-0" />}
                   <ChevronRight size={16} className="text-gray-300 shrink-0" />
                 </button>
               </div>
@@ -808,9 +865,10 @@ export default function SettingsPage() {
               <BottomSheet open={activeSheet === 'datos'} onClose={closeSheet} title="Datos de la empresa">
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">RUT empresa</label>
-                    <input className="input text-sm w-full" placeholder="76.123.456-7" value={licitForm.rut_empresa}
+                    <label className="block text-xs font-medium text-gray-500 mb-1">RUT empresa <span className="text-red-500">*</span></label>
+                    <input className="input text-sm w-full" placeholder="76.123.456-7" required value={licitForm.rut_empresa}
                       onChange={e => setLicitForm(f => ({ ...f, rut_empresa: e.target.value }))} />
+                    {!licitForm.rut_empresa && <p className="text-[11px] text-red-400 mt-1">Requerido para postular licitaciones</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Razón social</label>
@@ -901,7 +959,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-1.5">
                     {[...(licitCatalogos?.regiones ?? [])]
-                      .sort((a: any, b: any) => REGION_ORDER.indexOf(a.codigo) - REGION_ORDER.indexOf(b.codigo))
+                      .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre, 'es'))
                       .map((r: { codigo: string; nombre: string }) => {
                         const activo = licitForm.regiones.includes(r.codigo)
                         return (
@@ -929,8 +987,39 @@ export default function SettingsPage() {
                     <label className="block text-xs font-medium text-gray-500 mb-1">¿Qué hace tu empresa?</label>
                     <textarea className="input text-sm resize-none w-full" rows={3}
                       placeholder="Ej: Empresa de aseo con 35 colaboradores, trabajamos con edificios y clínicas en Santiago."
-                      value={licitForm.descripcion} onChange={e => setLicitForm(f => ({ ...f, descripcion: e.target.value }))} />
+                      value={licitForm.descripcion}
+                      onChange={e => {
+                        const val = e.target.value
+                        setLicitForm(f => ({ ...f, descripcion: val }))
+                        const detectados = detectarRubrosDeTexto(val)
+                        setRubrosDetectados(detectados)
+                      }}
+                    />
                   </div>
+                  {/* Sugerencias de rubros detectados */}
+                  {rubrosDetectados.length > 0 && (() => {
+                    const nuevos = rubrosDetectados.filter(r => !licitForm.rubros.includes(r))
+                    if (nuevos.length === 0) return null
+                    return (
+                      <div className="bg-violet-50 border border-violet-200 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-violet-800 mb-2">✨ Rubros detectados — ¿los agregamos?</p>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {nuevos.map(r => (
+                            <span key={r} className="text-xs px-2 py-1 bg-white border border-violet-300 text-violet-700 rounded-full capitalize">{r}</span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setLicitForm(f => ({ ...f, rubros: [...new Set([...f.rubros, ...nuevos])] }))
+                            setRubrosDetectados([])
+                          }}
+                          className="text-xs font-semibold bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors"
+                        >
+                          Agregar {nuevos.length} rubro{nuevos.length > 1 ? 's' : ''}
+                        </button>
+                      </div>
+                    )
+                  })()}
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Años en el rubro</label>
                     <input className="input text-sm w-full" type="number" min="0" placeholder="Ej: 8"
@@ -995,27 +1084,32 @@ export default function SettingsPage() {
               </BottomSheet>
 
               <BottomSheet open={activeSheet === 'alertas'} onClose={closeSheet} title="Alertas por email">
-                <div className="space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl mb-2">📬</p>
+                  <p className="text-sm font-semibold text-amber-800 mb-1">Próximamente</p>
+                  <p className="text-xs text-amber-600">Pronto podrás recibir alertas automáticas por email cada vez que aparezca una licitación que calce con tu perfil.</p>
+                </div>
+                <div className="space-y-3 opacity-40 pointer-events-none">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1.5">Email para alertas</label>
                     <input className="input text-sm w-full" type="email" placeholder="tu@empresa.cl"
-                      value={licitForm.email_alertas} onChange={e => setLicitForm(f => ({ ...f, email_alertas: e.target.value }))} />
+                      value={licitForm.email_alertas} readOnly />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1.5">Frecuencia</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[{ v: 'diaria', l: 'Diaria' }, { v: 'semanal', l: 'Semanal' }, { v: 'nunca', l: 'Apagadas' }].map(opt => (
-                        <button key={opt.v} onClick={() => setLicitForm(f => ({ ...f, frecuencia_alertas: opt.v }))}
-                          className={`py-3 text-sm font-medium rounded-xl border transition-colors ${
+                        <button key={opt.v}
+                          className={`py-3 text-sm font-medium rounded-xl border ${
                             licitForm.frecuencia_alertas === opt.v
                               ? 'bg-gray-900 text-white border-gray-900'
-                              : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
+                              : 'bg-white text-gray-600 border-gray-200'
                           }`}>{opt.l}</button>
                       ))}
                     </div>
                   </div>
                 </div>
-                <button onClick={closeSheet} className="btn-primary w-full py-3 text-sm font-semibold">Listo</button>
+                <button onClick={closeSheet} className="btn-primary w-full py-3 text-sm font-semibold">Entendido</button>
               </BottomSheet>
             </>
           )}
