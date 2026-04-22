@@ -7,6 +7,7 @@ from app.api.v1.modules import prospector
 from app.api.v1.modules import inmobiliaria
 from app.api.v1.modules import adjudicadas
 from app.api.v1 import pipeline, agents, messages, cron
+from app.api.v1 import bug_reports
 
 app = FastAPI(
     title="Kapturo API",
@@ -55,6 +56,7 @@ app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
 app.include_router(cron.router, prefix="/api/v1")
+app.include_router(bug_reports.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -108,6 +110,42 @@ def _do_migrations():
         # Columnas nuevas
         "ALTER TABLE pipeline_stages ADD COLUMN IF NOT EXISTS pipeline_type VARCHAR(50) NOT NULL DEFAULT 'general'",
         "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS postulacion_estado VARCHAR(50)",
+        # Alertas de cambio de estado en licitaciones
+        "ALTER TABLE licitaciones_cache ADD COLUMN IF NOT EXISTS estado_anterior VARCHAR(50)",
+        "ALTER TABLE licitaciones_cache ADD COLUMN IF NOT EXISTS alerta_nueva BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE licitaciones_cache ADD COLUMN IF NOT EXISTS alerta_leida BOOLEAN DEFAULT FALSE",
+        # Registro de actividad de usuarios
+        """
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id VARCHAR PRIMARY KEY,
+            user_id VARCHAR NOT NULL,
+            tenant_id VARCHAR,
+            action VARCHAR(100) NOT NULL,
+            resource_id VARCHAR(200),
+            resource_name TEXT,
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_activity_logs_user_id ON activity_logs (user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_activity_logs_tenant_id ON activity_logs (tenant_id)",
+        "CREATE INDEX IF NOT EXISTS ix_activity_logs_timestamp ON activity_logs (timestamp)",
+        # Reportes de problemas
+        """
+        CREATE TABLE IF NOT EXISTS bug_reports (
+            id VARCHAR PRIMARY KEY,
+            user_id VARCHAR NOT NULL,
+            user_email VARCHAR(255),
+            user_name VARCHAR(200),
+            tenant_id VARCHAR,
+            descripcion TEXT NOT NULL,
+            screenshot_base64 TEXT,
+            screenshot_mime VARCHAR(50),
+            pagina VARCHAR(300),
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_bug_reports_user_id ON bug_reports (user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_bug_reports_timestamp ON bug_reports (timestamp)",
         # Convertir config de String a JSONB si aún es texto (limpia datos inválidos primero)
         """
         DO $$

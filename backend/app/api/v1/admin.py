@@ -728,3 +728,118 @@ def stats_globales(
             {"tenant": row[0], "prospectos": row[1]} for row in prospectos_por_tenant
         ],
     }
+
+
+# ── Actividad de usuarios ─────────────────────────────────────────────────────
+
+@router.get("/activity")
+def get_activity(
+    tenant_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    limit: int = 200,
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Devuelve el registro de actividad de todos los usuarios.
+    Opcionalmente filtra por tenant o usuario.
+    """
+    from app.models.activity_log import ActivityLog
+
+    q = db.query(ActivityLog, User).join(User, ActivityLog.user_id == User.id, isouter=True)
+    if tenant_id:
+        q = q.filter(ActivityLog.tenant_id == tenant_id)
+    if user_id:
+        q = q.filter(ActivityLog.user_id == user_id)
+
+    rows = q.order_by(ActivityLog.timestamp.desc()).limit(limit).all()
+
+    resultado = []
+    for log, user in rows:
+        resultado.append({
+            "id":            log.id,
+            "user_id":       log.user_id,
+            "user_email":    user.email if user else None,
+            "user_name":     user.full_name if user else None,
+            "tenant_id":     log.tenant_id,
+            "action":        log.action,
+            "resource_id":   log.resource_id,
+            "resource_name": log.resource_name,
+            "timestamp":     log.timestamp.isoformat() if log.timestamp else None,
+        })
+
+    return {"total": len(resultado), "logs": resultado}
+
+
+@router.get("/activity/users-summary")
+def get_activity_users_summary(
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Resumen por usuario: nombre, email, último acceso, conteo de acciones.
+    """
+    from app.models.activity_log import ActivityLog
+    from sqlalchemy import func
+
+    rows = (
+        db.query(
+            ActivityLog.user_id,
+            func.count(ActivityLog.id).label("total_acciones"),
+            func.max(ActivityLog.timestamp).label("ultimo_acceso"),
+        )
+        .group_by(ActivityLog.user_id)
+        .all()
+    )
+
+    resultado = []
+    for user_id, total, ultimo in rows:
+        user = db.query(User).filter(User.id == user_id).first()
+        resultado.append({
+            "user_id":        user_id,
+            "user_email":     user.email if user else None,
+            "user_name":      user.full_name if user else None,
+            "total_acciones": total,
+            "ultimo_acceso":  ultimo.isoformat() if ultimo else None,
+        })
+
+    return sorted(resultado, key=lambda x: x["ultimo_acceso"] or "", reverse=True)
+
+
+# ── Bug reports ───────────────────────────────────────────────────────────────
+
+@router.get("/bug-reports")
+def get_bug_reports(
+    limit: int = 100,
+    _: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Lista todos los reportes de problemas enviados por usuarios."""
+    from app.models.bug_report import BugReport
+
+    reports = (
+        db.query(BugReport)
+        .order_by(BugReport.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "total": len(reports),
+        "reports": [
+            {
+                "id":                r.id,
+                "user_id":           r.user_id,
+                "user_email":        r.user_email,
+                "user_name":         r.user_name,
+                "tenant_id":         r.tenant_id,
+                "descripcion":       r.descripcion,
+                "screenshot_base64": r.screenshot_base64,
+                "screenshot_mime":   r.screenshot_mime,
+                "pagina":            r.pagina,
+                "timestamp":         r.timestamp.isoformat() if r.timestamp else None,
+            }
+            for r in reports
+        ],
+    }
+

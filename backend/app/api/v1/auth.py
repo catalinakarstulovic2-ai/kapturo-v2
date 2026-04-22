@@ -85,6 +85,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     user.last_login = datetime.now(timezone.utc)
     db.commit()
 
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, user, "login")
+    except Exception:
+        pass
+
     token = create_access_token({"sub": user.id, "tenant_id": user.tenant_id, "role": user.role})
     return TokenResponse(access_token=token, user_id=user.id, tenant_id=user.tenant_id, role=user.role)
 

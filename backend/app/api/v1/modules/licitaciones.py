@@ -95,6 +95,12 @@ async def preview_licitaciones(
         filtros["proveedor"] = proveedor
 
     try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "busqueda_normal", resource_name=keyword or tipo)
+    except Exception:
+        pass
+
+    try:
         servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
         return await servicio.buscar_preview(tipo=tipo, filtros=filtros, pagina=pagina)
     except ValueError as e:
@@ -125,6 +131,12 @@ async def guardar_licitacion(
         "experiencia": data.experiencia or "",
         "region": data.region_cliente or "",
     }
+
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "guardar_licitacion", resource_id=data.codigo)
+    except Exception:
+        pass
 
     servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
     return await servicio.guardar_licitacion(
@@ -377,6 +389,13 @@ async def actualizar_estado_postulacion(
 
     prospect.postulacion_estado = data.estado or None
     db.commit()
+
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "cambiar_estado", resource_id=prospect_id, resource_name=data.estado)
+    except Exception:
+        pass
+
     return {"prospect_id": prospect_id, "postulacion_estado": prospect.postulacion_estado}
 
 
@@ -401,6 +420,13 @@ async def actualizar_notas(
 
     prospect.notes = data.notes
     db.commit()
+
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "agregar_nota", resource_id=prospect_id)
+    except Exception:
+        pass
+
     return {"prospect_id": prospect_id, "notes": prospect.notes}
 
 
@@ -485,6 +511,12 @@ async def busqueda_ia(
     if not current_user.tenant_id:
         raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
 
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "busqueda_ia", resource_name=data.consulta[:100] if data.consulta else None)
+    except Exception:
+        pass
+
     catalogo = MercadoPublicoClient().obtener_catalogo()
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id)
 
@@ -538,6 +570,12 @@ async def analizar_bases(
     if not current_user.tenant_id:
         raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
 
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "analizar_bases", resource_id=prospect_id)
+    except Exception:
+        pass
+
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id)
     try:
         return await asyncio.wait_for(agent.analizar_bases(prospect_id), timeout=90.0)
@@ -561,6 +599,12 @@ async def generar_propuesta(    prospect_id: str,
     """
     if not current_user.tenant_id:
         raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    try:
+        from app.services.activity_service import log_activity
+        log_activity(db, current_user, "generar_propuesta_tecnica", resource_id=prospect_id)
+    except Exception:
+        pass
 
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id)
     try:
