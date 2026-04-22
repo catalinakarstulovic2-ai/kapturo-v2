@@ -795,12 +795,24 @@ def get_activity_users_summary(
     resultado = []
     for user_id, total, ultimo in rows:
         user = db.query(User).filter(User.id == user_id).first()
+        # Módulos activos del tenant del usuario
+        modulos: list[str] = []
+        if user and user.tenant_id:
+            from app.models.tenant import TenantModule
+            mods = db.query(TenantModule).filter(
+                TenantModule.tenant_id == user.tenant_id,
+                TenantModule.is_active == True,
+            ).all()
+            modulos = [m.module.value for m in mods]
         resultado.append({
             "user_id":        user_id,
             "user_email":     user.email if user else None,
             "user_name":      user.full_name if user else None,
+            "tenant_name":    user.tenant.name if user and user.tenant else None,
+            "role":           user.role.value if user and user.role else None,
             "total_acciones": total,
             "ultimo_acceso":  ultimo.isoformat() if ultimo else None,
+            "modulos":        modulos,
         })
 
     return sorted(resultado, key=lambda x: x["ultimo_acceso"] or "", reverse=True)
