@@ -87,8 +87,6 @@ function actionIcon(action: string): string {
   }
   return icons[action] ?? '•'
 }
-  ultimo_acceso: string | null
-}
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return '—'
