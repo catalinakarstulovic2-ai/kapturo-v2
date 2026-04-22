@@ -15,7 +15,8 @@ interface BugReport {
   timestamp: string
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return '—'
   return new Date(iso).toLocaleString('es-CL', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
