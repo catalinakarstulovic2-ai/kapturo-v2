@@ -72,6 +72,9 @@ class LicitacionNormalizada:
             fechas.get("FechaEstimadaAdjudicacion") or licitacion.get("FechaEstimadaAdjudicacion", "")
         )
 
+        # ── Moneda ────────────────────────────────────────────────────────
+        self.moneda = licitacion.get("Moneda", "") or "CLP"
+
         # ── Comprador / Organismo ──────────────────────────────────────────
         # En el detalle: licitacion["Comprador"] dict
         # En la lista: no existe (queda vacío)
@@ -81,6 +84,24 @@ class LicitacionNormalizada:
         self.region = comprador.get("RegionUnidad", "")
         self.categoria = ""  # se llena desde Items si hay
 
+        # ── Contacto organismo ────────────────────────────────────────────
+        # MP puede usar NombreContacto o NombreResponsableContrato según endpoint
+        self.contacto_nombre = (
+            comprador.get("NombreContacto")
+            or comprador.get("NombreResponsableContrato")
+            or licitacion.get("NombreResponsableContrato", "")
+        )
+        self.contacto_email = (
+            comprador.get("EmailContacto")
+            or comprador.get("EmailResponsableContrato")
+            or licitacion.get("EmailResponsableContrato", "")
+        )
+        self.contacto_fono = (
+            comprador.get("FonoContacto")
+            or comprador.get("FonoResponsableContrato")
+            or licitacion.get("FonoResponsableContrato", "")
+        )
+
         # ── Adjudicado (Módulo B) ──────────────────────────────────────────
         # El adjudicado está en Items.Listado[n].Adjudicacion
         # NO en el campo top-level "Adjudicacion" (ese solo tiene metadatos)
@@ -89,8 +110,47 @@ class LicitacionNormalizada:
         self.adjudicado_razon_social = ""
         self.monto_adjudicado        = 0.0
 
+        # ── Oferentes (Módulo cerrada / por_adjudicarse) ───────────────────
+        # La API devuelve los oferentes en Offers.Listado
+        self.ofertantes = []
+        offers_top = licitacion.get("Offers") or {}
+        lista_ofertas = offers_top.get("Listado", []) if isinstance(offers_top, dict) else []
+        for of in lista_ofertas:
+            self.ofertantes.append({
+                "rut":         of.get("RutProveedor", ""),
+                "nombre":      of.get("NombreProveedor", "") or of.get("RazonSocial", ""),
+                "monto_oferta": float(of.get("Total") or of.get("MontoTotal") or 0) or None,
+            })
+
         items_top = licitacion.get("Items") or {}
         lista_items = items_top.get("Listado", []) if isinstance(items_top, dict) else []
+
+        # ── Items (líneas de la licitación) ──────────────────────────────
+        self.items_lista = []
+        for it in lista_items:
+            nombre_item = it.get("NombreProducto") or it.get("Nombre") or ""
+            if nombre_item:
+                self.items_lista.append({
+                    "nombre": nombre_item,
+                    "cantidad": it.get("Cantidad"),
+                    "unidad": it.get("UnidadMedida") or it.get("Unidad") or "",
+                    "categoria": it.get("Categoria") or "",
+                })
+
+        # ── Garantías ─────────────────────────────────────────────────────
+        self.garantias_lista = []
+        garantias_top = licitacion.get("Garantias") or {}
+        lista_garantias = garantias_top.get("Listado", []) if isinstance(garantias_top, dict) else []
+        for g in lista_garantias:
+            tipo = g.get("Tipo") or g.get("NombreGarantia") or ""
+            monto = self._parse_monto(g.get("Monto") or g.get("MontoGarantia"))
+            if tipo or monto:
+                self.garantias_lista.append({
+                    "tipo": tipo,
+                    "monto": monto,
+                    "descripcion": g.get("Descripcion") or "",
+                    "fecha_vencimiento": self._fmt_fecha(g.get("FechaVencimiento") or ""),
+                })
 
         if lista_items:
             # Categoría: del primer ítem
@@ -197,6 +257,8 @@ class LicitacionNormalizada:
             "fecha_adjudicacion": self.fecha_adjudicacion,
             "fecha_estimada_adjudicacion": self.fecha_estimada_adjudicacion,
             "fecha_publicacion": self.fecha_publicacion,
+            "ofertantes": self.ofertantes,
+            "ofertantes_count": len(self.ofertantes),
             # Contacto vacío por defecto (se llena si ya fue guardado)
             "prospect_id": None,
             "email": None,
@@ -206,6 +268,13 @@ class LicitacionNormalizada:
             "enrichment_source": None,
             "score": None,
             "score_reason": None,
+            # Campos enriquecidos
+            "moneda": self.moneda,
+            "contacto_nombre": self.contacto_nombre or None,
+            "contacto_email": self.contacto_email or None,
+            "contacto_fono": self.contacto_fono or None,
+            "items_lista": self.items_lista[:10],  # máximo 10 para no saturar
+            "garantias_lista": self.garantias_lista,
         }
         if self.tipo_busqueda == "licitador_b":
             base["monto_adjudicado"] = self.monto_adjudicado or None

@@ -20,6 +20,7 @@ import InboxPage from './pages/conversations/InboxPage'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import LicitacionPropuestaPage from './pages/propuestas/LicitacionPropuestaPage'
+import PerfilIAPage from './pages/modules/PerfilIAPage'
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="prospectos" element={<ProspectsPage />} />
           <Route path="pipeline" element={<PipelinePage />} />
           <Route path="licitaciones" element={<LicitacionesPage />} />
+          <Route path="licitaciones/perfil" element={<PerfilIAPage />} />
           <Route path="adjudicadas" element={<AdjudicadasPage />} />
           <Route path="prospeccion" element={<ProspeccionPage />} />
           {/* Aliases para compatibilidad con links viejos */}

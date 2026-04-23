@@ -1,6 +1,7 @@
 """
 Endpoints del módulo Licitaciones.
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -13,10 +14,12 @@ import json
 from app.core.database import get_db, SessionLocal
 from app.core.middleware import get_current_user, require_admin
 from app.models.user import User
+from app.models.tenant import TenantModule
 from app.services.licitaciones_service import LicitacionesService
 from app.modules.licitaciones.client import MercadoPublicoClient
 from app.agents.licitaciones_agent import LicitacionesAgent
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/modules/licitaciones", tags=["licitaciones"])
 
 # ── Job store en memoria para análisis en background ─────────────────────────
@@ -40,6 +43,8 @@ class GuardarRequest(BaseModel):
 
 class NotasRequest(BaseModel):
     notes: Optional[str] = None
+    tipo_doc: Optional[str] = None   # ej: "propuesta_tecnica" — si se envía, guarda en historial de docs IA
+    label_doc: Optional[str] = None  # ej: "Propuesta Técnica Completa"
 
 
 # ── Catálogos ─────────────────────────────────────────────────────────────────
@@ -53,6 +58,63 @@ async def obtener_catalogos(current_user: User = Depends(get_current_user)):
     """
     client = MercadoPublicoClient()
     return client.obtener_catalogo()
+
+
+# ── Sugerir rubros desde descripción libre ────────────────────────────────────
+
+class SugerirRubrosRequest(BaseModel):
+    descripcion: str
+
+
+@router.post("/sugerir-rubros")
+async def sugerir_rubros(
+    data: SugerirRubrosRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recibe la descripción de la empresa en texto libre y devuelve los rubros
+    de Mercado Público que mejor corresponden, usando Claude Haiku.
+    """
+    catalogo = MercadoPublicoClient().obtener_catalogo()
+    rubros_disponibles = catalogo.get("rubros", [])
+    rubros_str = ", ".join(rubros_disponibles)
+
+    prompt = f"""Eres un experto en licitaciones públicas chilenas de Mercado Público.
+
+El usuario describió su empresa así: "{data.descripcion}"
+
+Lista de rubros disponibles en el sistema (usa EXACTAMENTE estos nombres, sin inventar nuevos):
+{rubros_str}
+
+Selecciona los 1 a 4 rubros que mejor correspondan al giro de esta empresa.
+Si la descripción menciona ciberseguridad, software, informática o tecnología → incluye "Tecnología" y/o "Informática" y/o "Software" según corresponda.
+Si no hay suficiente información, devuelve al menos 1 rubro probable.
+
+Responde SOLO con un JSON válido:
+{{"rubros": ["rubro1", "rubro2"]}}
+
+Solo el JSON, sin texto adicional."""
+
+    agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
+    try:
+        raw = await asyncio.to_thread(
+            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 200
+        )
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            parts = cleaned.split("```")
+            cleaned = parts[1][4:] if parts[1].startswith("json") else parts[1]
+        result = json.loads(cleaned.strip())
+        rubros_lower = {r.lower(): r for r in rubros_disponibles}
+        rubros_validos = [
+            rubros_lower[r.lower()]
+            for r in (result.get("rubros") or [])
+            if r.lower() in rubros_lower
+        ]
+        return {"rubros": rubros_validos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al sugerir rubros: {str(e)}")
 
 
 # ── Preview — buscar sin guardar ──────────────────────────────────────────────
@@ -139,12 +201,19 @@ async def guardar_licitacion(
         pass
 
     servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
-    return await servicio.guardar_licitacion(
-        tipo=data.tipo,
-        codigo=data.codigo,
-        contexto_cliente=contexto,
-        calificar=data.calificar,
-    )
+    try:
+        return await servicio.guardar_licitacion(
+            tipo=data.tipo,
+            codigo=data.codigo,
+            contexto_cliente=contexto,
+            calificar=data.calificar,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        import traceback
+        logger.error("Error al guardar licitación %s: %s\n%s", data.codigo, e, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al guardar: {str(e)}")
 
 # ── Contacto preview (sin guardar) ───────────────────────────────────────────
 
@@ -212,70 +281,12 @@ async def listar_prospectos(
     )
 
 
-
-
 class AsistentePerfilRequest(BaseModel):
     campo: str  # "descripcion" | "proyectos" | "diferenciadores"
     rubros: list[str] = []
     regiones: list[str] = []
     descripcion_actual: Optional[str] = None
     diferenciadores_actuales: Optional[str] = None
-
-
-class SugerirRubrosRequest(BaseModel):
-    descripcion: str
-
-
-@router.post("/sugerir-rubros")
-async def sugerir_rubros(
-    data: SugerirRubrosRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Recibe la descripción de la empresa en texto libre y devuelve los rubros
-    de Mercado Público que mejor corresponden, usando Claude Haiku.
-    """
-    catalogo = MercadoPublicoClient().obtener_catalogo()
-    rubros_disponibles = catalogo.get("rubros", [])
-    rubros_str = ", ".join(rubros_disponibles)
-
-    prompt = f"""Eres un experto en licitaciones públicas chilenas de Mercado Público.
-
-El usuario describió su empresa así: "{data.descripcion}"
-
-Lista de rubros disponibles en el sistema (usa EXACTAMENTE estos nombres, sin inventar nuevos):
-{rubros_str}
-
-Selecciona los 1 a 4 rubros que mejor correspondan al giro de esta empresa.
-Si la descripción menciona ciberseguridad, software, informática o tecnología → incluye "tecnología" y/o "informática" y/o "software" según corresponda.
-Si no hay suficiente información, devuelve al menos 1 rubro probable.
-
-Responde SOLO con un JSON válido:
-{{"rubros": ["rubro1", "rubro2"]}}
-
-Solo el JSON, sin texto adicional."""
-
-    agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
-    try:
-        raw = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 200
-        )
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            parts = cleaned.split("```")
-            cleaned = parts[1][4:] if parts[1].startswith("json") else parts[1]
-        result = json.loads(cleaned.strip())
-        # Validar que los rubros devueltos existen en el catálogo
-        rubros_lower = {r.lower(): r for r in rubros_disponibles}
-        rubros_validos = [
-            rubros_lower[r.lower()]
-            for r in (result.get("rubros") or [])
-            if r.lower() in rubros_lower
-        ]
-        return {"rubros": rubros_validos}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al sugerir rubros: {str(e)}")
 
 
 @router.post("/asistente-perfil")
@@ -355,6 +366,7 @@ class BusquedaIARequest(BaseModel):
 
 
 class PropuestaRequest(BaseModel):
+    tipo_documento: Optional[str] = None       # propuesta_tecnica | oferta_economica | carta_organismo | carta_seguimiento
     instrucciones_extra: Optional[str] = None  # instrucciones adicionales del usuario
 
 
@@ -418,7 +430,32 @@ async def actualizar_notas(
     if not prospect:
         raise HTTPException(status_code=404, detail="Prospecto no encontrado")
 
-    prospect.notes = data.notes
+    import json as _json
+    from datetime import datetime as _dt
+
+    # Si viene con metadatos de documento IA, append a notes_history
+    tipo_doc = getattr(data, 'tipo_doc', None)
+    label_doc = getattr(data, 'label_doc', None)
+    if tipo_doc:
+        # Cargar historial actual
+        try:
+            historial = _json.loads(prospect.notes_history or '[]')
+        except Exception:
+            historial = []
+        # Agregar nuevo doc (reemplaza si ya existe el mismo tipo)
+        historial = [h for h in historial if not (isinstance(h, dict) and h.get('tipo') == tipo_doc)]
+        historial.append({
+            'source': 'ia',
+            'tipo': tipo_doc,
+            'label': label_doc or tipo_doc,
+            'texto': data.notes,
+            'created_at': _dt.utcnow().isoformat(),
+        })
+        prospect.notes_history = _json.dumps(historial, ensure_ascii=False)
+    else:
+        # notas manuales — comportamiento original
+        prospect.notes = data.notes
+
     db.commit()
 
     try:
@@ -606,9 +643,37 @@ async def generar_propuesta(    prospect_id: str,
     except Exception:
         pass
 
+    # Mapa de tipos del wizard → tipos del agente
+    TIPO_MAP = {
+        # Sobre 2 – Técnico
+        "propuesta_tecnica":  "propuesta_tecnica",   # análisis completo con bases reales
+        "metodologia":        "metodologia",
+        "cv_empresa":         "curriculum",
+        "cv_equipo":          "cv_equipo",
+        "carta_gantt":        "carta_gantt",
+        # Sobre 3 – Económico
+        "oferta_economica":   "detalle_costos",
+        # Comunicaciones
+        "carta_presentacion": "carta_presentacion",
+        "carta_seguimiento":  "carta_seguimiento",
+        # legado
+        "carta_organismo":    "carta_presentacion",
+    }
+
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id)
+    tipo_backend = TIPO_MAP.get(data.tipo_documento or "", "propuesta_tecnica")
     try:
-        propuesta_texto = await agent.generar_propuesta(prospect_id)
+        if tipo_backend == "propuesta_tecnica":
+            propuesta_texto = await agent.generar_propuesta(
+                prospect_id,
+                instrucciones_extra=data.instrucciones_extra,
+            )
+        else:
+            propuesta_texto = await agent.generar_documento(
+                prospect_id,
+                tipo_documento=tipo_backend,
+                instrucciones_extra=data.instrucciones_extra,
+            )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -625,6 +690,173 @@ async def generar_propuesta(    prospect_id: str,
         "organismo": prospect.licitacion_organismo if prospect else None,
         "propuesta": propuesta_texto,
     }
+
+
+# ── Generar documento específico ─────────────────────────────────────────────
+
+class GenerarDocumentoRequest(BaseModel):
+    tipo_documento: str   # metodologia | curriculum | declaracion | cv_equipo | detalle_costos | carta_presentacion
+
+
+@router.post("/generar-documento/{prospect_id}")
+async def generar_documento(
+    prospect_id: str,
+    data: GenerarDocumentoRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Genera un documento específico para la postulación:
+    metodologia, curriculum, declaracion, cv_equipo, detalle_costos, carta_presentacion.
+    """
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    TIPOS_VALIDOS = ["metodologia", "curriculum", "declaracion", "cv_equipo", "detalle_costos", "carta_presentacion"]
+    if data.tipo_documento not in TIPOS_VALIDOS:
+        raise HTTPException(status_code=422, detail=f"tipo_documento inválido. Válidos: {TIPOS_VALIDOS}")
+
+    agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id)
+    try:
+        texto = await agent.generar_documento(prospect_id, data.tipo_documento)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar documento: {str(e)}")
+
+    return {"texto": texto, "tipo": data.tipo_documento}
+
+
+# ── Archivos de contexto para IA ──────────────────────────────────────────────
+
+@router.get("/archivos-contexto")
+async def listar_archivos_contexto(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lista los archivos de contexto subidos por el tenant para alimentar la IA."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+
+    if not modulo or not modulo.niche_config:
+        return {"archivos": []}
+
+    archivos = modulo.niche_config.get("archivos_contexto") or []
+    # Devolver sin el texto completo para ahorrar payload
+    return {"archivos": [
+        {"nombre": a["nombre"], "tamaño_chars": len(a.get("texto", "")), "fecha": a.get("fecha", "")}
+        for a in archivos
+    ]}
+
+
+@router.post("/archivos-contexto")
+async def subir_archivo_contexto(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    file: bytes = None,
+    nombre: str = None,
+    texto: str = None,
+):
+    """
+    Guarda texto extraído de un archivo para usar como contexto en generación de propuestas.
+    El frontend extrae el texto y lo envía directamente (como JSON).
+    """
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+    raise HTTPException(status_code=422, detail="Usa el endpoint JSON /archivos-contexto/texto")
+
+
+class ArchivoTextoRequest(BaseModel):
+    nombre: str
+    texto: str   # texto ya extraído del archivo (máx 15000 chars)
+
+
+@router.post("/archivos-contexto/texto")
+async def guardar_texto_contexto(
+    data: ArchivoTextoRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Guarda el texto de un documento como contexto para la IA.
+    El frontend extrae el texto del PDF/txt/docx y lo envía aquí.
+    Se almacena en niche_config.archivos_contexto del módulo licitaciones.
+    """
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    if not data.nombre.strip() or not data.texto.strip():
+        raise HTTPException(status_code=422, detail="nombre y texto son requeridos")
+
+    texto_truncado = data.texto.strip()[:15000]
+
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo licitaciones no configurado")
+
+    niche = dict(modulo.niche_config or {})
+    archivos = list(niche.get("archivos_contexto") or [])
+
+    # Reemplazar si ya existe con el mismo nombre
+    archivos = [a for a in archivos if a["nombre"] != data.nombre]
+    archivos.append({
+        "nombre": data.nombre,
+        "texto": texto_truncado,
+        "fecha": datetime.utcnow().strftime("%Y-%m-%d"),
+    })
+
+    # Máximo 10 archivos
+    if len(archivos) > 10:
+        archivos = archivos[-10:]
+
+    niche["archivos_contexto"] = archivos
+    modulo.niche_config = niche
+    db.add(modulo)
+    db.commit()
+
+    return {"ok": True, "nombre": data.nombre, "tamaño_chars": len(texto_truncado)}
+
+
+@router.delete("/archivos-contexto/{nombre_archivo}")
+async def eliminar_archivo_contexto(
+    nombre_archivo: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Elimina un archivo de contexto del módulo licitaciones."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+
+    niche = dict(modulo.niche_config or {})
+    before = len(niche.get("archivos_contexto") or [])
+    niche["archivos_contexto"] = [
+        a for a in (niche.get("archivos_contexto") or []) if a["nombre"] != nombre_archivo
+    ]
+    modulo.niche_config = niche
+    db.add(modulo)
+    db.commit()
+
+    if len(niche["archivos_contexto"]) == before:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    return {"ok": True}
 
 
 # ── Búsqueda batch (legado) ───────────────────────────────────────────────────

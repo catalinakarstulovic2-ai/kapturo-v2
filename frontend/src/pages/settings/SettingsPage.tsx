@@ -398,7 +398,7 @@ export default function SettingsPage() {
     if (licitForm.descripcion) score += 20
     if (licitForm.inscrito_chile_proveedores) score += 10
     if (licitForm.experiencia_anos) score += 10
-    if (licitForm.email_alertas) score += 10
+    // email_alertas eliminado del scoring (gestionado desde dashboard)
     return score
   }, [licitForm])
 
@@ -830,20 +830,7 @@ export default function SettingsPage() {
                   <ChevronRight size={16} className="text-gray-300 shrink-0" />
                 </button>
 
-                {/* Alertas */}
-                <button onClick={() => openSheet('alertas')} className="w-full flex items-center gap-3 px-4 py-4 text-left active:bg-gray-50 opacity-70">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                    <Mail size={16} className="text-amber-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">Alertas por email</p>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">Próximamente</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">Recibe avisos de nuevas licitaciones</p>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-300 shrink-0" />
-                </button>
+
               </div>
 
               {/* Botón guardar */}
@@ -1083,34 +1070,6 @@ export default function SettingsPage() {
                 <button onClick={closeSheet} className="btn-primary w-full py-3 text-sm font-semibold">Listo</button>
               </BottomSheet>
 
-              <BottomSheet open={activeSheet === 'alertas'} onClose={closeSheet} title="Alertas por email">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-                  <p className="text-2xl mb-2">📬</p>
-                  <p className="text-sm font-semibold text-amber-800 mb-1">Próximamente</p>
-                  <p className="text-xs text-amber-600">Pronto podrás recibir alertas automáticas por email cada vez que aparezca una licitación que calce con tu perfil.</p>
-                </div>
-                <div className="space-y-3 opacity-40 pointer-events-none">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Email para alertas</label>
-                    <input className="input text-sm w-full" type="email" placeholder="tu@empresa.cl"
-                      value={licitForm.email_alertas} readOnly />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Frecuencia</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[{ v: 'diaria', l: 'Diaria' }, { v: 'semanal', l: 'Semanal' }, { v: 'nunca', l: 'Apagadas' }].map(opt => (
-                        <button key={opt.v}
-                          className={`py-3 text-sm font-medium rounded-xl border ${
-                            licitForm.frecuencia_alertas === opt.v
-                              ? 'bg-gray-900 text-white border-gray-900'
-                              : 'bg-white text-gray-600 border-gray-200'
-                          }`}>{opt.l}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <button onClick={closeSheet} className="btn-primary w-full py-3 text-sm font-semibold">Entendido</button>
-              </BottomSheet>
             </>
           )}
         </div>

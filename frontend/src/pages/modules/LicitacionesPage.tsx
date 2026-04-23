@@ -18,6 +18,20 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Extrae un string legible de cualquier forma de error de la API */
+function apiError(err: any, fallback = 'Error inesperado'): string {
+  const detail = err?.response?.data?.detail
+  if (!detail) return err?.message || fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    // FastAPI validation errors: [{loc, msg, type}]
+    return detail.map((d: any) => d?.msg || JSON.stringify(d)).join(' | ')
+  }
+  return JSON.stringify(detail)
+}
+
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Catalogo {
@@ -265,486 +279,45 @@ function GuiaRapida() {
   )
 }
 
-// ── Modal de perfil empresa ─────────────────────────────────────────────────
+// ── Acordeón de categoría de rubros ────────────────────────────────────────
 
-function PerfilEmpresaModal({ onClose, catalogo }: { onClose: () => void; catalogo?: Catalogo }) {
-  const queryClient = useQueryClient()
-  const perfilCached = queryClient.getQueryData<any>(['licitaciones-profile'])
-
-  // Siempre cargamos del servidor al abrir el modal para tener datos frescos
-  const { data: perfilRemoto } = useQuery({
-    queryKey: ['licitaciones-profile'],
-    queryFn: () => api.get('/tenant/me/licitaciones-profile').then(r => r.data).catch(() => null),
-    staleTime: 0,  // siempre refrescar al montar el modal
-  })
-
-  const [form, setForm] = useState({
-    rut_empresa: perfilCached?.rut_empresa || '',
-    razon_social: perfilCached?.razon_social || '',
-    descripcion: perfilCached?.descripcion || '',
-    experiencia_anos: perfilCached?.experiencia_anos != null ? String(perfilCached.experiencia_anos) : '',
-    proyectos_anteriores: perfilCached?.proyectos_anteriores || '',
-    certificaciones: perfilCached?.certificaciones || '',
-    inscrito_chile_proveedores: perfilCached?.inscrito_chile_proveedores || false,
-    rubros: (perfilCached?.rubros as string[]) || [],
-    regiones: (perfilCached?.regiones as string[]) || [],
-    email_alertas: perfilCached?.email_alertas || '',
-    diferenciadores: perfilCached?.diferenciadores || '',
-  })
-
-  // Sincronizar form cuando llega el perfil del servidor (si el caché estaba vacío al abrir)
-  useEffect(() => {
-    if (!perfilRemoto) return
-    setForm({
-      rut_empresa: perfilRemoto.rut_empresa || '',
-      razon_social: perfilRemoto.razon_social || '',
-      descripcion: perfilRemoto.descripcion || '',
-      experiencia_anos: perfilRemoto.experiencia_anos != null ? String(perfilRemoto.experiencia_anos) : '',
-      proyectos_anteriores: perfilRemoto.proyectos_anteriores || '',
-      certificaciones: perfilRemoto.certificaciones || '',
-      inscrito_chile_proveedores: perfilRemoto.inscrito_chile_proveedores || false,
-      rubros: (perfilRemoto.rubros as string[]) || [],
-      regiones: (perfilRemoto.regiones as string[]) || [],
-      email_alertas: perfilRemoto.email_alertas || '',
-      diferenciadores: perfilRemoto.diferenciadores || '',
-    })
-  }, [perfilRemoto])
-
-  // ── Sugerir rubros automáticamente cuando el usuario escribe la descripción ──
-  const [sugirendoRubros, setSugirendoRubros] = useState(false)
-  const [rubrosSugeridos, setRubrosSugeridos] = useState<string[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const onDescripcionChange = (valor: string) => {
-    setForm(f => ({ ...f, descripcion: valor }))
-    setRubrosSugeridos([])
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    // Solo sugerir si hay texto suficiente y aún no tiene rubros
-    if (valor.trim().length < 10) return
-    debounceRef.current = setTimeout(async () => {
-      setSugirendoRubros(true)
-      try {
-        const res = await api.post('/modules/licitaciones/sugerir-rubros', { descripcion: valor.trim() })
-        const sugeridos: string[] = res.data.rubros || []
-        // Filtrar los que ya tiene seleccionados
-        const nuevos = sugeridos.filter(r => !form.rubros.includes(r))
-        if (nuevos.length > 0) setRubrosSugeridos(nuevos)
-      } catch { /* silencioso */ }
-      finally { setSugirendoRubros(false) }
-    }, 1200)  // 1.2s de debounce
-  }
-
-  const aplicarRubrosSugeridos = () => {
-    setForm(f => ({ ...f, rubros: [...new Set([...f.rubros, ...rubrosSugeridos])] }))
-    setRubrosSugeridos([])
-  }
-
-
-  const guardarMutation = useMutation({
-    mutationFn: () => api.put('/tenant/me/licitaciones-profile', {
-      ...form,
-      experiencia_anos: form.experiencia_anos ? parseInt(form.experiencia_anos) : null,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['licitaciones-profile'] })
-      const tieneEmail = !!form.email_alertas.trim()
-      toast.success(
-        tieneEmail
-          ? '✅ Perfil guardado — recibirás alertas en ' + form.email_alertas
-          : '✅ Perfil guardado — ya puedes buscar licitaciones',
-        { duration: 4000 }
-      )
-      onClose()
-    },
-    onError: () => toast.error('Error al guardar perfil'),
-  })
-
-  const toggleRubro = (r: string) =>
-    setForm(f => ({ ...f, rubros: f.rubros.includes(r) ? f.rubros.filter(x => x !== r) : [...f.rubros, r] }))
-  const toggleRegion = (c: string) =>
-    setForm(f => ({ ...f, regiones: f.regiones.includes(c) ? f.regiones.filter(x => x !== c) : [...f.regiones, c] }))
-
-  // Todos los rubros como lista plana ordenada alfabéticamente
-  const todosLosRubros = RUBRO_CATEGORIAS.flatMap(c => c.rubros).sort((a, b) => a.localeCompare(b, 'es'))
-
-  // Regiones en orden geográfico Norte → Sur (códigos de Mercado Público)
-  const ORDEN_REGIONES = ['XV','I','II','III','IV','V','RM','VI','VII','XVI','VIII','IX','XIV','X','XI','XII']
-  const regionesOrdenadas = catalogo?.regiones
-    ? [...catalogo.regiones].sort((a, b) => {
-        const ia = ORDEN_REGIONES.indexOf(a.codigo)
-        const ib = ORDEN_REGIONES.indexOf(b.codigo)
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
-      })
-    : []
-
-  // Mapeo ciudad → código de región
-  const CIUDAD_A_REGION: Record<string, string> = {
-    // XV - Arica y Parinacota
-    'arica': 'XV', 'parinacota': 'XV', 'putre': 'XV',
-    // I - Tarapacá
-    'iquique': 'I', 'alto hospicio': 'I', 'pozo almonte': 'I', 'pica': 'I',
-    // II - Antofagasta
-    'antofagasta': 'II', 'calama': 'II', 'tocopilla': 'II', 'mejillones': 'II', 'taltal': 'II', 'san pedro de atacama': 'II',
-    // III - Atacama
-    'copiapó': 'III', 'copiapo': 'III', 'vallenar': 'III', 'chañaral': 'III', 'chanar': 'III', 'diego de almagro': 'III',
-    // IV - Coquimbo
-    'la serena': 'IV', 'coquimbo': 'IV', 'ovalle': 'IV', 'illapel': 'IV', 'vicuña': 'IV', 'monte patria': 'IV',
-    // V - Valparaíso
-    'valparaíso': 'V', 'valparaiso': 'V', 'viña del mar': 'V', 'vina del mar': 'V', 'quilpué': 'V', 'quilpue': 'V',
-    'san antonio': 'V', 'quillota': 'V', 'los andes': 'V', 'san felipe': 'V', 'villa alemana': 'V', 'limache': 'V',
-    // RM - Metropolitana
-    'santiago': 'RM', 'providencia': 'RM', 'las condes': 'RM', 'ñuñoa': 'RM', 'nunoa': 'RM', 'maipú': 'RM', 'maipu': 'RM',
-    'pudahuel': 'RM', 'quilicura': 'RM', 'puente alto': 'RM', 'la florida': 'RM', 'peñalolén': 'RM', 'penalolen': 'RM',
-    'san bernardo': 'RM', 'lo barnechea': 'RM', 'vitacura': 'RM', 'recoleta': 'RM', 'independencia': 'RM',
-    'talagante': 'RM', 'melipilla': 'RM', 'colina': 'RM', 'buin': 'RM', 'lampa': 'RM',
-    // VI - O'Higgins
-    'rancagua': 'VI', 'san fernando': 'VI', 'pichilemu': 'VI', 'santa cruz': 'VI', 'rengo': 'VI',
-    // VII - Maule
-    'talca': 'VII', 'curicó': 'VII', 'curico': 'VII', 'linares': 'VII', 'cauquenes': 'VII', 'constitución': 'VII', 'constitucion': 'VII',
-    // XVI - Ñuble
-    'chillán': 'XVI', 'chillan': 'XVI', 'san carlos': 'XVI', 'bulnes': 'XVI', 'yungay': 'XVI',
-    // VIII - Biobío
-    'concepción': 'VIII', 'concepcion': 'VIII', 'talcahuano': 'VIII', 'los ángeles': 'VIII', 'los angeles': 'VIII',
-    'chiguayante': 'VIII', 'hualpén': 'VIII', 'hualpen': 'VIII', 'coronel': 'VIII', 'tomé': 'VIII', 'tome': 'VIII',
-    'lebu': 'VIII', 'arauco': 'VIII', 'cañete': 'VIII', 'canete': 'VIII',
-    // IX - La Araucanía
-    'temuco': 'IX', 'villarrica': 'IX', 'pucón': 'IX', 'pucon': 'IX', 'angol': 'IX', 'nueva imperial': 'IX',
-    'padre las casas': 'IX', 'victoria': 'IX',
-    // XIV - Los Ríos
-    'valdivia': 'XIV', 'la unión': 'XIV', 'la union': 'XIV', 'río bueno': 'XIV', 'rio bueno': 'XIV',
-    // X - Los Lagos
-    'puerto montt': 'X', 'osorno': 'X', 'castro': 'X', 'ancud': 'X', 'puerto varas': 'X', 'calbuco': 'X',
-    'chiloé': 'X', 'chiloe': 'X',
-    // XI - Aysén
-    'coyhaique': 'XI', 'coihaique': 'XI', 'puerto aysén': 'XI', 'puerto aysen': 'XI', 'cochrane': 'XI',
-    // XII - Magallanes
-    'punta arenas': 'XII', 'puerto natales': 'XII', 'porvenir': 'XII',
-  }
-
-  const [regionQuery, setRegionQuery] = useState('')
-
-  const regionesFiltradas = regionQuery.trim()
-    ? (() => {
-        const q = regionQuery.toLowerCase().trim()
-        // ¿coincide con ciudad?
-        const codigoPorCiudad = CIUDAD_A_REGION[q]
-        // Filtrar regiones por nombre o por código encontrado
-        return regionesOrdenadas.filter(r =>
-          r.nombre.toLowerCase().includes(q) ||
-          r.codigo === codigoPorCiudad
-        )
-      })()
-    : regionesOrdenadas
-
-  const completeness = [
-    !!form.descripcion,
-    form.rubros.length > 0,
-    form.regiones.length > 0,
-    !!form.rut_empresa,
-    !!form.experiencia_anos,
-  ].filter(Boolean).length
-
-  const [generando, setGenerando] = useState<'descripcion' | 'proyectos' | 'diferenciadores' | null>(null)
-
-  const generarConIA = async (campo: 'descripcion' | 'proyectos' | 'diferenciadores') => {
-    if (form.rubros.length === 0) {
-      toast('Primero selecciona al menos un rubro', { icon: '⚠️' })
-      return
-    }
-    setGenerando(campo)
-    try {
-      const res = await api.post('/modules/licitaciones/asistente-perfil', {
-        campo,
-        rubros: form.rubros,
-        regiones: form.regiones,
-        descripcion_actual: form.descripcion,
-        diferenciadores_actuales: form.diferenciadores,
-      })
-      const texto: string = res.data.texto
-      setForm(f => ({ ...f, [campo]: texto }))
-      toast.success('Generado — revisa y ajusta si quieres')
-    } catch {
-      toast.error('Error al generar. ¿Está el backend activo?')
-    } finally {
-      setGenerando(null)
-    }
-  }
-
+function RubroCategoria({
+  cat, selEnCat, formRubros, toggleRubro,
+}: {
+  cat: { label: string; emoji: string; rubros: string[] }
+  selEnCat: string[]
+  formRubros: string[]
+  toggleRubro: (r: string) => void
+}) {
+  const [open, setOpen] = useState(selEnCat.length > 0)
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <Sparkles size={16} className="text-indigo-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Perfil para IA</p>
-              <p className="text-[11px] text-gray-400">Claude usa esto para calificar licitaciones y redactar propuestas</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Mini progreso */}
-            <div className="flex items-center gap-1.5">
-              {[0,1,2,3,4].map(i => (
-                <div key={i} className={clsx('w-1.5 h-1.5 rounded-full', i < completeness ? 'bg-indigo-500' : 'bg-gray-200')} />
-              ))}
-              <span className="text-[10px] text-gray-400 ml-0.5">{completeness}/5</span>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
-          </div>
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+      >
+        <span className="text-sm">{cat.emoji}</span>
+        <span className="text-xs font-medium text-gray-700 flex-1 capitalize">{cat.label}</span>
+        {selEnCat.length > 0 && (
+          <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-semibold">{selEnCat.length}</span>
+        )}
+        <ChevronDown size={13} className={clsx('text-gray-400 transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-3">
+          {cat.rubros.map(r => (
+            <button key={r} type="button" onClick={() => toggleRubro(r)}
+              className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors capitalize',
+                formRubros.includes(r)
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+              )}>
+              {r}
+            </button>
+          ))}
         </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-5">
-
-          {/* 1. Descripción — LO MÁS IMPORTANTE */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-gray-700">
-                ¿Qué hace tu empresa? <span className="text-red-400">*</span>
-                <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => generarConIA('descripcion')}
-                disabled={generando === 'descripcion' || form.rubros.length === 0}
-                className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 transition-colors"
-              >
-                {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
-              </button>
-            </div>
-            <textarea
-              autoFocus
-              className="input text-sm w-full resize-none"
-              rows={3}
-              placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas certificadas en RM y Biobío. Contamos con ISO 9001..."
-              value={form.descripcion}
-              onChange={e => onDescripcionChange(e.target.value)}
-            />
-            {/* Banner sugerencia de rubros */}
-            {sugirendoRubros && (
-              <p className="text-[10px] text-indigo-400 mt-1.5 flex items-center gap-1">
-                <Loader2 size={10} className="animate-spin" /> Detectando rubros…
-              </p>
-            )}
-            {rubrosSugeridos.length > 0 && !sugirendoRubros && (
-              <div className="mt-2 flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
-                <Sparkles size={12} className="text-indigo-500 shrink-0" />
-                <span className="text-[11px] text-indigo-700 flex-1">
-                  Rubros detectados: <strong>{rubrosSugeridos.join(', ')}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={aplicarRubrosSugeridos}
-                  className="text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-md shrink-0"
-                >
-                  Agregar
-                </button>
-                <button type="button" onClick={() => setRubrosSugeridos([])} className="text-gray-400 hover:text-gray-600">
-                  <X size={12} />
-                </button>
-              </div>
-            )}
-            <p className="text-[10px] text-gray-400 mt-1">
-              {form.rubros.length === 0
-                ? '⚠️ Selecciona rubros primero para habilitar la generación con IA'
-                : 'Incluye: rubro, años de experiencia, tamaño, regiones, diferenciadores clave'}
-            </p>
-          </div>
-
-          {/* 2. Rubros — chips planos todos juntos */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
-              {form.rubros.length > 0 && (
-                <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {todosLosRubros.map(r => (
-                <button key={r} type="button" onClick={() => toggleRubro(r)}
-                  className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors capitalize',
-                    form.rubros.includes(r)
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-                  )}>
-                  {r}
-                </button>
-              ))}
-            </div>
-            {form.rubros.length > 0 && (
-              <p className="text-[10px] text-indigo-500 mt-1.5">{form.rubros.length} seleccionado{form.rubros.length > 1 ? 's' : ''}</p>
-            )}
-          </div>
-
-          {/* 3. Regiones — buscador ciudad/región + chips N→S */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span></label>
-              <div className="flex gap-2">
-                {form.regiones.length > 0 && (
-                  <button onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>
-                )}
-                <button
-                  onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map(r => r.codigo) }))}
-                  className="text-[10px] text-indigo-500 hover:text-indigo-700"
-                >
-                  todas
-                </button>
-              </div>
-            </div>
-            {/* Buscador */}
-            <div className="relative mb-2">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                value={regionQuery}
-                onChange={e => setRegionQuery(e.target.value)}
-                placeholder="Busca por región o ciudad (ej: Santiago, Concepción, Iquique…)"
-                className="input text-xs w-full pl-7 py-2"
-              />
-              {regionQuery && (
-                <button onClick={() => setRegionQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            {/* Chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {regionesFiltradas.map(r => {
-                const nombre = r.nombre
-                  .replace('Región Metropolitana de Santiago', 'RM — Santiago')
-                  .replace('Región de ', '')
-                  .replace('Región del ', '')
-                return (
-                  <button key={r.codigo} type="button" onClick={() => { toggleRegion(r.codigo); setRegionQuery('') }}
-                    className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors',
-                      form.regiones.includes(r.codigo)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-                    )}>
-                    {nombre}
-                  </button>
-                )
-              })}
-              {regionesFiltradas.length === 0 && regionQuery && (
-                <p className="text-xs text-gray-400 py-1">Sin resultados — prueba con otra ciudad o región</p>
-              )}
-            </div>
-            {form.regiones.length > 0 && (
-              <p className="text-[10px] text-indigo-500 mt-1.5">{form.regiones.length} región{form.regiones.length > 1 ? 'es' : ''} seleccionada{form.regiones.length > 1 ? 's' : ''}</p>
-            )}
-          </div>
-
-          {/* 4. Datos básicos — secundarios */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">RUT empresa</label>
-              <input className="input text-sm w-full" placeholder="76.123.456-7" value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Años de experiencia</label>
-              <input type="number" min="0" className="input text-sm w-full" placeholder="5" value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
-            </div>
-          </div>
-
-          {/* 5. ChileProveedores */}
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input type="checkbox" checked={form.inscrito_chile_proveedores} onChange={e => setForm(f => ({ ...f, inscrito_chile_proveedores: e.target.checked }))} className="rounded border-gray-300 text-indigo-600 w-4 h-4" />
-            <div>
-              <span className="text-sm text-gray-700 font-medium">Inscrito en ChileProveedores</span>
-              <p className="text-[10px] text-gray-400">Requisito obligatorio para postular a licitaciones públicas</p>
-            </div>
-          </label>
-
-          {/* 6. Proyectos y certificaciones */}
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
-                <button
-                  type="button"
-                  onClick={() => generarConIA('proyectos')}
-                  disabled={generando === 'proyectos' || form.rubros.length === 0}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 transition-colors"
-                >
-                  {generando === 'proyectos' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-                  {generando === 'proyectos' ? 'Generando…' : 'Ayudarme a redactar'}
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                className="input text-xs w-full resize-none"
-                placeholder="Ej: Suministro de equipos para Hospital Regional de Temuco (2023), Mantención vial Municipalidad de Rancagua…"
-                value={form.proyectos_anteriores}
-                onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
-              <input
-                className="input text-xs w-full"
-                placeholder="ISO 9001, OHSAS 18001…"
-                value={form.certificaciones}
-                onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          {/* 7. Diferenciadores */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-gray-700">¿Qué diferencia a tu empresa de la competencia?</label>
-              <button
-                type="button"
-                onClick={() => generarConIA('diferenciadores')}
-                disabled={generando === 'diferenciadores' || form.rubros.length === 0}
-                className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 transition-colors"
-              >
-                {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
-              </button>
-            </div>
-            <textarea
-              rows={2}
-              className="input text-xs w-full resize-none"
-              placeholder="Ej: Somos el único proveedor certificado ISO 9001 en la región, tiempo de respuesta 24h, equipo bilingüe, precios más competitivos del mercado…"
-              value={form.diferenciadores}
-              onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))}
-            />
-            <p className="text-[10px] text-gray-400 mt-1">La IA usará esto para destacarte en la propuesta final</p>
-          </div>
-
-          {/* 8. Email alertas */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Email para alertas de nuevas licitaciones</label>
-            <input
-              type="email"
-              className="input text-xs w-full"
-              placeholder="hola@miempresa.cl"
-              value={form.email_alertas}
-              onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))}
-            />
-            <p className="text-[10px] text-gray-400 mt-1">Recibirás un aviso diario con licitaciones que coincidan con tus rubros</p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancelar</button>
-          <button
-            onClick={() => guardarMutation.mutate()}
-            disabled={guardarMutation.isPending || !form.descripcion.trim()}
-            className="flex items-center gap-2 text-sm font-semibold px-5 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors"
-          >
-            {guardarMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={14} /> Guardar</>}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -791,6 +364,12 @@ export default function LicitacionesPage() {
   const [propuestaCopied, setPropuestaCopied] = useState(false)
   const [analisisData, setAnalisisData] = useState<any | null>(null)
   const [analisisTab, setAnalisisTab] = useState<'analisis' | 'propuesta' | 'docs'>('analisis')
+  // Estado tab Documentos
+  const [docGenerando, setDocGenerando] = useState<string | null>(null) // tipo siendo generado
+  const [docsGenerados, setDocsGenerados] = useState<Record<string, string>>({}) // tipo → texto
+  const [docViendoTipo, setDocViendoTipo] = useState<string | null>(null) // tipo mostrando texto
+  const [archivosContexto, setArchivosContexto] = useState<{nombre: string; tamaño_chars: number; fecha: string}[]>([])
+  const [archivoCargando, setArchivoCargando] = useState(false)
 
   // ── Tab principal (persistido en URL para sobrevivir F5) ─────────────────
   const [searchParams, setSearchParams] = useSearchParams()
@@ -799,7 +378,15 @@ export default function LicitacionesPage() {
     setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
 
   const queryClient = useQueryClient()
-  const [showPerfilModal, setShowPerfilModal] = useState(false)
+
+  // Limpiar badge nuevas_pendientes al entrar a "Buscar licitaciones"
+  useEffect(() => {
+    if (mainTab === 'buscar' && perfilEmpresa?.nuevas_pendientes > 0) {
+      api.put('/tenant/me/licitaciones-profile', { nuevas_pendientes: 0 }).catch(() => {})
+      queryClient.setQueryData(['licitaciones-profile'], (old: any) => old ? { ...old, nuevas_pendientes: 0 } : old)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainTab])
 
   // ── Prospectos guardados (Mis postulaciones) ──────────────────────────────
   const { data: postulacionesData, isLoading: loadingPostulaciones } = useQuery({
@@ -976,6 +563,98 @@ export default function LicitacionesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchStore.isSearching, searchStore.isSearchingIA, searchStore.resultados])
 
+  // Cargar archivos de contexto cuando se abre el tab Documentos
+  useEffect(() => {
+    if (analisisTab === 'docs' && propuestaModal) {
+      api.get('/modules/licitaciones/archivos-contexto')
+        .then(r => setArchivosContexto(r.data.archivos ?? []))
+        .catch(() => {})
+    }
+  }, [analisisTab, propuestaModal])
+
+  // Función para subir archivo de contexto desde el frontend (extrae texto del PDF/txt)
+  const handleArchivoContexto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setArchivoCargando(true)
+    try {
+      let texto = ''
+      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+        texto = await file.text()
+      } else if (file.type === 'application/pdf') {
+        // Leer PDF con pdfjs-dist si está disponible, sino como text
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          // @ts-ignore — pdfjs puede no estar disponible, usamos fallback
+          const pdfjsLib = (window as any).pdfjsLib
+          if (pdfjsLib) {
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+            const pages: string[] = []
+            for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+              const page = await pdf.getPage(i)
+              const content = await page.getTextContent()
+              pages.push(content.items.map((it: any) => it.str).join(' '))
+            }
+            texto = pages.join('\n\n')
+          } else {
+            // Fallback: enviar como base64 y dejar que el backend extraiga
+            toast('PDF subido — extracción de texto limitada sin pdfjs', { icon: 'ℹ️' })
+            const bytes = new Uint8Array(arrayBuffer)
+            texto = `[PDF: ${file.name}]\n` + Array.from(bytes.slice(0, 3000)).map(b => String.fromCharCode(b)).join('')
+          }
+        } catch {
+          texto = `[Contenido de ${file.name} — texto no extraíble]`
+        }
+      } else {
+        texto = await file.text()
+      }
+      if (!texto.trim()) {
+        toast.error('No se pudo extraer texto del archivo')
+        return
+      }
+      await api.post('/modules/licitaciones/archivos-contexto/texto', {
+        nombre: file.name,
+        texto: texto.slice(0, 15000),
+      })
+      toast.success(`📎 "${file.name}" guardado como contexto para la IA`)
+      const r = await api.get('/modules/licitaciones/archivos-contexto')
+      setArchivosContexto(r.data.archivos ?? [])
+    } catch (err: any) {
+      toast.error(apiError(err, 'Error al subir archivo'))
+    } finally {
+      setArchivoCargando(false)
+      e.target.value = ''
+    }
+  }
+
+  const eliminarArchivoContexto = async (nombre: string) => {
+    try {
+      await api.delete(`/modules/licitaciones/archivos-contexto/${encodeURIComponent(nombre)}`)
+      setArchivosContexto(prev => prev.filter(a => a.nombre !== nombre))
+      toast.success('Archivo eliminado')
+    } catch (err: any) {
+      toast.error(apiError(err, 'Error al eliminar'))
+    }
+  }
+
+  const generarDocumento = async (tipo: string) => {
+    if (!propuestaModal?.prospectId) return
+    setDocGenerando(tipo)
+    try {
+      const r = await api.post(`/modules/licitaciones/generar-documento/${propuestaModal.prospectId}`, {
+        tipo_documento: tipo
+      })
+      setDocsGenerados(prev => ({ ...prev, [tipo]: r.data.texto }))
+      setDocViendoTipo(tipo)
+    } catch (err: any) {
+      toast.error(apiError(err, 'Error al generar documento'))
+    } finally {
+      setDocGenerando(null)
+    }
+  }
+
+
+
   const buscarMutation = {
     isPending: searchStore.isSearching,
     mutate: (pagina: number = 1) => {
@@ -1010,7 +689,7 @@ export default function LicitacionesPage() {
     onSuccess: (res) => {
       setPropuestaTexto(res.data.propuesta)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error al generar propuesta'),
+    onError: (err: any) => toast.error(apiError(err, 'Error al generar propuesta')),
   })
 
   // ── Analizar bases con IA — background + polling ─────────────────────────
@@ -1025,7 +704,7 @@ export default function LicitacionesPage() {
       setAnalysisJobId(res.data.job_id)
       setAnalysisSeconds(0)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error al iniciar análisis'),
+    onError: (err: any) => toast.error(apiError(err, 'Error al iniciar análisis')),
   })
 
   // Polling del job cada 3s
@@ -1044,11 +723,18 @@ export default function LicitacionesPage() {
   useEffect(() => {
     if (!jobData) return
     if ((jobData as any).status === 'done') {
-      setAnalisisData((jobData as any).result)
-      setPropuestaTexto((jobData as any).result?.propuesta || null)
+      const result = (jobData as any).result
+      setAnalisisData(result)
+      setPropuestaTexto(result?.propuesta || null)
       setAnalisisTab('analisis')
       setAnalysisJobId(null)
       queryClient.removeQueries({ queryKey: ['analysis-job'] })
+      const sc = result?.score
+      const ndocs = result?.documentos_analizados?.length ?? 0
+      toast.success(
+        `✅ Análisis listo${sc != null ? ` · Score ${sc}/100` : ''}${ndocs > 0 ? ` · ${ndocs} base${ndocs !== 1 ? 's' : ''} analizada${ndocs !== 1 ? 's' : ''}` : ''}`,
+        { duration: 5000 }
+      )
     } else if ((jobData as any).status === 'error') {
       toast.error((jobData as any).error || 'Error en el análisis')
       setAnalysisJobId(null)
@@ -1084,7 +770,7 @@ export default function LicitacionesPage() {
       toast.success('Postulación eliminada')
       queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error al eliminar'),
+    onError: (err: any) => toast.error(apiError(err, 'Error al eliminar')),
   })
 
   // ── Actualizar estado de postulación ─────────────────────────────────────
@@ -1095,7 +781,7 @@ export default function LicitacionesPage() {
       queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
       toast.success('Estado actualizado')
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Error al actualizar estado'),
+    onError: (err: any) => toast.error(apiError(err, 'Error al actualizar estado')),
   })
 
   // ── Timer de progreso de búsqueda — sincronizado con el store global ────
@@ -1154,16 +840,16 @@ export default function LicitacionesPage() {
         toast.success(`Guardada ✓ — score ${res.data.score?.toFixed(0) ?? '—'}`)
       }
       if (prospectId) {
-        setMainTab('postulaciones')
+        navigate('/licitaciones?tab=postulaciones')
         // Esperar a que el panel cargue los nuevos datos antes de hacer scroll
         setTimeout(() => setExpandedId(prospectId), 500)
       } else if (isDuplicate) {
-        setMainTab('postulaciones')
+        navigate('/licitaciones?tab=postulaciones')
       }
     },
     onError: (err: any) => {
       setSavingCodigo(null)
-      toast.error(err.response?.data?.detail || 'Error al guardar')
+      toast.error(apiError(err, 'Error al guardar'))
     },
   })
 
@@ -1279,12 +965,18 @@ export default function LicitacionesPage() {
           <FileText size={20} className="text-indigo-600" />
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">Licitaciones</h1>
-          <p className="text-gray-500 text-sm">Mercado Público Chile · Licitaciones abiertas y próximas a cerrar</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {mainTab === 'postulaciones' ? 'Mis postulaciones' : 'Licitaciones'}
+          </h1>
+          <p className="text-gray-500 text-sm">
+            {mainTab === 'postulaciones'
+              ? 'Licitaciones guardadas · seguimiento y documentos'
+              : 'Mercado Público Chile · Licitaciones abiertas y próximas a cerrar'}
+          </p>
         </div>
-        {isAdmin && (
+        {isAdmin && mainTab !== 'postulaciones' && (
           <button
-            onClick={() => setShowPerfilModal(true)}
+            onClick={() => navigate('/licitaciones/perfil')}
             className={clsx(
               'flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-colors whitespace-nowrap',
               perfilEmpresa?.descripcion
@@ -1298,53 +990,8 @@ export default function LicitacionesPage() {
         )}
       </div>
 
-      {/* Guía rápida */}
-      <GuiaRapida />
-
-      {/* Tab switcher principal */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-        <button
-          onClick={() => {
-            if (!perfilEmpresa?.descripcion) { setShowPerfilModal(true); return }
-            setMainTab('buscar')
-            // Limpiar badge nuevas_pendientes al abrir el tab
-            if (perfilEmpresa?.nuevas_pendientes > 0) {
-              api.put('/tenant/me/licitaciones-profile', { nuevas_pendientes: 0 }).catch(() => {})
-              queryClient.setQueryData(['licitaciones-profile'], (old: any) => old ? { ...old, nuevas_pendientes: 0 } : old)
-            }
-          }}
-          className={clsx(
-            'flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg transition-all',
-            mainTab === 'buscar'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          )}
-        >
-          <Search size={14} /> Buscar licitaciones
-          {!perfilEmpresa?.descripcion && <span className="text-amber-500 text-xs">⚠️</span>}
-          {perfilEmpresa?.descripcion && (perfilEmpresa?.nuevas_pendientes ?? 0) > 0 && (
-            <span className="text-xs bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">
-              {perfilEmpresa.nuevas_pendientes}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setMainTab('postulaciones')}
-          className={clsx(
-            'flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg transition-all',
-            mainTab === 'postulaciones'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          )}
-        >
-          <ListChecks size={14} /> Mis postulaciones
-          {postulacionesData?.items?.length > 0 && (
-            <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">
-              {postulacionesData.items.length}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* Guía rápida solo en buscar */}
+      {mainTab !== 'postulaciones' && <GuiaRapida />}
 
       {/* ─────────── PANEL MIS POSTULACIONES ─────────── */}
       {mainTab === 'postulaciones' && (
@@ -1385,7 +1032,7 @@ export default function LicitacionesPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowPerfilModal(true)}
+            onClick={() => navigate('/licitaciones/perfil')}
             className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
           >
             <Sparkles size={15} /> Configurar perfil — 2 minutos
@@ -1393,65 +1040,6 @@ export default function LicitacionesPage() {
         </div>
       ) : (<>
 
-      {/* Barra de búsqueda IA */}
-      {isAdmin && (
-        <div className="card p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-              <Wand2 size={15} className="text-white" />
-            </div>
-            <div className="flex-1 space-y-2">
-              <div>
-                <p className="text-sm font-semibold text-indigo-900">Búsqueda con IA</p>
-                <p className="text-xs text-indigo-400">Describe en tus propias palabras qué tipo de licitación busca tu empresa</p>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={iaConsulta}
-                  onChange={e => setIaConsulta(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && iaConsulta.trim()) busquedaIAMutation.mutate(iaConsulta.trim()) }}
-                  placeholder="Ej: quiero limpiar hospitales en Santiago, servicios de mantención eléctrica…"
-                  className="flex-1 text-sm px-3 py-2 rounded-xl border border-indigo-200 bg-white outline-none focus:border-indigo-400 placeholder:text-gray-300"
-                />
-                <button
-                  onClick={() => iaConsulta.trim() && busquedaIAMutation.mutate(iaConsulta.trim())}
-                  disabled={busquedaIAMutation.isPending || !iaConsulta.trim()}
-                  className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
-                >
-                  {busquedaIAMutation.isPending
-                    ? <><Loader2 size={14} className="animate-spin" /> Analizando…</>
-                    : <><Sparkles size={14} /> Buscar con IA</>}
-                </button>
-              </div>
-              {iaResumen && !busquedaIAMutation.isPending && (
-                <div className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-100/60 px-3 py-1.5 rounded-lg">
-                  <Sparkles size={11} />
-                  <span>Entendí: <strong>{iaResumen}</strong></span>
-                  <button onClick={() => { setIaResumen(null); setIaAdvertencia(null); setIaSugerencia(null) }} className="ml-auto text-indigo-300 hover:text-indigo-600"><X size={11} /></button>
-                </div>
-              )}
-              {iaAdvertencia && !busquedaIAMutation.isPending && (
-                <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
-                  <span className="text-amber-500 mt-0.5">⚠️</span>
-                  <div className="flex-1">
-                    <p className="text-amber-800 font-medium">{iaAdvertencia}</p>
-                    {iaSugerencia && (
-                      <button
-                        onClick={() => { setIaConsulta(iaSugerencia); setIaAdvertencia(null) }}
-                        className="mt-1 text-amber-700 underline hover:text-amber-900"
-                      >
-                        Buscar: “{iaSugerencia}” →
-                      </button>
-                    )}
-                  </div>
-                  <button onClick={() => setIaAdvertencia(null)} className="text-amber-300 hover:text-amber-600"><X size={11} /></button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Panel de filtros */}
       <div className="card p-4 space-y-3">
@@ -1499,6 +1087,19 @@ export default function LicitacionesPage() {
 
                 {/* Categorías o resultados de búsqueda */}
                 <div className="overflow-y-auto max-h-72 p-2 space-y-1">
+                  {/* Banner de perfil si hay rubros configurados */}
+                  {!buscarRubroQuery && perfilEmpresa?.rubros?.length > 0 && (
+                    <div className="flex items-center gap-2 px-2 py-1.5 mb-1 bg-indigo-50 rounded-lg border border-indigo-100">
+                      <Sparkles size={11} className="text-indigo-500 shrink-0" />
+                      <span className="text-[10px] text-indigo-600 flex-1">Rubros de tu perfil</span>
+                      <button
+                        onClick={() => setRubrosSeleccionados(perfilEmpresa.rubros)}
+                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+                      >
+                        Restaurar
+                      </button>
+                    </div>
+                  )}
                   {buscarRubroQuery ? (
                     // Modo búsqueda: lista plana con conteos
                     <div className="grid grid-cols-2 gap-1">
@@ -1507,6 +1108,7 @@ export default function LicitacionesPage() {
                         .map(r => {
                           const sel = rubrosSeleccionados.includes(r)
                           const count = rubrosConConteo[r]
+                          const enPerfil = perfilEmpresa?.rubros?.includes(r)
                           return (
                             <label key={r} className={clsx(
                               'flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer text-xs capitalize transition-colors',
@@ -1516,17 +1118,23 @@ export default function LicitacionesPage() {
                                 checked={sel}
                                 onChange={e => setRubrosSeleccionados(prev => e.target.checked ? [...prev, r] : prev.filter(x => x !== r))} />
                               <span className="flex-1">{r}</span>
+                              {enPerfil && <span className="text-[9px] text-indigo-400">perfil</span>}
                               {count > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 rounded-full">{count}</span>}
                             </label>
                           )
                         })}
                     </div>
                   ) : (
-                    // Modo categorías
+                    // Modo categorías — mostrar solo rubros del perfil (si hay) o todos
                     RUBRO_CATEGORIAS.map(cat => {
+                      const perfilRubros: string[] = perfilEmpresa?.rubros || []
                       const selEnCat = cat.rubros.filter(r => rubrosSeleccionados.includes(r))
-                      const rubrosConRes = cat.rubros.filter(r => !Object.keys(rubrosConConteo).length || (rubrosConConteo[r] ?? 0) > 0 || rubrosSeleccionados.includes(r))
-                      if (rubrosConRes.length === 0) return null
+                      // Si hay perfil, mostrar solo los rubros del perfil en esta categoría
+                      // Si no hay perfil, mostrar los que tienen resultados
+                      const rubrosBase = perfilRubros.length > 0
+                        ? cat.rubros.filter(r => perfilRubros.includes(r) || rubrosSeleccionados.includes(r))
+                        : cat.rubros.filter(r => !Object.keys(rubrosConConteo).length || (rubrosConConteo[r] ?? 0) > 0 || rubrosSeleccionados.includes(r))
+                      if (rubrosBase.length === 0) return null
                       return (
                         <div key={cat.label}>
                           {/* Encabezado categoría */}
@@ -1539,7 +1147,7 @@ export default function LicitacionesPage() {
                           </div>
                           {/* Rubros en grid 3 cols */}
                           <div className="grid grid-cols-3 gap-1 mb-1">
-                            {rubrosConRes.map(r => {
+                            {rubrosBase.map(r => {
                               const sel = rubrosSeleccionados.includes(r)
                               const count = rubrosConConteo[r]
                               return (
@@ -1779,6 +1387,24 @@ export default function LicitacionesPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900 line-clamp-1">{item.nombre}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {item.tipo && (
+                            <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{item.tipo}</span>
+                          )}
+                          {(() => {
+                            if (!item.fecha_cierre) return null
+                            let fecha: Date | null = null
+                            const ddmm = item.fecha_cierre.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+                            if (ddmm) fecha = new Date(Number(ddmm[3]), Number(ddmm[2]) - 1, Number(ddmm[1]))
+                            else { const d = new Date(item.fecha_cierre); if (!isNaN(d.getTime())) fecha = d }
+                            if (!fecha) return null
+                            const today = new Date(); today.setHours(0,0,0,0)
+                            const dias = Math.ceil((fecha.getTime() - today.getTime()) / 86400000)
+                            if (dias < 0) return <span className="text-[10px] text-gray-400">cerrada</span>
+                            const cls = dias <= 2 ? 'bg-red-100 text-red-700' : dias <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                            return <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${cls}`}>{dias}d al cierre</span>
+                          })()}
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
                         {formatMonto(item.monto)}
@@ -1856,7 +1482,7 @@ export default function LicitacionesPage() {
                                       <CheckCircle2 size={13} /> Agregada a tus postulaciones
                                     </div>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); setMainTab('postulaciones') }}
+                                      onClick={(e) => { e.stopPropagation(); navigate('/licitaciones?tab=postulaciones') }}
                                       className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 w-full font-medium"
                                     >
                                       <ListChecks size={12} /> Ir a mis postulaciones
@@ -2153,67 +1779,151 @@ export default function LicitacionesPage() {
                     </div>
                   )}
 
-                  {/* ── TAB: Documentos a preparar ── */}
+                  {/* ── TAB: Documentos (rediseño completo) ── */}
                   {analisisTab === 'docs' && (
-                    <div className="space-y-4 text-xs">
-                      <p className="text-gray-500 text-[11px]">Lista de documentos que debes reunir y subir a Mercado Público antes del cierre.</p>
+                    <div className="space-y-5 text-xs">
 
-                      {[
-                        {
-                          grupo: '🏛️ Habilitación legal (siempre)',
-                          items: [
-                            { label: 'Certificado estado hábil ChileProveedores', url: 'https://www.chileproveedores.cl', tipo: 'Descargar del portal' },
-                            { label: 'Declaración jurada simple (no condenas, no conflicto)', url: null, tipo: 'Redactar + firmar' },
-                            { label: 'Cédula de identidad representante legal', url: null, tipo: 'Escanear' },
-                            { label: 'RUT empresa (SII)', url: 'https://homer.sii.cl/', tipo: 'Descargar del SII' },
-                          ]
-                        },
-                        {
-                          grupo: '📋 Oferta técnica',
-                          items: [
-                            { label: 'Propuesta técnica (generada arriba)', url: null, tipo: 'Copiar/descargar' },
-                            { label: 'Metodología de trabajo', url: null, tipo: 'Redactar' },
-                            { label: 'Currículum empresa + proyectos similares', url: null, tipo: 'Redactar' },
-                            { label: 'CV equipo profesional (si lo exigen las bases)', url: null, tipo: 'Preparar' },
-                          ]
-                        },
-                        {
-                          grupo: '💰 Oferta económica',
-                          items: [
-                            { label: 'Formulario de oferta económica (en MP)', url: 'https://www.mercadopublico.cl', tipo: 'Completar en MP' },
-                            { label: 'Garantía de seriedad (boleta bancaria si exigen)', url: null, tipo: 'Solicitar al banco' },
-                            { label: 'Detalle de costos / itemizado', url: null, tipo: 'Preparar' },
-                          ]
-                        },
-                        {
-                          grupo: '✅ Antes de enviar',
-                          items: [
-                            { label: 'Revisar que todos los archivos estén en PDF', url: null, tipo: 'Verificar' },
-                            { label: 'Confirmar que el nombre de archivos coincide con lo pedido', url: null, tipo: 'Verificar' },
-                            { label: 'Subir TODO antes del cierre (hora exacta)', url: 'https://www.mercadopublico.cl', tipo: 'Subir en MP' },
-                          ]
-                        },
-                      ].map((grupo, gi) => (
-                        <div key={gi}>
-                          <p className="font-semibold text-gray-700 mb-2">{grupo.grupo}</p>
-                          <div className="space-y-1.5 pl-1">
-                            {grupo.items.map((item, ii) => (
-                              <div key={ii} className="flex items-center gap-2">
-                                <span className="text-gray-300 shrink-0">☐</span>
-                                <span className="flex-1 text-gray-700">{item.label}</span>
-                                {item.url ? (
-                                  <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                    className="text-[10px] text-indigo-500 hover:underline shrink-0 flex items-center gap-0.5">
-                                    {item.tipo} <ExternalLink size={8} />
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-gray-400 shrink-0">{item.tipo}</span>
-                                )}
+                      {/* ── 1. BRECHAS DETECTADAS ── */}
+                      {(() => {
+                        const brechas = (analisisData?.requisitos ?? []).filter((r: any) => r.cumple === false || r.cumple === null)
+                        if (!brechas.length) return null
+                        return (
+                          <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-2">
+                            <p className="font-semibold text-red-700 flex items-center gap-1.5">
+                              <AlertTriangle size={13} /> Brechas detectadas en tu postulación
+                            </p>
+                            <p className="text-[11px] text-red-600">
+                              La IA identificó los siguientes puntos donde tu perfil necesita refuerzo para esta licitación:
+                            </p>
+                            <div className="space-y-2">
+                              {brechas.map((req: any, i: number) => (
+                                <div key={i} className="bg-white rounded-lg border border-red-100 p-2.5 space-y-1">
+                                  <div className="flex items-start gap-1.5">
+                                    {req.cumple === false
+                                      ? <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+                                      : <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />}
+                                    <p className={clsx('font-medium', req.cumple === false ? 'text-red-700' : 'text-amber-700')}>
+                                      {req.item}
+                                    </p>
+                                  </div>
+                                  {req.observacion && (
+                                    <p className="text-gray-500 pl-4">{req.observacion}</p>
+                                  )}
+                                  <div className="pl-4 flex gap-2 flex-wrap">
+                                    <button
+                                      onClick={() => { setPropuestaModal(null); setAnalisisData(null); navigate('/licitaciones/perfil') }}
+                                      className="text-[10px] text-indigo-500 hover:underline flex items-center gap-0.5"
+                                    >
+                                      <Settings size={9} /> Completar en perfil →
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* ── 2. DOCUMENTOS GENERABLES CON IA ── */}
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
+                        <div className="flex items-start gap-2.5">
+                          <div className="p-2 bg-violet-100 rounded-lg shrink-0">
+                            <Sparkles size={14} className="text-violet-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-violet-800">Genera todos tus documentos con IA</p>
+                            <p className="text-[11px] text-violet-600 mt-0.5">
+                              Metodología, carta de presentación, currículum empresa, CV del equipo y más — personalizados para esta licitación.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const pid = propuestaModal?.prospectId
+                            setPropuestaModal(null)
+                            setAnalisisData(null)
+                            navigate(`/propuestas/licitaciones?prospect_id=${pid}`)
+                          }}
+                          className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                        >
+                          <Sparkles size={14} /> Generar todos los documentos →
+                        </button>
+                      </div>
+
+                      {/* ── 3. DOCUMENTOS LEGALES (descarga directa) ── */}
+                      <div>
+                        <p className="font-semibold text-gray-700 mb-2">🏛️ Habilitación legal</p>
+                        <div className="space-y-1.5 pl-1">
+                          {[
+                            { label: 'Certificado estado hábil ChileProveedores', url: 'https://www.chileproveedores.cl' },
+                            { label: 'RUT empresa (SII)', url: 'https://homer.sii.cl/' },
+                            { label: 'Formulario oferta económica (Mercado Público)', url: 'https://www.mercadopublico.cl' },
+                          ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-gray-300 shrink-0">☐</span>
+                              <span className="flex-1 text-gray-700">{item.label}</span>
+                              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                className="text-[10px] text-indigo-500 hover:underline shrink-0 flex items-center gap-0.5">
+                                Descargar <ExternalLink size={8} />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── 4. SUBIR ARCHIVOS DE CONTEXTO ── */}
+                      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 space-y-2.5">
+                        <div className="flex items-start gap-2">
+                          <div className="p-1.5 bg-indigo-100 rounded-lg shrink-0">
+                            <FileText size={13} className="text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-700">Archivos de contexto para la IA</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Sube trabajos pasados, certificados, fichas técnicas o cualquier documento.
+                              La IA los usará para generar propuestas más precisas y personalizadas.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Lista de archivos subidos */}
+                        {archivosContexto.length > 0 && (
+                          <div className="space-y-1">
+                            {archivosContexto.map(a => (
+                              <div key={a.nombre} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-2.5 py-1.5">
+                                <FileText size={11} className="text-indigo-400 shrink-0" />
+                                <span className="flex-1 text-gray-700 truncate">{a.nombre}</span>
+                                <span className="text-[10px] text-gray-400 shrink-0">
+                                  {(a.tamaño_chars / 1000).toFixed(1)}k chars
+                                </span>
+                                <button
+                                  onClick={() => eliminarArchivoContexto(a.nombre)}
+                                  className="text-gray-300 hover:text-red-400 shrink-0"
+                                ><X size={12} /></button>
                               </div>
                             ))}
                           </div>
-                        </div>
-                      ))}
+                        )}
+
+                        <label className={clsx(
+                          'flex items-center justify-center gap-2 py-2 rounded-lg border-2 border-dashed cursor-pointer transition-colors',
+                          archivoCargando
+                            ? 'border-indigo-200 bg-indigo-50 opacity-60 pointer-events-none'
+                            : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                        )}>
+                          {archivoCargando
+                            ? <><Loader2 size={13} className="animate-spin text-indigo-500" /><span className="text-[11px] text-indigo-500">Procesando…</span></>
+                            : <><BookmarkPlus size={13} className="text-gray-400" /><span className="text-[11px] text-gray-500">Subir PDF, TXT o MD</span></>}
+                          <input type="file" className="hidden" accept=".pdf,.txt,.md,.doc,.docx" onChange={handleArchivoContexto} disabled={archivoCargando} />
+                        </label>
+
+                        {archivosContexto.length === 0 && (
+                          <p className="text-[10px] text-gray-400 text-center">
+                            Sin archivos aún — sube algo para mejorar la calidad de las propuestas
+                          </p>
+                        )}
+                      </div>
+
                     </div>
                   )}
                 </>
@@ -2282,13 +1992,6 @@ export default function LicitacionesPage() {
         </div>
       )}
 
-      {/* Modal perfil empresa */}
-      {showPerfilModal && (
-        <PerfilEmpresaModal
-          onClose={() => setShowPerfilModal(false)}
-          catalogo={catalogo}
-        />
-      )}
     </div>
   )
 }
@@ -2325,6 +2028,7 @@ interface ProspectoLicit {
   postulacion_estado?: string
   notes?: string
   created_at?: string
+  documentos_ia?: Array<{ tipo: string; label: string; texto: string; created_at: string }>
 }
 
 function PostulacionesPanel({
@@ -2353,7 +2057,21 @@ function PostulacionesPanel({
   const [estadoDropdown, setEstadoDropdown] = useState<string | null>(null)
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [busquedaLocal, setBusquedaLocal] = useState('')
+  const [subTab, setSubTab] = useState<'todas' | 'proximas' | 'preparacion'>('todas')
+  const [sortBy, setSortBy] = useState<'cierre' | 'guardada' | 'score' | 'monto'>('cierre')
   const highlightRef = useRef<HTMLDivElement>(null)
+
+  // Helper: días al cierre (puede ser negativo si ya cerró)
+  const diasAlCierre = (raw?: string): number | null => {
+    if (!raw) return null
+    let fecha: Date | null = null
+    const ddmm = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+    if (ddmm) fecha = new Date(Number(ddmm[3]), Number(ddmm[2]) - 1, Number(ddmm[1]))
+    else { const d = new Date(raw); if (!isNaN(d.getTime())) fecha = d }
+    if (!fecha) return null
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return Math.ceil((fecha.getTime() - today.getTime()) / 86400000)
+  }
 
   // Scroll al item destacado cuando llega — con retry para esperar el render
   useEffect(() => {
@@ -2377,12 +2095,26 @@ function PostulacionesPanel({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] }),
   })
 
-  const prospectosFiltrados = prospectos.filter(p => {
+  const prospectosFiltrados = [...prospectos.filter(p => {
     const matchEstado = filtroEstado === 'todos' ? true
       : filtroEstado === 'sin_estado' ? !p.postulacion_estado
       : p.postulacion_estado === filtroEstado
     const matchBusqueda = !busquedaLocal || (p.licitacion_nombre || p.company_name || '').toLowerCase().includes(busquedaLocal.toLowerCase())
-    return matchEstado && matchBusqueda
+    const dias = diasAlCierre(p.licitacion_fecha_cierre)
+    const matchSubTab = subTab === 'todas' ? true
+      : subTab === 'proximas' ? (dias !== null && dias >= 0 && dias <= 7)
+      : p.postulacion_estado === 'en_preparacion'
+    return matchEstado && matchBusqueda && matchSubTab
+  })].sort((a, b) => {
+    if (sortBy === 'cierre') {
+      const da = diasAlCierre(a.licitacion_fecha_cierre) ?? 9999
+      const db = diasAlCierre(b.licitacion_fecha_cierre) ?? 9999
+      return da - db
+    }
+    if (sortBy === 'guardada') return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+    if (sortBy === 'score') return (b.score ?? 0) - (a.score ?? 0)
+    if (sortBy === 'monto') return (b.licitacion_monto ?? 0) - (a.licitacion_monto ?? 0)
+    return 0
   })
 
   const sinEstado = prospectosFiltrados.filter(p => !p.postulacion_estado)
@@ -2493,6 +2225,39 @@ function PostulacionesPanel({
         )
       })()}
 
+      {/* Sub-tabs urgencia */}
+      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {([
+          { key: 'todas',       label: '🏆 Todas',            tooltip: 'Ver todas tus licitaciones guardadas' },
+          { key: 'proximas',    label: '⏰ Próximas a cerrar', tooltip: 'Solo licitaciones que cierran en los próximos 7 días — actúa rápido' },
+          { key: 'preparacion', label: '📋 En preparación',    tooltip: 'Licitaciones en estado "En preparación" — las que aún estás trabajando' },
+        ] as const).map(t => (
+          <div key={t.key} className="relative group">
+            <button
+              onClick={() => setSubTab(t.key)}
+              title={t.tooltip}
+              className={clsx(
+                'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
+                subTab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              {t.label}
+              {t.key === 'proximas' && (() => {
+                const cnt = prospectos.filter(p => { const d = diasAlCierre(p.licitacion_fecha_cierre); return d !== null && d >= 0 && d <= 7 }).length
+                return cnt > 0 ? <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1">{cnt}</span> : null
+              })()}
+            </button>
+            {/* Tooltip custom */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-50 pointer-events-none">
+              <div className="bg-gray-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap max-w-[200px] text-center leading-snug shadow-lg">
+                {t.tooltip}
+              </div>
+              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Header del panel */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -2523,6 +2288,17 @@ function PostulacionesPanel({
             <option value="evaluando">Evaluando</option>
             <option value="ganada">Ganada</option>
             <option value="perdida">Perdida</option>
+          </select>
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 bg-white"
+          >
+            <option value="cierre">Ordenar: Cierre más próximo</option>
+            <option value="guardada">Ordenar: Más reciente</option>
+            <option value="score">Ordenar: Mayor score IA</option>
+            <option value="monto">Ordenar: Mayor monto</option>
           </select>
           <button onClick={onRefresh} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
             <RefreshCw size={11} /> Actualizar
@@ -2750,6 +2526,7 @@ function PostulacionCard({
 }) {
   const [showChecklist, setShowChecklist] = useState(false)
   const [showNotas, setShowNotas] = useState(false)
+  const [showDocs, setShowDocs] = useState(false)
   const [notasText, setNotasText] = useState(p.notes || '')
   const [notasSaved, setNotasSaved] = useState(false)
   const notasTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -2820,6 +2597,36 @@ function PostulacionCard({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Botón documentos — protagonista */}
+            {(p.documentos_ia?.length ?? 0) > 0 ? (
+              <button
+                onClick={() => setShowDocs(v => !v)}
+                className={clsx(
+                  'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-semibold transition-colors',
+                  showDocs
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-violet-50 border-violet-300 text-violet-700 hover:bg-violet-100'
+                )}
+              >
+                <FileSignature size={12} />
+                {p.documentos_ia!.length} doc{p.documentos_ia!.length !== 1 ? 's' : ''} ✓
+              </button>
+            ) : (
+              <NavLink
+                to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold"
+              >
+                <FileSignature size={12} /> Generar docs
+              </NavLink>
+            )}
+            {/* Analizar con IA */}
+            <button
+              onClick={() => onAnalizar(p)}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              <ClipboardList size={11} /> Analizar
+            </button>
+            {/* Postular en MP */}
             {mpUrl && (
               <a
                 href={mpUrl}
@@ -2827,21 +2634,9 @@ function PostulacionCard({
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
               >
-                <ExternalLink size={11} /> Postular en MP
+                <ExternalLink size={11} /> MP
               </a>
             )}
-            <NavLink
-              to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-semibold"
-            >
-              <FileSignature size={11} /> Docs
-            </NavLink>
-            <button
-              onClick={() => onAnalizar(p)}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              <ClipboardList size={11} /> Analizar
-            </button>
             <div className="relative">
               {(() => {
                 const btnRef = React.useRef<HTMLButtonElement>(null)
@@ -2921,6 +2716,41 @@ function PostulacionCard({
           <p className="text-[10px] text-gray-400 mt-1 text-right">
             {notasSaved ? '✓ Guardado' : notasText ? 'Guardando...' : 'Se guarda automáticamente'}
           </p>
+        </div>
+      )}
+
+      {/* Documentos generados por IA */}
+      {showDocs && (p.documentos_ia?.length ?? 0) > 0 && (
+        <div className="mx-4 mb-3 rounded-xl border border-violet-100 bg-violet-50/40 p-3 space-y-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-semibold text-violet-700 flex items-center gap-1.5">
+              <FileSignature size={11} /> {p.documentos_ia!.length} documento{p.documentos_ia!.length !== 1 ? 's' : ''} generado{p.documentos_ia!.length !== 1 ? 's' : ''}
+            </p>
+            <NavLink
+              to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
+              className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-800 hover:underline"
+            >
+              <FileSignature size={10} /> Abrir en Generar documentos →
+            </NavLink>
+          </div>
+          {p.documentos_ia!.map(doc => (
+            <div key={doc.tipo} className="bg-white rounded-lg border border-violet-100 px-3 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center shrink-0">
+                  <FileText size={10} className="text-violet-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-800 truncate">{doc.label}</p>
+                  <p className="text-[10px] text-gray-400">
+                    Generado {new Date(doc.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                  </p>
+                </div>
+              </div>
+              <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold shrink-0">
+                <CheckCircle2 size={11} /> Listo
+              </span>
+            </div>
+          ))}
         </div>
       )}
 

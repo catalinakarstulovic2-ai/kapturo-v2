@@ -159,7 +159,7 @@ export const useLicitacionesSearchStore = create<LicitacionesSearchState>((set, 
       })
       .then(data => {
         if (_searchTimer) { clearInterval(_searchTimer); _searchTimer = null }
-        const items: LicitacionPreviewItem[] = data.items ?? []
+        const items: LicitacionPreviewItem[] = data.licitaciones ?? data.items ?? []
         const rc: Record<string, number> = data.rubros_counts ?? {}
         const savedAt = new Date().toISOString()
         set({
@@ -209,7 +209,7 @@ export const useLicitacionesSearchStore = create<LicitacionesSearchState>((set, 
       .then(data => {
         if (_searchTimer) { clearInterval(_searchTimer); _searchTimer = null }
         const { filtros_extraidos, resultado } = data
-        const items: LicitacionPreviewItem[] = resultado?.items ?? []
+        const items: LicitacionPreviewItem[] = resultado?.licitaciones ?? resultado?.items ?? []
         const rc: Record<string, number> = resultado?.rubros_counts ?? {}
         set({
           isSearchingIA: false,

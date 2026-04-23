@@ -1,21 +1,24 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin } from 'lucide-react'
+import { LayoutDashboard, Users, Kanban, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin, FileSignature, ClipboardList, SlidersHorizontal } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
 // hideSuperAdmin: ocultar este ítem cuando el usuario es super_admin
 // onlySuperAdmin: mostrar este ítem solo a super_admin
 const nav = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',       module: null,           hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/licitaciones',  icon: FileText,        label: 'Licitaciones',   module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/adjudicadas',   icon: Trophy,          label: 'Mercado Público',module: 'adjudicadas',  hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/pipeline',      icon: Kanban,          label: 'Pipeline',       module: null,           hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospectos',    icon: Users,           label: 'Prospectos',     module: null,           hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/prospeccion',   icon: Search,          label: 'Prospección',    module: 'prospector',   hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/inmobiliaria',          icon: Building2, label: 'Inmobiliaria',        module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/linkedin-prospecting',  icon: Linkedin,  label: 'LinkedIn',            module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false },
-  { to: '/configuracion',         icon: Settings,  label: 'Configuración',       module: null,           hideSuperAdmin: false, onlySuperAdmin: false },
-  { to: '/superadmin',    icon: ShieldAlert,     label: 'Super Admin',    module: null,           hideSuperAdmin: false, onlySuperAdmin: true  },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',           module: null,           hideSuperAdmin: false, onlySuperAdmin: false, group: null },
+  { to: '/licitaciones',  icon: FileText,        label: 'Buscar licitaciones', module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false, group: 'licitaciones' },
+  { to: '/licitaciones?tab=postulaciones', icon: ClipboardList, label: 'Mis postulaciones', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
+  { to: '/propuestas/licitaciones', icon: FileSignature, label: 'Generar documentos', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
+  { to: '/licitaciones/perfil', icon: SlidersHorizontal, label: 'Perfil IA', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
+  { to: '/adjudicadas',   icon: Trophy,          label: 'Mercado Público',     module: 'adjudicadas',  hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/pipeline',      icon: Kanban,          label: 'Pipeline',            module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/prospectos',    icon: Users,           label: 'Prospectos',          module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/prospeccion',   icon: Search,          label: 'Prospección',         module: 'prospector',   hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/inmobiliaria',         icon: Building2, label: 'Inmobiliaria',       module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/linkedin-prospecting', icon: Linkedin,  label: 'LinkedIn',           module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/configuracion',        icon: Settings,  label: 'Configuración',      module: null,           hideSuperAdmin: false, onlySuperAdmin: false, group: null },
+  { to: '/superadmin',   icon: ShieldAlert,      label: 'Super Admin',        module: null,           hideSuperAdmin: false, onlySuperAdmin: true,  group: null },
 ]
 
 interface SidebarProps {
@@ -65,32 +68,53 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {visibleNav.map(({ to, icon: Icon, label, onlySuperAdmin }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={onClose}
-            className={({ isActive }) =>
-              onlySuperAdmin
-                ? clsx(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-purple-50 text-purple-700'
-                      : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700'
-                  )
-                : clsx(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-brand-50 text-brand-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  )
-            }
-          >
-            <Icon size={18} />
-            {label}
-          </NavLink>
-        ))}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {(() => {
+          let lastGroup: string | null = undefined as any
+          return visibleNav.map(({ to, icon: Icon, label, onlySuperAdmin, group }) => {
+            const showGroupHeader = group === 'licitaciones' && lastGroup !== 'licitaciones'
+            lastGroup = group ?? null
+            const hasQuery = to.includes('?')
+            const isSubItem = group === 'licitaciones' && to !== '/licitaciones'
+            return (
+              <div key={to}>
+                {showGroupHeader && (
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Licitaciones</p>
+                  </div>
+                )}
+                <NavLink
+                  to={to}
+                  end={!hasQuery}
+                  onClick={onClose}
+                  className={({ isActive: routerActive }) => {
+                    const realActive = hasQuery
+                      ? (typeof window !== 'undefined' && window.location.pathname + window.location.search === to)
+                      : routerActive
+                    return onlySuperAdmin
+                      ? clsx(
+                          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                          isSubItem && 'pl-5',
+                          realActive
+                            ? 'bg-purple-50 text-purple-700'
+                            : 'text-purple-500 hover:bg-purple-50 hover:text-purple-700'
+                        )
+                      : clsx(
+                          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                          isSubItem && 'pl-5',
+                          realActive
+                            ? 'bg-brand-50 text-brand-600'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        )
+                  }}
+                >
+                  <Icon size={isSubItem ? 16 : 18} />
+                  <span className={isSubItem ? 'text-[13px]' : ''}>{label}</span>
+                </NavLink>
+              </div>
+            )
+          })
+        })()}
       </nav>
 
       {/* Footer */}

@@ -240,7 +240,7 @@ export default function DashboardPage() {
     enabled: tieneLicitador,
     staleTime: 5 * 60 * 1000,
   })
-  const perfilLicitCompleto = !!(perfilLicit?.descripcion && perfilLicit?.rubros?.length > 0)
+  const perfilLicitCompleto = !!(perfilLicit?.descripcion && perfilLicit?.rubros?.length > 0 && perfilLicit?.rut_empresa && perfilLicit?.nombre_contacto)
 
   const busquedasGuardadas = useAdjudicadasStore(s => s.busquedasGuardadas)
   // Búsquedas creadas en los últimos 7 días (el id es Date.now())
@@ -272,58 +272,57 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Banner setup perfil licitaciones */}
+      {/* Banner urgente de onboarding — Perfil IA incompleto */}
       {tieneLicitador && !perfilLicitCompleto && (
-        <div className="flex items-start gap-4 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl px-5 py-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
-            <FileText size={18} className="text-indigo-600" />
+        <div className="rounded-2xl overflow-hidden border border-amber-300 shadow-sm">
+          <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-6 py-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-400/20 border border-amber-300 flex items-center justify-center shrink-0">
+                <AlertCircle size={22} className="text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-amber-900">⚠️ Completa tu Perfil IA antes de empezar</p>
+                <p className="text-sm text-amber-700 mt-1 leading-relaxed">
+                  Sin el perfil, la IA no puede filtrar licitaciones relevantes ni generar documentos personalizados para tu empresa.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/licitaciones/perfil')}
+                className="shrink-0 flex items-center gap-2 text-sm font-bold bg-amber-500 text-white px-4 py-2.5 rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
+              >
+                Completar perfil <ArrowRight size={14} />
+              </button>
+            </div>
+            {/* Pasos */}
+            <div className="mt-4 flex items-center gap-2 overflow-x-auto">
+              {[
+                { n: '1', label: 'Completa tu Perfil IA', done: false, active: true },
+                { n: '2', label: 'Busca licitaciones relevantes', done: false, active: false },
+                { n: '3', label: 'Analiza con IA si calificas', done: false, active: false },
+                { n: '4', label: 'Genera documentos y postula', done: false, active: false },
+              ].map((step, i) => (
+                <>
+                  <div key={step.n} className={`flex items-center gap-2 shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold ${
+                    step.active ? 'bg-amber-500 text-white' : 'bg-white/60 text-amber-700 border border-amber-200'
+                  }`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                      step.active ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-500'
+                    }`}>{step.n}</span>
+                    {step.label}
+                  </div>
+                  {i < 3 && <ArrowRight size={12} className="text-amber-400 shrink-0" />}
+                </>
+              ))}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-indigo-900">Primero: configura el perfil de tu empresa</p>
-            <p className="text-xs text-indigo-600 mt-0.5 leading-relaxed">
-              La IA necesita conocer tus rubros, regiones y descripción para filtrar licitaciones relevantes y generar propuestas técnicas personalizadas.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/licitaciones')}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
-          >
-            Configurar ahora <ArrowRight size={12} />
-          </button>
         </div>
       )}
-
-      {/* ── Guía rápida Licitaciones ─────────────────────────────────────── */}
-      {tieneLicitador && (
-        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl px-5 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-violet-900 flex items-center gap-2">
-              <Rocket size={15} className="text-violet-600" /> ¿Cómo usar Licitaciones?
-            </p>
-            <button onClick={() => navigate('/licitaciones')} className="text-xs text-violet-600 font-medium hover:underline flex items-center gap-1">
-              Ir a Licitaciones <ArrowRight size={11} />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[
-              { icon: Search,     title: 'Busca licitaciones',        desc: 'Filtra por rubro, región, monto o estado.' },
-              { icon: FileSearch, title: 'Guarda las que te interesan', desc: 'Quedan en "Mis Postulaciones" para seguirlas.' },
-              { icon: Bot,        title: 'Analiza con IA',            desc: 'La IA descarga las bases y evalúa si calificas.' },
-              { icon: FileText,   title: 'Genera documentos',         desc: 'Propuesta técnica, oferta económica o carta.' },
-              { icon: TrendingUp, title: 'Haz seguimiento',           desc: 'Cambia el estado: En preparación → Ganada.' },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-white rounded-xl p-3 flex flex-col items-center text-center gap-1.5 border border-violet-100">
-                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                  <Icon size={15} className="text-violet-600" />
-                </div>
-                <p className="text-xs font-semibold text-gray-800 leading-tight">{title}</p>
-                <p className="text-[11px] text-gray-500 leading-snug">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-violet-500 mt-3 text-center">
-            💡 La IA tarda ~30 seg en analizar las bases. Puedes seguir navegando mientras trabaja.
-          </p>
+      {/* Confirmación perfil completo */}
+      {tieneLicitador && perfilLicitCompleto && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3">
+          <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+          <p className="text-sm font-semibold text-emerald-800">Perfil IA completo — la IA ya conoce tu empresa</p>
+          <button onClick={() => navigate('/licitaciones/perfil')} className="ml-auto text-xs text-emerald-600 hover:underline">Editar perfil</button>
         </div>
       )}
 

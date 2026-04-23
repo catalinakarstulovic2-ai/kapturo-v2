@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'https://backend-production-bc9f.up.railway.app',
+      '/api': 'http://localhost:8000',
     },
   },
   build: {

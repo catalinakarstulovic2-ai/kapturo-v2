@@ -55,15 +55,29 @@ class AgentConfigRequest(BaseModel):
 
 class LicitacionesProfileRequest(BaseModel):
     """Perfil de empresa para el módulo de licitaciones."""
+    # Identidad legal
     rut_empresa: Optional[str] = None
     razon_social: Optional[str] = None
     inscrito_chile_proveedores: Optional[bool] = None
+    # Datos de contacto / legales (necesarios para documentos formales)
+    nombre_contacto: Optional[str] = None     # representante legal / firmante
+    cargo_contacto: Optional[str] = None      # cargo del firmante
+    telefono: Optional[str] = None
+    correo: Optional[str] = None              # correo de contacto / empresa
+    sitio_web: Optional[str] = None
+    direccion: Optional[str] = None
+    # Actividad
     rubros: Optional[list[str]] = None
     regiones: Optional[list[str]] = None
     descripcion: Optional[str] = None
     experiencia_anos: Optional[int] = None
     proyectos_anteriores: Optional[str] = None
     certificaciones: Optional[str] = None
+    diferenciadores: Optional[str] = None
+    # Capacidades (para generar documentos técnicos realistas)
+    equipo_tecnico: Optional[str] = None       # quiénes ejecutan, cuántas personas, roles
+    metodologia_trabajo: Optional[str] = None  # forma de trabajo estándar
+    # Alertas
     email_alertas: Optional[str] = None
     frecuencia_alertas: Optional[str] = None  # "diaria" | "semanal" | "nunca"
     nuevas_pendientes: Optional[int] = None

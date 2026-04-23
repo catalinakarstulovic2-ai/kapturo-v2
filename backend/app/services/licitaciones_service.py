@@ -192,10 +192,10 @@ class LicitacionesService:
         pagina = max(1, min(pagina, total_paginas))
 
         inicio = (pagina - 1) * POR_PAGINA
-        codigos_pagina = [
-            i.get("CodigoExterno")
-            for i in items_listado[inicio:inicio + POR_PAGINA]
-        ]
+        items_pagina = items_listado[inicio:inicio + POR_PAGINA]
+        codigos_pagina = [i.get("CodigoExterno") for i in items_pagina]
+        # Fallback: si el detalle falla usamos los datos mínimos del listado
+        listado_por_codigo = {i.get("CodigoExterno"): i for i in items_pagina}
 
         # ── Fase 2: Detalle solo para los ~50 items de la página actual ────
         sem = asyncio.Semaphore(5)  # max 5 paralelos — la API de MP es sensible a concurrencia alta
@@ -209,7 +209,8 @@ class LicitacionesService:
                         if intento < 2:
                             await asyncio.sleep(0.8 * (intento + 1))  # 0.8s, 1.6s
                             continue
-                return None
+                # Fallback: datos mínimos del listado para no perder el item
+                return listado_por_codigo.get(cod)
 
         detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
         detalles_ok = [d for d in detalles if d]
@@ -256,7 +257,7 @@ class LicitacionesService:
             "total_paginas": total_paginas,
             "total_disponible": total_disponible,
             "pagina": pagina,
-            "items": items,
+            "licitaciones": items,
             "rubros_counts": rubros_counts,
         }
 
@@ -685,129 +686,6 @@ class LicitacionesService:
         )
 
     # ─── BATCH ────────────────────────────────────────────────────────────
-
-    async def buscar_y_guardar(self, tipo: str, contexto_cliente: dict, filtros: dict = None, calificar: bool = True) -> dict:
-        """Flujo batch para workers o búsquedas masivas programadas."""
-        filtros = filtros or {}
-        fecha = (filtros.pop("fecha", None)
-                 or (datetime.now() - timedelta(days=1)).strftime("%d%m%Y"))
-        region = filtros.get("region")
-        estado = "adjudicada" if tipo == "licitador_b" else "publicada"
-
-        respuesta = await self.mp_client.buscar_licitaciones(
-            fecha=fecha, estado=estado, region=region
-        )
-        codigos = [item.get("CodigoExterno") for item in respuesta.get("Listado", [])[:20] if item.get("CodigoExterno")]
-        detalles = []
-        for codigo in codigos:
-            try:
-                detalle = await self.mp_client.obtener_detalle(codigo)
-                if detalle:
-                    detalles.append(detalle)
-            except Exception:
-                continue
-
-        prospectos_normalizados = normalizar_respuesta_api({"Listado": detalles}, tipo)
-        guardados = duplicados = errores = 0
-
-        for p_dict in prospectos_normalizados:
-            try:
-                if p_dict.get("rut"):
-                    existente = (
-                        self.db.query(Prospect)
-                        .filter(Prospect.tenant_id == self.tenant_id, Prospect.rut == p_dict["rut"], Prospect.source_module == tipo)
-                        .first()
-                    )
-                    if existente:
-                        duplicados += 1
-                        continue
-
-                score, score_reason = 0.0, ""
-                if calificar:
-                    score, score_reason = await self.scorer.calificar_prospecto(p_dict, contexto_cliente)
-
-                prospect = Prospect(
-                    tenant_id=self.tenant_id,
-                    score=score,
-                    score_reason=score_reason,
-                    is_qualified=score >= 60,
-                    status=ProspectStatus.qualified if score >= 60 else ProspectStatus.new,
-                    **p_dict,
-                )
-                self.db.add(prospect)
-                self.db.flush()
-
-                if score >= 60:
-                    await self._agregar_al_pipeline(prospect.id)
-
-                guardados += 1
-            except Exception:
-                errores += 1
-                continue
-
-        self.db.commit()
-        return {"total_encontrados": len(prospectos_normalizados), "guardados": guardados, "duplicados": duplicados, "errores": errores}
-
-    # ─── PIPELINE ─────────────────────────────────────────────────────────
-
-    async def _agregar_al_pipeline(self, prospect_id: str):
-        primera_etapa = (
-            self.db.query(PipelineStage)
-            .filter(PipelineStage.tenant_id == self.tenant_id)
-            .order_by(PipelineStage.order)
-            .first()
-        )
-        if primera_etapa:
-            self.db.add(PipelineCard(tenant_id=self.tenant_id, prospect_id=prospect_id, stage_id=primera_etapa.id))
-
-    # ─── PROSPECTOS GUARDADOS ─────────────────────────────────────────────
-
-    async def obtener_prospectos(self, modulo: str = None, solo_calificados: bool = False, score_minimo: float = 0, pagina: int = 1, por_pagina: int = 50) -> dict:
-        query = self.db.query(Prospect).filter(Prospect.tenant_id == self.tenant_id)
-        if modulo:
-            query = query.filter(Prospect.source_module == modulo)
-        if solo_calificados:
-            query = query.filter(Prospect.is_qualified == True)
-        if score_minimo > 0:
-            query = query.filter(Prospect.score >= score_minimo)
-
-        total = query.count()
-        prospectos = query.order_by(Prospect.score.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
-        return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "items": [self._serializar(p) for p in prospectos]}
-
-    def _serializar(self, p: Prospect) -> dict:
-        return {
-            "id": p.id,
-            "company_name": p.company_name,
-            "rut": p.rut,
-            "contact_name": p.contact_name,
-            "contact_title": p.contact_title,
-            "email": p.email,
-            "phone": p.phone,
-            "website": p.website,
-            "address": p.address,
-            "city": p.city,
-            "enrichment_source": p.enrichment_source,
-            "licitaciones_ganadas_count": p.licitaciones_ganadas_count or 0,
-            "score": p.score,
-            "score_reason": p.score_reason,
-            "is_qualified": p.is_qualified,
-            "status": p.status,
-            "source_module": p.source_module,
-            "licitacion_codigo": p.licitacion_codigo,
-            "licitacion_nombre": p.licitacion_nombre,
-            "licitacion_monto": p.licitacion_monto,
-            "licitacion_monto_adjudicado": p.licitacion_monto_adjudicado,
-            "licitacion_organismo": p.licitacion_organismo,
-            "licitacion_categoria": p.licitacion_categoria,
-            "licitacion_region": p.licitacion_region,
-            "licitacion_estado": p.licitacion_estado,
-            "licitacion_fecha_adjudicacion": p.licitacion_fecha_adjudicacion,
-            "licitacion_fecha_cierre": p.licitacion_fecha_cierre,
-            "postulacion_estado": p.postulacion_estado,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-        }
-
     async def buscar_y_guardar(
         self,
         tipo: str,                  # "licitador_a" o "licitador_b"
@@ -987,5 +865,17 @@ class LicitacionesService:
             "licitacion_fecha_cierre": p.licitacion_fecha_cierre,
             "postulacion_estado": p.postulacion_estado,
             "notes": p.notes,
+            "documentos_ia": self._parse_documentos_ia(p.notes_history),
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }
+
+    def _parse_documentos_ia(self, notes_history_raw) -> list:
+        """Parsea notes_history y retorna solo los registros con source='ia'."""
+        if not notes_history_raw:
+            return []
+        try:
+            import json
+            items = json.loads(notes_history_raw) if isinstance(notes_history_raw, str) else notes_history_raw
+            return [i for i in items if isinstance(i, dict) and i.get('source') == 'ia']
+        except Exception:
+            return []

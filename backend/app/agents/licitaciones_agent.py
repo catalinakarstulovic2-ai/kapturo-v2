@@ -169,10 +169,237 @@ Solo el JSON, sin texto adicional."""
     # 2. Generar propuesta técnica (versión básica, sin bases reales)
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def generar_propuesta(self, prospect_id: str) -> str:
+    async def generar_propuesta(self, prospect_id: str, instrucciones_extra: str = "") -> str:
         prospect = self._get_prospect(prospect_id)
         perfil = self._get_perfil_empresa()
-        return self._redactar_propuesta(prospect, perfil, secciones={})
+        return self._redactar_propuesta(prospect, perfil, secciones={}, instrucciones_extra=instrucciones_extra)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2b. Generar documento específico (metodología, currículum, etc.)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def generar_documento(self, prospect_id: str, tipo_documento: str, instrucciones_extra: str = "") -> str:
+        """
+        Genera un documento específico para la postulación usando Claude.
+
+        tipos soportados:
+          - metodologia       → Metodología de trabajo
+          - curriculum        → Currículum empresa + proyectos similares
+          - declaracion       → Declaración jurada simple (no condenas/conflictos)
+          - cv_equipo         → CV sintético del equipo profesional
+          - detalle_costos    → Tabla de costos / itemizado sugerido
+          - carta_presentacion → Carta formal de presentación al organismo
+          - carta_seguimiento → Carta de seguimiento post-postulación
+        """
+        prospect = self._get_prospect(prospect_id)
+        perfil = self._get_perfil_empresa()
+        return await asyncio.to_thread(self._generar_doc_sync, prospect, perfil, tipo_documento, instrucciones_extra)
+
+    def _generar_doc_sync(self, prospect: Prospect, perfil: dict, tipo: str, instrucciones_extra: str = "") -> str:
+        empresa_nombre  = perfil.get("razon_social") or "nuestra empresa"
+        rubros          = ", ".join(perfil.get("rubros") or []) or "servicios generales"
+        regiones        = ", ".join(perfil.get("regiones") or []) or "todo Chile"
+        descripcion     = perfil.get("descripcion") or "empresa de servicios"
+        experiencia     = perfil.get("experiencia_anos") or 0
+        proyectos       = perfil.get("proyectos_anteriores") or ""
+        certificaciones = perfil.get("certificaciones") or "ninguna"
+        diferenciadores = perfil.get("diferenciadores") or ""
+
+        # Contexto archivos subidos por el usuario
+        archivos_contexto = perfil.get("archivos_contexto") or []
+        ctx_archivos = ""
+        if archivos_contexto:
+            textos = [f"[{a['nombre']}]\n{a['texto'][:1500]}" for a in archivos_contexto[:3]]
+            ctx_archivos = "\n\nDOCUMENTOS DE CONTEXTO SUBIDOS POR LA EMPRESA:\n" + "\n\n".join(textos)
+
+        licitacion = (
+            f"Nombre: {prospect.licitacion_nombre or prospect.company_name or 'Sin nombre'}\n"
+            f"Organismo: {prospect.licitacion_organismo or 'N/A'}\n"
+            f"Categoría: {prospect.licitacion_categoria or 'N/A'}\n"
+            f"Región: {prospect.licitacion_region or 'N/A'}"
+        )
+
+        prompts = {
+            "metodologia": f"""Eres experto en licitaciones públicas chilenas. Redacta una METODOLOGÍA DE TRABAJO profesional en Markdown.
+
+LICITACIÓN:
+{licitacion}
+
+EMPRESA:
+- Nombre: {empresa_nombre}
+- Rubros: {rubros}
+- Descripción: {descripcion}
+- Experiencia: {experiencia} años
+{ctx_archivos}
+
+La metodología debe tener:
+## Enfoque metodológico
+## Etapas de trabajo (con fases y actividades concretas)
+## Control de calidad
+## Gestión de riesgos
+## Comunicación con el organismo
+
+Usa lenguaje técnico apropiado al rubro. Máximo 600 palabras. Solo el documento, sin explicaciones.""",
+
+            "curriculum": f"""Redacta el CURRÍCULUM EMPRESA en Markdown, listo para adjuntar a una licitación.
+
+LICITACIÓN:
+{licitacion}
+
+EMPRESA:
+- Nombre: {empresa_nombre}
+- Rubros: {rubros}
+- Regiones: {regiones}
+- Descripción: {descripcion}
+- Años de experiencia: {experiencia}
+- Proyectos anteriores: {proyectos or 'no especificados'}
+- Certificaciones: {certificaciones}
+- Diferenciadores: {diferenciadores}
+{ctx_archivos}
+
+El currículum debe incluir:
+## Quiénes somos
+## Áreas de especialización
+## Proyectos relevantes (tabla o lista)
+## Certificaciones y acreditaciones
+## Por qué elegirnos
+
+Solo el documento final, sin comentarios.""",
+
+            "declaracion": f"""Redacta una DECLARACIÓN JURADA SIMPLE para licitaciones públicas chilenas en Markdown.
+
+Empresa declarante: {empresa_nombre}
+
+La declaración debe indicar:
+1. Que la empresa no tiene condenas penales
+2. Que no existe conflicto de interés con el organismo licitante
+3. Que la información entregada es veraz
+4. Firma del representante legal
+
+Formato formal, lenguaje legal estándar chileno. Deja espacios en blanco para: RUT empresa, RUT representante legal, nombre representante, fecha y firma.
+Solo el documento, sin explicaciones.""",
+
+            "cv_equipo": f"""Redacta un CV SINTÉTICO DEL EQUIPO en Markdown para postular a esta licitación.
+
+LICITACIÓN:
+{licitacion}
+
+EMPRESA:
+- Rubros: {rubros}
+- Descripción: {descripcion}
+{ctx_archivos}
+
+Genera perfiles realistas para 3-4 personas clave según el rubro de la licitación.
+Formato por persona:
+### [Cargo]
+- Formación: ...
+- Experiencia: ...
+- Rol en este proyecto: ...
+
+Deja espacio para nombre real. No inventes RUTs ni datos específicos.""",
+
+            "detalle_costos": f"""Genera una TABLA DE COSTOS ITEMIZADA en Markdown para esta licitación.
+
+LICITACIÓN:
+{licitacion}
+Monto estimado: {'${:,.0f} CLP'.format(prospect.licitacion_monto) if prospect.licitacion_monto else 'No especificado'}
+
+EMPRESA: {empresa_nombre} — Rubros: {rubros}
+{ctx_archivos}
+
+Crea una tabla con ítems realistas según el rubro:
+| Ítem | Descripción | Cantidad | Precio Unit. | Total |
+
+Incluye al menos 5-8 ítems relevantes al servicio/producto solicitado.
+Al final: subtotal, IVA (19%), total.
+Nota al pie indicando que los valores son referenciales.
+Solo la tabla y notas, sin explicaciones.""",
+
+            "carta_presentacion": f"""Redacta una CARTA FORMAL DE PRESENTACIÓN en Markdown dirigida al organismo licitante.
+
+LICITACIÓN:
+{licitacion}
+
+EMPRESA:
+- Nombre: {empresa_nombre}
+- Rubros: {rubros}
+- Descripción: {descripcion}
+- Experiencia: {experiencia} años
+- Diferenciadores: {diferenciadores}
+{ctx_archivos}
+
+Formato carta formal chilena:
+- Encabezado con lugar y fecha (deja espacio)
+- Dirigida a: [Nombre Director/Jefe Unidad], [Organismo]
+- Cuerpo: presentación, interés en la licitación, fortalezas, cierre formal
+- Firma y datos de contacto (placeholders)
+
+Tono profesional y persuasivo. Máximo 300 palabras.""",
+
+            "carta_seguimiento": f"""Redacta una CARTA DE SEGUIMIENTO POST-POSTULACIÓN en Markdown.
+
+LICITACIÓN:
+{licitacion}
+
+EMPRESA:
+- Nombre: {empresa_nombre}
+- Rubros: {rubros}
+- Descripción: {descripcion}
+- Experiencia: {experiencia} años
+- Diferenciadores: {diferenciadores}
+{ctx_archivos}
+
+Objetivo: reforzar la oferta ya presentada ante el evaluador, recordar fortalezas clave, ofrecer disponibilidad para responder consultas.
+
+Formato carta formal chilena:
+- Encabezado con lugar y fecha (deja espacio)
+- Dirigida a: [Nombre evaluador], [Organismo]
+- Párrafo 1: referencia a la postulación enviada (número licitación)
+- Párrafo 2: recordar 2-3 diferenciadores clave
+- Párrafo 3: disponibilidad y contacto
+- Cierre formal y firma
+
+Tono cercano pero profesional. Máximo 250 palabras.""",
+
+            "carta_gantt": f"""Genera un PLAN DE TRABAJO con Carta Gantt en Markdown para esta licitación.
+
+LICITACIÓN:
+{licitacion}
+{ctx_archivos}
+
+EMPRESA: {empresa_nombre} — Rubros: {rubros}
+
+Primero, analiza el tipo de servicio/producto de la licitación e infiere una duración razonable del contrato.
+
+Luego genera:
+
+## Plan de Trabajo
+
+### Supuestos del plan
+Breve descripción de los supuestos de duración y fases.
+
+### Carta Gantt
+
+| N° | Actividad | Semana 1 | Semana 2 | Semana 3 | Semana 4 | Semana 5 | Semana 6 | Semana 7 | Semana 8 | Responsable |
+|---|---|---|---|---|---|---|---|---|---|---|
+(usa ✓ o ███ para marcar las semanas de cada actividad, deja vacío las que no aplican)
+
+Incluye al menos 8-10 actividades realistas: inicio, diagnóstico, ejecución por fases, entrega, cierre.
+
+### Hitos clave
+Lista de los hitos con fechas relativas (Semana X).
+
+Solo el documento, sin explicaciones.""",
+        }
+
+        prompt = prompts.get(tipo)
+        if not prompt:
+            raise ValueError(f"Tipo de documento '{tipo}' no soportado")
+
+        if instrucciones_extra:
+            prompt += f"\n\nINSTRUCCIONES ADICIONALES DEL USUARIO: {instrucciones_extra}"
+
+        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=1500)
 
     # ─────────────────────────────────────────────────────────────────────────
     # 3. Analizar bases técnicas + score + propuesta calibrada
@@ -345,7 +572,7 @@ Solo el JSON."""
                 "alertas": [],
             }
 
-    def _redactar_propuesta(self, prospect: Prospect, perfil: dict, secciones: dict) -> str:
+    def _redactar_propuesta(self, prospect: Prospect, perfil: dict, secciones: dict, instrucciones_extra: str = "") -> str:
         """Genera propuesta técnica calibrada a los criterios reales de evaluación."""
         empresa_nombre   = perfil.get("razon_social") or "nuestra empresa"
         rubros_empresa   = ", ".join(perfil.get("rubros") or []) or "no especificados"
@@ -355,6 +582,13 @@ Solo el JSON."""
         proyectos        = perfil.get("proyectos_anteriores") or "No especificados"
         certificaciones  = perfil.get("certificaciones") or "ninguna especificada"
         diferenciadores  = perfil.get("diferenciadores") or "No especificados"
+
+        # Incluir archivos de contexto subidos por el usuario
+        archivos_contexto = perfil.get("archivos_contexto") or []
+        ctx_archivos = ""
+        if archivos_contexto:
+            textos = [f"[{a['nombre']}]\n{a['texto'][:2000]}" for a in archivos_contexto[:3]]
+            ctx_archivos = "\n\nDOCUMENTOS DE CONTEXTO DE LA EMPRESA (usa estos para enriquecer la propuesta):\n" + "\n\n".join(textos)
 
         licitacion_info = (
             f"Nombre: {prospect.licitacion_nombre or prospect.company_name or 'Sin nombre'}\n"
@@ -399,6 +633,7 @@ EMPRESA POSTULANTE:
 - Proyectos anteriores: {proyectos}
 - Certificaciones: {certificaciones}
 - Diferenciadores clave: {diferenciadores}
+{ctx_archivos}
 
 {instruccion_criterios}
 
@@ -414,148 +649,13 @@ Redacta la propuesta técnica completa en Markdown:
 
 Reglas:
 - Lenguaje profesional, directo y persuasivo
-- Mínimo 2 párrafos por sección
+- 1-2 párrafos por sección (CONCISO, no extenso)
 - Si hay criterios de evaluación: cada sección menciona cómo contribuye al puntaje
 - Destacar los diferenciadores en sección 7
-- NO inventar datos concretos (RUTs, contratos específicos, montos exactos)"""
+- NO inventar datos concretos (RUTs, contratos específicos, montos exactos)
+- IMPORTANTE: completa TODAS las secciones hasta el final, no te cortes"""
 
-        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=3000)
+        if instrucciones_extra:
+            prompt += f"\n\nINSTRUCCIONES ADICIONALES DEL USUARIO: {instrucciones_extra}"
 
-        rubros = catalogo.get("rubros", [])
-
-        regiones_str = ", ".join(
-            f'{r["nombre"]} (código {r["codigo"]})' for r in regiones
-        ) if regiones else "todas las regiones de Chile"
-
-        rubros_str = ", ".join(rubros) if rubros else "construcción, tecnología, salud, aseo, transporte, consultoría"
-
-        prompt = f"""Eres un asistente experto en licitaciones públicas chilenas de Mercado Público.
-El usuario describió lo que busca en lenguaje natural. Extrae los filtros de búsqueda.
-
-CONSULTA DEL USUARIO: "{consulta}"
-
-REGIONES VÁLIDAS: {regiones_str}
-
-RUBROS DISPONIBLES (usa los más relevantes como keywords): {rubros_str}
-
-Responde SOLO con un JSON válido con esta estructura exacta:
-{{
-  "keyword": "palabras clave separadas por espacio (máx 3-4 palabras relacionadas al servicio/producto)",
-  "region": "código numérico de región o null si no se menciona región",
-  "tipo_licitacion": null,
-  "fecha_periodo_dias": 30,
-  "resumen": "frase corta explicando qué entendiste que busca el usuario (máx 15 palabras)"
-}}
-
-REGLAS:
-- keyword: extrae el servicio o producto principal (ej: "aseo limpieza", "mantención equipos", "software gestión")
-- region: SOLO el código numérico (ej: "13" para Santiago, "8" para Biobío), null si no se menciona
-- tipo_licitacion: null siempre
-- fecha_periodo_dias: 30 por defecto, 90 si el usuario pide "más resultados" o "histórico"
-- resumen: escribe en español informal, ej: "Servicios de aseo en la Región Metropolitana"
-
-Responde ÚNICAMENTE con el JSON, sin texto adicional."""
-
-        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=300)
-
-        # Limpiar posibles bloques de código markdown
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            parts = cleaned.split("```")
-            cleaned = parts[1] if len(parts) > 1 else cleaned
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:]
-
-        return json.loads(cleaned.strip())
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # 2. Generar propuesta técnica
-    # ─────────────────────────────────────────────────────────────────────────
-
-    async def generar_propuesta(self, prospect_id: str) -> str:
-        """
-        Genera una propuesta técnica en Markdown para una licitación guardada.
-        Usa el perfil de empresa (niche_config) del módulo licitaciones.
-        """
-        prospect = (
-            self.db.query(Prospect)
-            .filter(Prospect.id == prospect_id, Prospect.tenant_id == self.tenant_id)
-            .first()
-        )
-        if not prospect:
-            raise ValueError("Licitación no encontrada")
-
-        modulo = (
-            self.db.query(TenantModule)
-            .filter(
-                TenantModule.tenant_id == self.tenant_id,
-                TenantModule.module.in_(["licitaciones", "licitador"]),
-            )
-            .first()
-        )
-        perfil = modulo.niche_config if modulo and modulo.niche_config else {}
-
-        licitacion_info = "\n".join(filter(None, [
-            f"Nombre: {prospect.licitacion_nombre or prospect.company_name or 'Sin nombre'}",
-            f"Código: {prospect.licitacion_codigo or 'N/A'}",
-            f"Organismo comprador: {prospect.licitacion_organismo or 'N/A'}",
-            f"Categoría/Rubro: {prospect.licitacion_categoria or prospect.industry or 'N/A'}",
-            f"Región: {prospect.licitacion_region or prospect.city or 'N/A'}",
-            f"Monto estimado: ${prospect.licitacion_monto:,.0f} CLP" if prospect.licitacion_monto else None,
-            f"Fecha cierre: {prospect.licitacion_fecha_cierre}" if prospect.licitacion_fecha_cierre else None,
-        ]))
-
-        empresa_nombre  = perfil.get("razon_social") or "nuestra empresa"
-        rubros_empresa  = ", ".join(perfil.get("rubros") or []) or "no especificados"
-        regiones_empresa = ", ".join(perfil.get("regiones") or []) or "todo Chile"
-        descripcion     = perfil.get("descripcion") or "empresa de servicios"
-        experiencia     = perfil.get("experiencia_anos") or 0
-        proyectos       = perfil.get("proyectos_anteriores") or "No especificados"
-        certificaciones = ", ".join(perfil.get("certificaciones") or []) or "ninguna especificada"
-
-        prompt = f"""Eres un experto en licitaciones públicas chilenas con 15 años de experiencia redactando propuestas técnicas ganadoras para Mercado Público.
-
-LICITACIÓN A POSTULAR:
-{licitacion_info}
-
-PERFIL DE LA EMPRESA POSTULANTE:
-- Razón social: {empresa_nombre}
-- Rubros: {rubros_empresa}
-- Regiones de operación: {regiones_empresa}
-- Descripción: {descripcion}
-- Años de experiencia: {experiencia}
-- Proyectos anteriores: {proyectos}
-- Certificaciones: {certificaciones}
-
-Redacta una propuesta técnica profesional y completa en español para esta licitación.
-La propuesta debe estar en formato Markdown con estas secciones:
-
-## 1. Carta de Presentación
-Breve presentación de la empresa, su trayectoria y por qué es idónea para esta licitación.
-
-## 2. Entendimiento de los Requerimientos
-Análisis de lo que solicita el organismo comprador y los desafíos clave.
-
-## 3. Propuesta Técnica
-Descripción detallada de cómo la empresa ejecutará el contrato: metodología, herramientas, procesos.
-
-## 4. Equipo Propuesto
-Perfiles del equipo que ejecutará el trabajo (adaptar a los rubros de la empresa).
-
-## 5. Experiencia Relevante
-Proyectos similares o experiencia específica en el rubro solicitado.
-
-## 6. Cronograma Tentativo
-Fases y tiempos estimados de ejecución.
-
-## 7. Propuesta de Valor
-Por qué deberían elegir a esta empresa. Diferenciadores clave.
-
-INSTRUCCIONES:
-- Escribe de forma profesional, directa y persuasiva
-- Usa nombres genéricos si no hay información específica
-- Adapta el lenguaje técnico al rubro específico de la licitación
-- Cada sección debe tener mínimo 2-3 párrafos sustanciales
-- NO inventes datos falsos (RUTs, direcciones específicas, números de contratos)"""
-
-        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=2500)
+        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=6000)

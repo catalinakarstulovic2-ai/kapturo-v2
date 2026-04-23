@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     WHATSAPP_VERIFY_TOKEN: str = ""
 
     RESEND_API_KEY: str = ""
+    SUPER_ADMIN_EMAIL: str = "catalina@kapturo.cl"
     REDIS_URL: str = "redis://localhost:6379"
     ENVIRONMENT: str = "development"
 
