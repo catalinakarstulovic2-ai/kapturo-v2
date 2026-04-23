@@ -181,98 +181,236 @@ const ScoreBadge = ({ score }: { score?: number | null }) => {
 
 // ── Guía rápida ───────────────────────────────────────────────────────────────
 
-const PASOS_GUIA = [
-  {
-    num: '1',
-    icon: Search,
-    color: 'bg-indigo-100 text-indigo-600',
-    titulo: 'Busca licitaciones',
-    desc: 'Filtra por rubro, región, monto o estado. Kapturo busca en Mercado Público en tiempo real.',
-  },
-  {
-    num: '2',
-    icon: BookmarkPlus,
-    color: 'bg-violet-100 text-violet-600',
-    titulo: 'Guarda las que te interesan',
-    desc: 'Haz clic en "Guardar". Quedará registrada en "Mis Postulaciones" para seguirle la pista.',
-  },
-  {
-    num: '3',
-    icon: Sparkles,
-    color: 'bg-amber-100 text-amber-700',
-    titulo: 'Analiza con IA',
-    desc: 'La IA descarga las bases, evalúa si calificás y genera una propuesta técnica adaptada.',
-  },
-  {
-    num: '4',
-    icon: FileSignature,
-    color: 'bg-emerald-100 text-emerald-600',
-    titulo: 'Genera documentos',
-    desc: 'En "Propuestas Licita." genera la propuesta técnica, oferta económica o carta al organismo.',
-  },
-  {
-    num: '5',
-    icon: ListChecks,
-    color: 'bg-blue-100 text-blue-600',
-    titulo: 'Haz seguimiento',
-    desc: 'Cambia el estado de cada postulación: En preparación → Postulada → Ganada / Perdida.',
-  },
+// ── Campos críticos del perfil IA ───────────────────────────────────────────
+const PERFIL_CRITICOS = [
+  { key: 'rut_empresa',     label: 'RUT empresa' },
+  { key: 'razon_social',    label: 'Razón social' },
+  { key: 'descripcion',     label: 'Descripción' },
+  { key: 'rubros',          label: 'Rubros' },
+  { key: 'regiones',        label: 'Regiones' },
+  { key: 'nombre_contacto', label: 'Nombre firmante' },
 ]
 
-function GuiaRapida() {
-  const [abierta, setAbierta] = useState(() => {
-    return localStorage.getItem('guia_licit_cerrada') !== '1'
-  })
+function GuiaRapida({ perfil }: { perfil?: any }) {
+  const navigate = useNavigate()
+  const [cerrada, setCerrada] = useState(() => localStorage.getItem('guia_licit_cerrada') === '1')
 
-  const toggle = () => {
-    if (abierta) {
-      localStorage.setItem('guia_licit_cerrada', '1')
-    } else {
-      localStorage.removeItem('guia_licit_cerrada')
-    }
-    setAbierta(v => !v)
+  // Calcular completitud del perfil
+  const camposOk = PERFIL_CRITICOS.filter(c => {
+    const v = perfil?.[c.key]
+    return Array.isArray(v) ? v.length > 0 : !!v
+  })
+  const totalCriticos = PERFIL_CRITICOS.length
+  const completados = camposOk.length
+  const perfilListo = completados === totalCriticos
+
+  // El paso activo es el primero no completado
+  const pasos = [
+    {
+      num: 1,
+      icon: Settings,
+      titulo: 'Completa tu Perfil IA',
+      desc: perfilListo
+        ? 'Perfil listo — la IA ya puede personalizar tus búsquedas'
+        : `Completa ${totalCriticos - completados} campo${totalCriticos - completados !== 1 ? 's' : ''} más (${completados}/${totalCriticos})`,
+      done: perfilListo,
+      cta: !perfilListo ? 'Completar perfil →' : null,
+      ctaFn: () => navigate('/licitaciones/perfil'),
+      colorDone: 'bg-emerald-100 text-emerald-600',
+      colorActive: 'bg-amber-100 text-amber-700',
+      colorPending: 'bg-gray-100 text-gray-400',
+    },
+    {
+      num: 2,
+      icon: Search,
+      titulo: 'Busca licitaciones',
+      desc: 'Filtra por rubro, región o monto. Kapturo busca en Mercado Público en tiempo real.',
+      done: false,
+      cta: null,
+      ctaFn: null,
+      colorDone: 'bg-emerald-100 text-emerald-600',
+      colorActive: 'bg-indigo-100 text-indigo-600',
+      colorPending: 'bg-gray-100 text-gray-400',
+    },
+    {
+      num: 3,
+      icon: BookmarkPlus,
+      titulo: 'Guarda las que te interesan',
+      desc: 'Haz clic en "Guardar" en cada licitación para agregarla a Mis postulaciones.',
+      done: false,
+      cta: null,
+      ctaFn: null,
+      colorDone: 'bg-emerald-100 text-emerald-600',
+      colorActive: 'bg-violet-100 text-violet-600',
+      colorPending: 'bg-gray-100 text-gray-400',
+    },
+    {
+      num: 4,
+      icon: Sparkles,
+      titulo: 'Analiza con IA',
+      desc: 'La IA descarga las bases y evalúa si calificas. Tarda ~30 seg.',
+      done: false,
+      cta: null,
+      ctaFn: null,
+      colorDone: 'bg-emerald-100 text-emerald-600',
+      colorActive: 'bg-amber-100 text-amber-700',
+      colorPending: 'bg-gray-100 text-gray-400',
+    },
+    {
+      num: 5,
+      icon: FileSignature,
+      titulo: 'Genera documentos y postula',
+      desc: 'Genera propuesta técnica, oferta económica o carta. Luego marca como Postulada.',
+      done: false,
+      cta: null,
+      ctaFn: null,
+      colorDone: 'bg-emerald-100 text-emerald-600',
+      colorActive: 'bg-blue-100 text-blue-600',
+      colorPending: 'bg-gray-100 text-gray-400',
+    },
+  ]
+
+  // Paso activo = primero no done (solo relevante para step 1 en este diseño)
+  const pasoActivo = perfilListo ? 2 : 1
+
+  if (cerrada) {
+    return (
+      <button
+        onClick={() => { setCerrada(false); localStorage.removeItem('guia_licit_cerrada') }}
+        className="flex items-center gap-2 text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
+      >
+        <Sparkles size={12} /> Ver guía de inicio →
+      </button>
+    )
   }
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl overflow-hidden">
-      {/* Header siempre visible — clickeable */}
+    <div className="bg-gradient-to-br from-indigo-50 via-white to-violet-50 border border-indigo-100 rounded-2xl p-5 relative">
+      {/* Cerrar */}
       <button
-        onClick={toggle}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-indigo-50/60 transition-colors"
+        onClick={() => { setCerrada(true); localStorage.setItem('guia_licit_cerrada', '1') }}
+        className="absolute top-3 right-3 text-gray-300 hover:text-gray-500 transition-colors"
+        title="Cerrar guía"
       >
-        <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-indigo-500" />
-          <span className="text-sm font-semibold text-indigo-800">¿Cómo usar Licitaciones?</span>
-          <span className="text-[11px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Guía rápida</span>
-        </div>
-        <ChevronDown size={15} className={clsx('text-indigo-400 transition-transform duration-200', abierta && 'rotate-180')} />
+        <X size={14} />
       </button>
 
-      {/* Contenido desplegable */}
-      {abierta && (
-        <div className="px-5 pb-5">
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-            {PASOS_GUIA.map((paso, idx) => {
-              const Icon = paso.icon
-              return (
-                <div key={paso.num} className="relative flex sm:flex-col items-start sm:items-center gap-3 sm:gap-2 bg-white rounded-xl p-3 border border-white shadow-sm text-left sm:text-center">
-                  {idx < PASOS_GUIA.length - 1 && (
-                    <ArrowRight size={12} className="hidden sm:block absolute -right-2 top-1/2 -translate-y-1/2 text-indigo-300 z-10" />
-                  )}
-                  <div className={clsx('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', paso.color)}>
-                    <Icon size={16} />
+      {/* Título */}
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles size={15} className="text-indigo-500" />
+        <span className="text-sm font-bold text-indigo-800">¿Por dónde empezar?</span>
+        {!perfilListo && (
+          <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold animate-pulse">
+            Acción requerida
+          </span>
+        )}
+      </div>
+
+      {/* Steps */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        {pasos.map((paso, idx) => {
+          const Icon = paso.icon
+          const isActive = paso.num === pasoActivo
+          const isPending = paso.num > pasoActivo
+          const isDone = paso.num < pasoActivo
+
+          return (
+            <div key={paso.num} className="flex sm:flex-col flex-1 items-start sm:items-center gap-3 sm:gap-2 relative">
+              {/* Línea conectora */}
+              {idx < pasos.length - 1 && (
+                <div className="hidden sm:block absolute top-5 left-[calc(50%+20px)] right-[-20px] h-px bg-gradient-to-r from-indigo-200 to-indigo-100 z-0" />
+              )}
+
+              <div
+                className={clsx(
+                  'flex sm:flex-col items-center sm:items-center gap-3 sm:gap-2 w-full rounded-xl px-3 py-3 border transition-all relative z-10',
+                  isActive && 'bg-white border-indigo-200 shadow-md shadow-indigo-100/60',
+                  isDone && 'bg-emerald-50/60 border-emerald-100',
+                  isPending && 'bg-white/40 border-gray-100',
+                )}
+              >
+                {/* Número + ícono */}
+                <div className="relative shrink-0">
+                  <div className={clsx(
+                    'w-10 h-10 rounded-xl flex items-center justify-center',
+                    isDone ? paso.colorDone : isActive ? paso.colorActive : paso.colorPending,
+                  )}>
+                    {isDone
+                      ? <CheckCircle2 size={18} />
+                      : <Icon size={17} />
+                    }
                   </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-gray-800 leading-tight">{paso.titulo}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{paso.desc}</p>
-                  </div>
+                  <span className={clsx(
+                    'absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center',
+                    isDone ? 'bg-emerald-500 text-white' : isActive ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500',
+                  )}>
+                    {paso.num}
+                  </span>
                 </div>
+
+                {/* Texto */}
+                <div className="sm:text-center">
+                  <p className={clsx(
+                    'text-[11px] font-bold leading-tight',
+                    isDone ? 'text-emerald-700' : isActive ? 'text-gray-900' : 'text-gray-400',
+                  )}>
+                    {paso.titulo}
+                  </p>
+                  <p className={clsx(
+                    'text-[10px] mt-0.5 leading-relaxed',
+                    isDone ? 'text-emerald-600' : isActive ? 'text-gray-600' : 'text-gray-400',
+                  )}>
+                    {paso.desc}
+                  </p>
+                  {isActive && paso.cta && paso.ctaFn && (
+                    <button
+                      onClick={paso.ctaFn}
+                      className="mt-2 text-[10px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      {paso.cta}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Barra de progreso perfil */}
+      {!perfilListo && (
+        <div className="mt-4 pt-3 border-t border-indigo-100">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-gray-500 font-medium">Perfil IA: {completados}/{totalCriticos} campos</span>
+            <button
+              onClick={() => navigate('/licitaciones/perfil')}
+              className="text-[10px] text-indigo-600 hover:underline font-semibold"
+            >
+              Completar →
+            </button>
+          </div>
+          <div className="w-full bg-indigo-100 rounded-full h-1.5">
+            <div
+              className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
+              style={{ width: `${(completados / totalCriticos) * 100}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {PERFIL_CRITICOS.map(c => {
+              const ok = camposOk.some(x => x.key === c.key)
+              return (
+                <span
+                  key={c.key}
+                  className={clsx(
+                    'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
+                    ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400',
+                  )}
+                >
+                  {ok ? '✓' : '○'} {c.label}
+                </span>
               )
             })}
           </div>
-          <p className="text-[10px] text-indigo-400 mt-3 text-center">
-            Tip: la IA tarda ~30 seg en analizar las bases. Puedes seguir navegando mientras trabaja en segundo plano.
-          </p>
         </div>
       )}
     </div>
@@ -991,13 +1129,14 @@ export default function LicitacionesPage() {
       </div>
 
       {/* Guía rápida solo en buscar */}
-      {mainTab !== 'postulaciones' && <GuiaRapida />}
+      {mainTab !== 'postulaciones' && <GuiaRapida perfil={perfilEmpresa} />}
 
       {/* ─────────── PANEL MIS POSTULACIONES ─────────── */}
       {mainTab === 'postulaciones' && (
         <PostulacionesPanel
           prospectos={postulacionesData?.items ?? []}
           loading={loadingPostulaciones}
+          onIrABuscar={() => setMainTab('buscar')}
           highlightId={expandedId}
           onHighlightClear={() => setExpandedId(null)}
           onAnalizar={(p) => {
@@ -2041,6 +2180,7 @@ function PostulacionesPanel({
   updatingId,
   onEliminar,
   onRefresh,
+  onIrABuscar,
 }: {
   prospectos: ProspectoLicit[]
   loading: boolean
@@ -2051,6 +2191,7 @@ function PostulacionesPanel({
   updatingId: string | null
   onEliminar: (id: string) => void
   onRefresh: () => void
+  onIrABuscar?: () => void
 }) {
   const queryClient = useQueryClient()
   const [vistaKanban, setVistaKanban] = useState(false)
@@ -2144,7 +2285,7 @@ function PostulacionesPanel({
       <div className="card p-10 text-center text-gray-400">
         <ListChecks size={36} className="mx-auto mb-3 opacity-30" />
         <p className="text-sm font-medium mb-1">Sin postulaciones aún</p>
-        <p className="text-xs text-gray-400">Ve a <span className="font-medium text-indigo-500">Buscar licitaciones</span>, encuentra una oportunidad y haz clic en <span className="font-medium text-indigo-500">Agregar a mis postulaciones</span>.</p>
+        <p className="text-xs text-gray-400">Ve a <button onClick={() => onIrABuscar?.()} className="font-medium text-indigo-500 hover:underline">Buscar licitaciones</button>, encuentra una oportunidad y haz clic en <span className="font-medium text-indigo-500">Agregar a mis postulaciones</span>.</p>
       </div>
     </div>
   )

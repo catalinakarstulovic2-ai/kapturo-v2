@@ -293,25 +293,36 @@ export default function DashboardPage() {
                 Completar perfil <ArrowRight size={14} />
               </button>
             </div>
-            {/* Pasos */}
-            <div className="mt-4 flex items-center gap-2 overflow-x-auto">
-              {[
-                { n: '1', label: 'Completa tu Perfil IA', done: false, active: true },
-                { n: '2', label: 'Busca licitaciones relevantes', done: false, active: false },
-                { n: '3', label: 'Analiza con IA si calificas', done: false, active: false },
-                { n: '4', label: 'Genera documentos y postula', done: false, active: false },
-              ].map((step, i) => (
-                <>
-                  <div key={step.n} className={`flex items-center gap-2 shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold ${
-                    step.active ? 'bg-amber-500 text-white' : 'bg-white/60 text-amber-700 border border-amber-200'
-                  }`}>
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                      step.active ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-500'
+            {/* Pasos interactivos */}
+            <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {([
+                { n: 1, label: 'Completa tu Perfil IA', desc: 'Configura tu empresa para la IA', emoji: '🏢', href: '/licitaciones/perfil', active: true },
+                { n: 2, label: 'Busca licitaciones', desc: 'Encuentra oportunidades relevantes', emoji: '🔍', href: '/licitaciones', active: false },
+                { n: 3, label: 'Analiza con IA', desc: 'Califica si conviene postular', emoji: '🤖', href: '/licitaciones', active: false },
+                { n: 4, label: 'Genera documentos', desc: 'Propuesta, carta, ficha técnica…', emoji: '📄', href: '/licitaciones/generar', active: false },
+              ] as const).map((step) => (
+                <button
+                  key={step.n}
+                  onClick={() => navigate(step.href)}
+                  className={`group text-left rounded-xl px-4 py-3 transition-all duration-150 border ${
+                    step.active
+                      ? 'bg-amber-500 border-amber-500 shadow-md hover:bg-amber-600 hover:shadow-lg scale-[1.02]'
+                      : 'bg-white/70 border-amber-200 hover:bg-white hover:border-amber-400 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      step.active ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-600'
                     }`}>{step.n}</span>
-                    {step.label}
+                    <span className="text-lg leading-none">{step.emoji}</span>
+                    {step.active && <span className="ml-auto text-[10px] font-bold text-white bg-white/30 px-1.5 py-0.5 rounded-full animate-pulse">Ahora</span>}
                   </div>
-                  {i < 3 && <ArrowRight size={12} className="text-amber-400 shrink-0" />}
-                </>
+                  <p className={`text-xs font-bold leading-tight ${step.active ? 'text-white' : 'text-amber-900'}`}>{step.label}</p>
+                  <p className={`text-[11px] mt-0.5 leading-tight ${step.active ? 'text-amber-100' : 'text-amber-600'}`}>{step.desc}</p>
+                  <div className={`mt-2 text-[10px] font-semibold flex items-center gap-1 ${step.active ? 'text-white/80' : 'text-amber-400 group-hover:text-amber-600'}`}>
+                    {step.active ? 'Empezar →' : 'Ver →'}
+                  </div>
+                </button>
               ))}
             </div>
           </div>
