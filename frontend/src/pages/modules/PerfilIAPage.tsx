@@ -276,391 +276,314 @@ export default function PerfilIAPage() {
     </div>
   )
 
-  return (
-    <div className="max-w-4xl mx-auto pb-10 px-6 pt-6">
+  // Progreso por sección para el panel derecho
+  const progresoSecciones = SECCIONES.map(sec => {
+    const campos = completitud.filter(c => c.grupo === sec.key)
+    const ok = campos.filter(c => c.filled).length
+    const total = campos.length
+    const tieneDoc = sec.key === 'documentos' ? Object.keys(docsMeta).length > 0 : null
+    const done = sec.key === 'documentos' ? tieneDoc : (total > 0 && ok === total)
+    const hasCritical = campos.some(c => c.critical && !c.filled)
+    return { ...sec, ok, total, done, hasCritical }
+  })
 
-      {/* Header compacto + progreso en una sola franja */}
-      <div className="space-y-2 mb-8">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Sparkles size={15} className="text-indigo-600 shrink-0" />
-            <h1 className="text-sm font-bold text-gray-900">Perfil de empresa para IA</h1>
-            <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0',
-              pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
-              pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
-              {totalOk}/{completitud.length} · {pct}%
+  return (
+    <div className="max-w-5xl mx-auto pb-16 px-6 pt-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-indigo-600" />
+          <h1 className="text-base font-bold text-gray-900">Perfil de empresa para IA</h1>
+          {!listoParaPostular && (
+            <span className="text-[11px] text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded-full">
+              Faltan {criticos.length - criticosOk} campos críticos
             </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                if (!confirm('¿Borrar toda la información del perfil?')) return
-                setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
-                setOpenCats(new Set())
-                setDocsMeta({})
-              }}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
-              title="Limpiar todo el perfil"
-            >
-              <Trash2 size={12} /> Limpiar
-            </button>
-            <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
-              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors">
-              {guardarMutation.isPending ? <><Loader2 size={13} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={13} /> Guardar</>}
-            </button>
-          </div>
+          )}
         </div>
-        <div className="w-full bg-gray-100 rounded-full h-1.5">
-          <div className={clsx('h-1.5 rounded-full transition-all duration-500',
-            pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
-            style={{ width: `${pct}%` }} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (!confirm('¿Borrar toda la información del perfil?')) return
+              setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
+              setOpenCats(new Set()); setDocsMeta({})
+            }}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={12} /> Limpiar
+          </button>
+          <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
+            className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+            {guardarMutation.isPending ? <><Loader2 size={13} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={13} /> Guardar</>}
+          </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {completitud.map(c => (
-            <span key={c.key} className={clsx('flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium',
-              c.filled ? 'bg-emerald-50 text-emerald-700' :
-              c.critical ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400')}>
-              {c.filled ? <CheckCircle2 size={10} /> : c.critical ? <AlertCircle size={10} /> : <span className="w-2.5 h-2.5 rounded-full border border-gray-300 inline-block" />}
-              {c.label}
-            </span>
-          ))}
-        </div>
-        {!listoParaPostular && (
-          <p className="text-[11px] text-red-600 font-medium">
-            Faltan {criticos.length - criticosOk} campo{criticos.length - criticosOk !== 1 ? 's' : ''} crítico{criticos.length - criticosOk !== 1 ? 's' : ''} — la IA dejará [CAMPOS] vacíos.
-          </p>
-        )}
       </div>
 
-      {/* Layout Railway: sidebar + contenido */}
-      <div className="flex gap-10">
+      <div className="flex gap-8 items-start">
 
-        {/* Sidebar sticky */}
-        <nav className="w-40 shrink-0">
-          <div className="sticky top-6 space-y-px">
-            {SECCIONES.map(sec => {
-              const camposSec = completitud.filter(c => c.grupo === sec.key)
-              const secOk = camposSec.filter(c => c.filled).length
-              // Para documentos, usar docsMeta en lugar de campos de formulario
-              const docSecOk = sec.key === 'documentos' ? Object.keys(docsMeta).length : 0
-              const isActive = activeSection === sec.key
-              const isDone = sec.key === 'documentos'
-                ? docsMeta['cv_empresa'] !== undefined
-                : camposSec.length > 0 && secOk === camposSec.length
-              return (
-                <button
-                  key={sec.key}
-                  onClick={() => scrollTo(sec.key)}
-                  className={clsx(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between gap-2 group',
-                    isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                  )}
-                >
-                  <span>{sec.label}</span>
-                  {isDone
-                    ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    : sec.key !== 'documentos' && camposSec.some(c => c.critical && !c.filled)
-                      ? <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                      : null
-                  }
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-
-        {/* Contenido — todas las secciones visibles */}
+        {/* ── FORMULARIO ─────────────────────────────────────── */}
         <div className="flex-1 space-y-10 min-w-0">
 
-      {SECCIONES.map(sec => {
-        const Icon = sec.icon
-        const camposSec = completitud.filter(c => c.grupo === sec.key)
-        const secOk = camposSec.filter(c => c.filled).length
-        const docsCount = sec.key === 'documentos' ? Object.keys(docsMeta).length : 0
-        return (
-          <section key={sec.key} id={sec.key} data-perfil-section>
-            {/* Section header */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                secOk === camposSec.length && camposSec.length > 0 ? 'bg-emerald-100' : 'bg-indigo-100')}>
-                <Icon size={15} className={secOk === camposSec.length && camposSec.length > 0 ? 'text-emerald-600' : 'text-indigo-600'} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{sec.label}</p>
-                <p className="text-xs text-gray-400">{sec.desc}</p>
-              </div>
-              {(camposSec.length > 0 || sec.key === 'documentos') && (
-                <span className={clsx('ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0',
-                  (sec.key === 'documentos' ? docsCount > 0 : secOk === camposSec.length) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
-                  {sec.key === 'documentos' ? `${docsCount}/${DOCS_TIPOS.length}` : `${secOk}/${camposSec.length}`}
-                </span>
-              )}
-            </div>
-            <div className="space-y-4">
+          {SECCIONES.map(sec => {
+            const Icon = sec.icon
+            return (
+              <section key={sec.key} id={sec.key} data-perfil-section>
+                {/* Section header */}
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+                  <Icon size={15} className="text-indigo-500 shrink-0" />
+                  <h2 className="text-sm font-bold text-gray-900">{sec.label}</h2>
+                  <span className="text-xs text-gray-400">{sec.desc}</span>
+                </div>
+                <div className="space-y-4">
 
-                {/* ── EMPRESA ── */}
-                {sec.key === 'empresa' && (<>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">RUT empresa <span className="text-red-400">*</span></label>
-                      <input className="input text-sm w-full" placeholder="76.123.456-7"
-                        value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
+                  {/* ── EMPRESA ── */}
+                  {sec.key === 'empresa' && (<>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">RUT empresa <span className="text-red-400">*</span></label>
+                        <input className="input text-sm w-full" placeholder="76.123.456-7"
+                          value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Razón social <span className="text-red-400">*</span></label>
+                        <input className="input text-sm w-full" placeholder="Empresa Ejemplo SpA"
+                          value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Razón social <span className="text-red-400">*</span></label>
-                      <input className="input text-sm w-full" placeholder="Empresa Ejemplo SpA"
-                        value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Años de experiencia</label>
+                        <input type="number" min="0" className="input text-sm w-full" placeholder="5"
+                          value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
+                      </div>
+                      <div className="flex items-end pb-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={form.inscrito_chile_proveedores}
+                            onChange={e => setForm(f => ({ ...f, inscrito_chile_proveedores: e.target.checked }))}
+                            className="rounded border-gray-300 text-indigo-600 w-4 h-4" />
+                          <span className="text-xs text-gray-700 font-medium">Inscrito en ChileProveedores</span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Años de experiencia</label>
-                      <input type="number" min="0" className="input text-sm w-full" placeholder="5"
-                        value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Dirección</label>
+                        <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
+                          value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Sitio web</label>
+                        <input className="input text-xs w-full" placeholder="www.empresa.cl"
+                          value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
+                      </div>
                     </div>
-                    <div className="flex items-end pb-1">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.inscrito_chile_proveedores}
-                          onChange={e => setForm(f => ({ ...f, inscrito_chile_proveedores: e.target.checked }))}
-                          className="rounded border-gray-300 text-indigo-600 w-4 h-4" />
-                        <span className="text-xs text-gray-700 font-medium">Inscrito en ChileProveedores</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Dirección</label>
-                      <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
-                        value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Sitio web</label>
-                      <input className="input text-xs w-full" placeholder="www.empresa.cl"
-                        value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
-                    </div>
-                  </div>
-                </>)}
+                  </>)}
 
-                {/* ── RUBROS Y REGIONES ── */}
-                {sec.key === 'rubros' && (<>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
+                  {/* ── RUBROS Y REGIONES ── */}
+                  {sec.key === 'rubros' && (<>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
+                        {form.rubros.length > 0 && (
+                          <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>
+                        )}
+                      </div>
                       {form.rubros.length > 0 && (
-                        <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>
-                      )}
-                    </div>
-                    {form.rubros.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {form.rubros.map(r => (
-                          <button key={r} type="button" onClick={() => toggleRubro(r)}
-                            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
-                            {r} <X size={10} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                      {RUBRO_CATEGORIAS.map(cat => {
-                        const sel = cat.rubros.filter(r => form.rubros.includes(r))
-                        const open = openCats.has(cat.label)
-                        return (
-                          <div key={cat.label}>
-                            <button type="button" onClick={() => toggleCat(cat.label)}
-                              className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 text-left">
-                              <span>{cat.label} {sel.length > 0 && <span className="text-indigo-600 font-bold">({sel.length})</span>}</span>
-                              {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {form.rubros.map(r => (
+                            <button key={r} type="button" onClick={() => toggleRubro(r)}
+                              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
+                              {r} <X size={10} />
                             </button>
-                            {open && (
-                              <div className="px-3 pb-2 flex flex-wrap gap-1.5 bg-gray-50">
-                                {cat.rubros.map(r => (
-                                  <button key={r} type="button" onClick={() => toggleRubro(r)}
-                                    className={clsx('text-[11px] px-2 py-1 rounded-lg border transition-colors capitalize',
-                                      form.rubros.includes(r) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300')}>
-                                    {r}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span></label>
-                      <div className="flex gap-2">
-                        {form.regiones.length > 0 && <button onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>}
-                        <button onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-indigo-500 hover:text-indigo-700">todas</button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+                        {RUBRO_CATEGORIAS.map(cat => {
+                          const sel = cat.rubros.filter(r => form.rubros.includes(r))
+                          const open = openCats.has(cat.label)
+                          return (
+                            <div key={cat.label}>
+                              <button type="button" onClick={() => toggleCat(cat.label)}
+                                className={clsx('w-full flex items-center justify-between px-4 py-3 text-xs font-medium text-left transition-colors',
+                                  open ? 'bg-indigo-50 text-indigo-800' : 'text-gray-700 hover:bg-gray-50')}>
+                                <span className="flex items-center gap-2">
+                                  {cat.label}
+                                  {sel.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{sel.length}</span>}
+                                </span>
+                                {open ? <ChevronUp size={13} className="text-indigo-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
+                              </button>
+                              {open && (
+                                <div className="px-4 pt-2 pb-3 flex flex-wrap gap-1.5 bg-gray-50 border-t border-gray-100">
+                                  {cat.rubros.map(r => (
+                                    <button key={r} type="button" onClick={() => toggleRubro(r)}
+                                      className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
+                                        form.rubros.includes(r) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
+                                      {r}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                    <input type="text" value={regionQuery} onChange={e => setRegionQuery(e.target.value)}
-                      placeholder="Busca región o ciudad…" className="input text-xs w-full mb-2" />
-                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                      {regionesFiltradas.map((r: any) => {
-                        const nombre = r.nombre.replace('Región Metropolitana de Santiago', 'RM — Santiago').replace('Región de ', '').replace('Región del ', '')
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span></label>
+                        <div className="flex gap-2">
+                          {form.regiones.length > 0 && <button onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>}
+                          <button onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-indigo-500 hover:text-indigo-700">todas</button>
+                        </div>
+                      </div>
+                      <input type="text" value={regionQuery} onChange={e => setRegionQuery(e.target.value)}
+                        placeholder="Busca región…" className="input text-xs w-full mb-2" />
+                      <div className="flex flex-wrap gap-1.5">
+                        {regionesFiltradas.map((r: any) => {
+                          const nombre = r.nombre.replace('Región Metropolitana de Santiago', 'RM — Santiago').replace('Región de ', '').replace('Región del ', '')
+                          return (
+                            <button key={r.codigo} type="button" onClick={() => toggleRegion(r.codigo)}
+                              className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors',
+                                form.regiones.includes(r.codigo) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300')}>
+                              {nombre}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {form.regiones.length > 0 && <p className="text-[10px] text-indigo-500 mt-1.5">{form.regiones.length} región{form.regiones.length > 1 ? 'es' : ''} seleccionada{form.regiones.length > 1 ? 's' : ''}</p>}
+                    </div>
+                  </>)}
+
+                  {/* ── QUÉ HACE TU EMPRESA ── */}
+                  {sec.key === 'que_hace' && (<>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-gray-700">Descripción <span className="text-red-400">*</span>
+                          <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante para la IA</span>
+                        </label>
+                        <button type="button" onClick={() => generarConIA('descripcion')} disabled={generando === 'descripcion'}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                          {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
+                        </button>
+                      </div>
+                      <textarea className="input text-sm w-full resize-none" rows={3}
+                        placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas en RM y Biobío. ISO 9001 vigente."
+                        value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
+                        <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+                          {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
+                        </button>
+                      </div>
+                      <textarea rows={3} className="input text-xs w-full resize-none"
+                        placeholder="Ej: Suministro equipos Hospital Regional Temuco (2023) — 12 meses&#10;Mantención vial Municipalidad Rancagua (2022) — $65M"
+                        value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
+                      <input className="input text-xs w-full"
+                        placeholder="ISO 9001, ISO 14001, OHSAS 18001, ChileValora…"
+                        value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-gray-700">Diferenciadores competitivos</label>
+                        <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                          {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
+                        </button>
+                      </div>
+                      <textarea rows={2} className="input text-xs w-full resize-none"
+                        placeholder="Ej: Únicos con ISO en la región, respuesta en 24h…"
+                        value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
+                    </div>
+                  </>)}
+
+                  {/* ── EQUIPO ── */}
+                  {sec.key === 'equipo' && (<>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Equipo técnico</label>
+                      <textarea rows={2} className="input text-xs w-full resize-none"
+                        placeholder="Ej: 15 técnicos: 3 ingenieros civiles, 5 supervisores, 7 operarios. Liderado por Ing. Juan Pérez (20 años)."
+                        value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Metodología de trabajo</label>
+                      <textarea rows={2} className="input text-xs w-full resize-none"
+                        placeholder="Ej: ISO 9001. Proyecto dividido en diagnóstico, ejecución y entrega. Control semanal con el organismo."
+                        value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
+                    </div>
+                  </>)}
+
+                  {/* ── CONTACTO ── */}
+                  {sec.key === 'contacto' && (<>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del firmante <span className="text-red-400">*</span></label>
+                        <input className="input text-xs w-full" placeholder="Juan Pérez"
+                          value={form.nombre_contacto} onChange={e => setForm(f => ({ ...f, nombre_contacto: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Cargo</label>
+                        <input className="input text-xs w-full" placeholder="Gerente General"
+                          value={form.cargo_contacto} onChange={e => setForm(f => ({ ...f, cargo_contacto: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
+                        <input className="input text-xs w-full" placeholder="+56 9 1234 5678"
+                          value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
+                        <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
+                          value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Email para alertas de licitaciones</label>
+                      <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
+                        value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
+                      <p className="text-[10px] text-gray-400 mt-1">Recibirás avisos de nuevas licitaciones que coincidan con tus rubros</p>
+                    </div>
+                  </>)}
+
+                  {/* ── DOCUMENTOS ── */}
+                  {sec.key === 'documentos' && (<>
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 mb-2">
+                      <strong>¿Para qué sirven?</strong> Se adjuntan al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de licitaciones públicas.
+                    </div>
+                    <div className="space-y-3">
+                      {DOCS_TIPOS.map(doc => {
+                        const meta = docsMeta[doc.key]
+                        const isUploading = subiendo === doc.key
                         return (
-                          <button key={r.codigo} type="button" onClick={() => toggleRegion(r.codigo)}
-                            className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors',
-                              form.regiones.includes(r.codigo) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300')}>
-                            {nombre}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {form.regiones.length > 0 && <p className="text-[10px] text-indigo-500 mt-1.5">{form.regiones.length} región{form.regiones.length > 1 ? 'es' : ''} seleccionada{form.regiones.length > 1 ? 's' : ''}</p>}
-                  </div>
-                </>)}
-
-                {/* ── QUÉ HACE TU EMPRESA ── */}
-                {sec.key === 'que_hace' && (<>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-gray-700">Descripción de la empresa <span className="text-red-400">*</span>
-                        <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante</span>
-                      </label>
-                      <button type="button" onClick={() => generarConIA('descripcion')} disabled={generando === 'descripcion'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                        {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
-                      </button>
-                    </div>
-                    <textarea className="input text-sm w-full resize-none" rows={3}
-                      placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas certificadas en RM y Biobío. Contamos con ISO 9001..."
-                      value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
-                      <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-                        {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
-                      </button>
-                    </div>
-                    <textarea rows={3} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Suministro de equipos Hospital Regional de Temuco (2023) — contrato 12 meses&#10;Mantención vial Municipalidad de Rancagua (2022) — $65M adjudicado"
-                      value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
-                    <input className="input text-xs w-full"
-                      placeholder="Ej: ISO 9001, ISO 14001, OHSAS 18001, ChileValora, NCh3262…"
-                      value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
-                    <p className="text-[10px] text-gray-400 mt-1">Escribe los nombres de las certificaciones separadas por coma</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-700">¿Qué diferencia a tu empresa?</label>
-                      <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                        {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
-                      </button>
-                    </div>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Únicos con certificación ISO en la región, respuesta en 24h, equipo bilingüe…"
-                      value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
-                  </div>
-                </>)}
-
-                {/* ── EQUIPO Y METODOLOGÍA ── */}
-                {sec.key === 'equipo' && (<>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Equipo técnico que ejecuta proyectos</label>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Equipo de 15 técnicos: 3 ingenieros civiles, 5 supervisores certificados, 7 operarios. Liderado por Ing. Juan Pérez (20 años de experiencia)."
-                      value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Metodología de trabajo estándar</label>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Trabajamos bajo ISO 9001. Dividimos cada proyecto en diagnóstico, ejecución y entrega. Control semanal con el encargado del organismo."
-                      value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
-                  </div>
-                </>)}
-
-                {/* ── CONTACTO ── */}
-                {sec.key === 'contacto' && (<>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del firmante <span className="text-red-400">*</span></label>
-                      <input className="input text-xs w-full" placeholder="Juan Pérez"
-                        value={form.nombre_contacto} onChange={e => setForm(f => ({ ...f, nombre_contacto: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Cargo</label>
-                      <input className="input text-xs w-full" placeholder="Gerente General"
-                        value={form.cargo_contacto} onChange={e => setForm(f => ({ ...f, cargo_contacto: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
-                      <input className="input text-xs w-full" placeholder="+56 9 1234 5678"
-                        value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
-                      <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
-                        value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Email para alertas de licitaciones</label>
-                    <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
-                      value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
-                    <p className="text-[10px] text-gray-400 mt-1">Recibirás avisos de nuevas licitaciones que coincidan con tus rubros</p>
-                  </div>
-                </>)}
-
-                {/* ── DOCUMENTOS ── */}
-                {sec.key === 'documentos' && (<>
-                  <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 mb-2">
-                    <strong>¿Para qué sirven?</strong> Estos documentos se adjuntan automáticamente al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de las licitaciones públicas.
-                  </div>
-                  <div className="space-y-3">
-                    {DOCS_TIPOS.map(doc => {
-                      const meta = docsMeta[doc.key]
-                      const isUploading = subiendo === doc.key
-                      return (
-                        <div key={doc.key} className="border border-gray-200 rounded-xl p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-2 min-w-0">
-                              <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-                                meta ? 'bg-emerald-100' : 'bg-gray-100')}>
-                                <FileText size={14} className={meta ? 'text-emerald-600' : 'text-gray-400'} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-gray-800">
-                                  {doc.label}
-                                  {doc.requerido && <span className="ml-1 text-red-400 font-normal text-[10px]">requerido</span>}
-                                </p>
-                                <p className="text-[10px] text-gray-400 mt-0.5">{doc.desc}</p>
-                                {meta && (
-                                  <p className="text-[10px] text-emerald-600 mt-1 font-medium truncate">
-                                    ✅ {meta.nombre} ({Math.round(meta.size / 1024)} KB)
-                                  </p>
-                                )}
-                              </div>
+                          <div key={doc.key} className="border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+                            <div className={clsx('w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
+                              meta ? 'bg-emerald-100' : 'bg-gray-100')}>
+                              <FileText size={15} className={meta ? 'text-emerald-600' : 'text-gray-400'} />
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {meta && (
-                                <>
-                                  <button onClick={() => descargarDocumento(doc.key, meta.nombre)}
-                                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Descargar">
-                                    <Download size={12} />
-                                  </button>
-                                  <button onClick={() => eliminarDocumento(doc.key)}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar">
-                                    <Trash2 size={12} />
-                                  </button>
-                                </>
-                              )}
-                              <label className={clsx(
-                                'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors',
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                                {doc.label}
+                                {doc.requerido && <span className="text-red-400 font-normal text-[10px]">requerido</span>}
+                              </p>
+                              <p className="text-[10px] text-gray-400">{meta ? `✅ ${meta.nombre} (${Math.round(meta.size / 1024)} KB)` : doc.desc}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {meta && <>
+                                <button onClick={() => descargarDocumento(doc.key, meta.nombre)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"><Download size={12} /></button>
+                                <button onClick={() => eliminarDocumento(doc.key)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+                              </>}
+                              <label className={clsx('flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors',
                                 meta ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-indigo-600 text-white hover:bg-indigo-700',
-                                isUploading && 'opacity-50 pointer-events-none'
-                              )}>
+                                isUploading && 'opacity-50 pointer-events-none')}>
                                 {isUploading ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
                                 {isUploading ? 'Subiendo…' : meta ? 'Reemplazar' : 'Subir PDF'}
                                 <input type="file" accept=".pdf,.doc,.docx" className="hidden"
@@ -668,59 +591,122 @@ export default function PerfilIAPage() {
                               </label>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
-                    {/* Documento libre adicional */}
-                    <div className="border border-dashed border-gray-300 rounded-xl p-3 text-center">
-                      <FilePlus size={16} className="text-gray-300 mx-auto mb-1" />
-                      <p className="text-[10px] text-gray-400">¿Tienes otros documentos? Puedes subir certificados, resoluciones, etc.</p>
-                      <label className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 cursor-pointer mt-1.5 hover:text-indigo-800">
-                        <Upload size={10} /> Subir otro documento
+                        )
+                      })}
+                      <label className="flex items-center gap-2 text-[10px] text-indigo-500 hover:text-indigo-700 cursor-pointer w-fit">
+                        <FilePlus size={12} /> Subir otro documento
                         <input type="file" accept=".pdf,.doc,.docx" className="hidden"
                           onChange={e => { const f = e.target.files?.[0]; if (f) subirDocumento('otros', f); e.target.value = '' }} />
                       </label>
                     </div>
-                  </div>
-                </>)}
+                  </>)}
 
+                </div>
+              </section>
+            )
+          })}
+
+          {/* CTA final */}
+          {listoParaPostular && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">Perfil completo — listo para postular</p>
+                  <p className="text-xs text-emerald-600">Ya puedes buscar licitaciones y generar documentos con IA</p>
+                </div>
+              </div>
+              <button onClick={() => navigate('/licitaciones')}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 text-white px-3.5 py-2 rounded-xl hover:bg-emerald-700 shrink-0">
+                Buscar licitaciones <ArrowRight size={12} />
+              </button>
             </div>
-          </section>
-        )
-      })}
+          )}
 
-        </div>{/* end content */}
-      </div>{/* end flex layout */}
-
-      {/* CTA final */}
-      {listoParaPostular && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 size={22} className="text-emerald-500 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-900">Perfil completo — listo para postular</p>
-              <p className="text-xs text-emerald-600">Ya puedes buscar licitaciones y generar documentos con IA</p>
-            </div>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button onClick={() => navigate('/licitaciones')}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 text-white px-3.5 py-2 rounded-xl hover:bg-emerald-700">
-              Buscar licitaciones <ArrowRight size={12} />
+          {/* Guardar sticky */}
+          <div className="sticky bottom-4">
+            <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 shadow-lg transition-colors">
+              {guardarMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={16} /> Guardar perfil</>}
             </button>
           </div>
-        </div>
-      )}
 
-      {/* Guardar sticky */}
-      <div className="sticky bottom-4">
-        <button
-          onClick={() => guardarMutation.mutate()}
-          disabled={guardarMutation.isPending}
-          className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 shadow-lg transition-colors"
-        >
-          {guardarMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={16} /> Guardar perfil</>}
-        </button>
-      </div>
+        </div>{/* end form */}
+
+        {/* ── PANEL DERECHO: PROGRESO ──────────────────────── */}
+        <div className="w-56 shrink-0 hidden lg:block">
+          <div className="sticky top-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-4">
+
+              {/* % grande */}
+              <div className="text-center">
+                <div className={clsx('text-4xl font-black',
+                  pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-indigo-600')}>
+                  {pct}%
+                </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">perfil completado</p>
+                <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+                  <div className={clsx('h-1.5 rounded-full transition-all duration-500',
+                    pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
+                    style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+
+              {/* Lista de secciones */}
+              <div className="space-y-1">
+                {progresoSecciones.map(sec => {
+                  const Icon = sec.icon
+                  return (
+                    <button key={sec.key} onClick={() => scrollTo(sec.key)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left group">
+                      <Icon size={12} className={clsx('shrink-0',
+                        sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : 'text-gray-300')} />
+                      <span className={clsx('text-[11px] flex-1 truncate',
+                        sec.done ? 'text-emerald-700 font-medium' : sec.hasCritical ? 'text-red-600 font-medium' : 'text-gray-500')}>
+                        {sec.label}
+                      </span>
+                      {sec.total > 0 && (
+                        <span className={clsx('text-[10px] font-bold shrink-0',
+                          sec.done ? 'text-emerald-500' : 'text-gray-300')}>
+                          {sec.ok}/{sec.total}
+                        </span>
+                      )}
+                      {sec.key === 'documentos' && (
+                        <span className={clsx('text-[10px] font-bold shrink-0',
+                          sec.done ? 'text-emerald-500' : 'text-gray-300')}>
+                          {Object.keys(docsMeta).length}/{DOCS_TIPOS.length}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Campos críticos pendientes */}
+              {!listoParaPostular && (
+                <div className="border-t border-gray-100 pt-3 space-y-1">
+                  <p className="text-[10px] font-semibold text-gray-500 mb-1.5">Faltan campos críticos</p>
+                  {completitud.filter(c => c.critical && !c.filled).map(c => (
+                    <div key={c.key} className="flex items-center gap-1.5">
+                      <AlertCircle size={10} className="text-red-400 shrink-0" />
+                      <span className="text-[10px] text-red-600">{c.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {listoParaPostular && (
+                <div className="border-t border-gray-100 pt-3 text-center">
+                  <CheckCircle2 size={18} className="text-emerald-500 mx-auto mb-1" />
+                  <p className="text-[10px] font-semibold text-emerald-700">Listo para postular</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+
+      </div>{/* end flex */}
     </div>
   )
 }
