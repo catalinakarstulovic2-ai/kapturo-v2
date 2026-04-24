@@ -16,14 +16,14 @@ import clsx from 'clsx'
 
 // Reutilizamos las mismas constantes de LicitacionesPage
 const RUBRO_CATEGORIAS = [
-  { label: 'Tecnología e Informática', rubros: ['software', 'informática', 'tecnología', 'telecomunicaciones', 'soporte técnico', 'ciberseguridad', 'inteligencia artificial'] },
-  { label: 'Construcción e Infraestructura', rubros: ['construcción', 'obras civiles', 'arquitectura', 'ingeniería', 'pavimentación', 'instalaciones eléctricas', 'sanitaria'] },
-  { label: 'Salud y Bienestar', rubros: ['salud', 'medicina', 'enfermería', 'laboratorio', 'farmacia', 'equipos médicos', 'psicología'] },
-  { label: 'Educación y Capacitación', rubros: ['educación', 'capacitación', 'formación', 'consultoría educativa', 'e-learning'] },
-  { label: 'Servicios Generales', rubros: ['aseo', 'seguridad', 'vigilancia', 'mantención', 'transporte', 'logística', 'alimentación', 'catering'] },
-  { label: 'Consultoría y Gestión', rubros: ['consultoría', 'asesoría', 'auditoría', 'gestión', 'recursos humanos', 'contabilidad', 'legal'] },
-  { label: 'Medio Ambiente', rubros: ['medioambiente', 'sustentabilidad', 'residuos', 'energía renovable', 'agua'] },
-  { label: 'Equipamiento y Suministros', rubros: ['equipamiento', 'mobiliario', 'insumos', 'vestuario', 'vehículos', 'maquinaria'] },
+  { label: 'Consultoría y Gestión',          rubros: ['asesoría', 'auditoría', 'consultoría', 'contabilidad', 'gestión', 'legal', 'recursos humanos'] },
+  { label: 'Construcción e Infraestructura', rubros: ['arquitectura', 'construcción', 'ingeniería', 'instalaciones eléctricas', 'obras civiles', 'pavimentación', 'sanitaria'] },
+  { label: 'Educación y Capacitación',       rubros: ['capacitación', 'consultoría educativa', 'e-learning', 'educación', 'formación'] },
+  { label: 'Equipamiento y Suministros',     rubros: ['equipamiento', 'insumos', 'maquinaria', 'mobiliario', 'vehículos', 'vestuario'] },
+  { label: 'Medio Ambiente',                 rubros: ['agua', 'energía renovable', 'medioambiente', 'residuos', 'sustentabilidad'] },
+  { label: 'Salud y Bienestar',              rubros: ['enfermería', 'equipos médicos', 'farmacia', 'laboratorio', 'medicina', 'psicología', 'salud'] },
+  { label: 'Servicios Generales',            rubros: ['alimentación', 'aseo', 'catering', 'logística', 'mantención', 'seguridad', 'transporte', 'vigilancia'] },
+  { label: 'Tecnología e Informática',       rubros: ['ciberseguridad', 'informática', 'inteligencia artificial', 'software', 'soporte técnico', 'tecnología', 'telecomunicaciones'] },
 ]
 
 const CAMPOS_COMPLETITUD = [
@@ -165,6 +165,7 @@ export default function PerfilIAPage() {
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
   const [openRubros, setOpenRubros] = useState(false)
+  const [tabCat, setTabCat] = useState(RUBRO_CATEGORIAS[0].label)
   const toggleCat = (label: string) =>
     setOpenCats(prev => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s })
 
@@ -453,64 +454,60 @@ export default function PerfilIAPage() {
                   {/* ── RUBROS Y REGIONES ── */}
                   {sec.key === 'rubros' && (<>
                     <div>
-                      {/* Trigger compacto */}
-                      <button type="button" onClick={() => setOpenRubros(v => !v)}
-                        className={clsx('w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors text-left',
-                          openRubros ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50')}>
-                        <span className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></span>
-                          {form.rubros.length > 0 && (
-                            <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{form.rubros.length} sel.</span>
-                          )}
-                        </span>
-                        {openRubros ? <ChevronUp size={13} className="text-indigo-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
-                      </button>
+                      {/* Chips de seleccionados + trigger */}
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
+                        {form.rubros.length > 0 && (
+                          <button type="button" onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar todo</button>
+                        )}
+                      </div>
 
-                      {/* Panel expandible */}
-                      {openRubros && (
-                        <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
-                          {/* Chips de seleccionados */}
-                          {form.rubros.length > 0 && (
-                            <div className="px-3 py-2 bg-indigo-50 flex flex-wrap gap-1 items-center">
-                              {form.rubros.map(r => (
-                                <button key={r} type="button" onClick={() => toggleRubro(r)}
-                                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
-                                  {r} <X size={9} />
-                                </button>
-                              ))}
-                              <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400 ml-1">limpiar</button>
-                            </div>
-                          )}
+                      {/* Chips seleccionados */}
+                      {form.rubros.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {form.rubros.map(r => (
+                            <button key={r} type="button" onClick={() => toggleRubro(r)}
+                              className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
+                              {r} <X size={9} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Tabs de categorías */}
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        {/* Tab bar */}
+                        <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-200 bg-gray-50">
                           {RUBRO_CATEGORIAS.map(cat => {
-                            const sel = cat.rubros.filter(r => form.rubros.includes(r))
-                            const open = openCats.has(cat.label)
+                            const sel = cat.rubros.filter(r => form.rubros.includes(r)).length
+                            const active = tabCat === cat.label
                             return (
-                              <div key={cat.label}>
-                                <button type="button" onClick={() => toggleCat(cat.label)}
-                                  className={clsx('w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-left transition-colors',
-                                    open ? 'bg-indigo-50 text-indigo-800' : 'text-gray-700 hover:bg-gray-50')}>
-                                  <span className="flex items-center gap-2">
-                                    {cat.label}
-                                    {sel.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{sel.length}</span>}
-                                  </span>
-                                  {open ? <ChevronUp size={12} className="text-indigo-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />}
-                                </button>
-                                {open && (
-                                  <div className="px-4 pt-2 pb-3 flex flex-wrap gap-1.5 bg-gray-50 border-t border-gray-100">
-                                    {cat.rubros.map(r => (
-                                      <button key={r} type="button" onClick={() => toggleRubro(r)}
-                                        className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
-                                          form.rubros.includes(r) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
-                                        {r}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                              <button key={cat.label} type="button" onClick={() => setTabCat(cat.label)}
+                                className={clsx(
+                                  'flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors',
+                                  active
+                                    ? 'border-indigo-600 text-indigo-700 bg-white'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                )}>
+                                {cat.label.split(' ')[0]}
+                                {sel > 0 && <span className="bg-indigo-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shrink-0">{sel}</span>}
+                              </button>
                             )
                           })}
                         </div>
-                      )}
+                        {/* Rubros de la tab activa */}
+                        <div className="px-3 py-3 flex flex-wrap gap-1.5 bg-white">
+                          {(RUBRO_CATEGORIAS.find(c => c.label === tabCat)?.rubros ?? []).map(r => (
+                            <button key={r} type="button" onClick={() => toggleRubro(r)}
+                              className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
+                                form.rubros.includes(r)
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-3">
