@@ -288,18 +288,13 @@ export default function PerfilIAPage() {
   })
 
   return (
-    <div className="max-w-5xl mx-auto pb-16 px-6 pt-6">
+    <div className="max-w-6xl mx-auto pb-16 px-6 pt-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-indigo-600" />
+      <div className="flex items-center justify-between mb-6">
+        <div>
           <h1 className="text-base font-bold text-gray-900">Perfil de empresa para IA</h1>
-          {!listoParaPostular && (
-            <span className="text-[11px] text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded-full">
-              Faltan {criticos.length - criticosOk} campos críticos
-            </span>
-          )}
+          <p className="text-xs text-gray-400 mt-0.5">Completa tu perfil para que la IA genere propuestas de calidad</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -319,7 +314,83 @@ export default function PerfilIAPage() {
         </div>
       </div>
 
-      <div className="flex gap-8 items-start">
+      <div className="flex gap-6 items-start">
+
+        {/* ── SIDEBAR IZQUIERDO: PROGRESO Y NAVEGACIÓN ─────── */}
+        <div className="w-52 shrink-0 hidden lg:block">
+          <div className="sticky top-6 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+
+            {/* % progreso */}
+            <div className="px-4 pt-5 pb-4 border-b border-gray-100">
+              <div className={clsx('text-5xl font-black leading-none',
+                pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-indigo-600')}>
+                {pct}%
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">perfil completado</p>
+              <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3">
+                <div className={clsx('h-1.5 rounded-full transition-all duration-700',
+                  pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
+                  style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+
+            {/* Lista de secciones navegables */}
+            <div className="px-2 py-2 space-y-0.5">
+              {progresoSecciones.map(sec => {
+                const Icon = sec.icon
+                const isActive = activeSection === sec.key
+                const docCount = sec.key === 'documentos' ? Object.keys(docsMeta).length : null
+                const displayOk = docCount !== null ? docCount : sec.ok
+                const displayTotal = docCount !== null ? DOCS_TIPOS.length : sec.total
+                return (
+                  <button key={sec.key} onClick={() => scrollTo(sec.key)}
+                    className={clsx(
+                      'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all text-left',
+                      isActive
+                        ? 'bg-indigo-50 ring-1 ring-indigo-300 ring-inset'
+                        : 'hover:bg-gray-50'
+                    )}>
+                    <Icon size={13} className={clsx('shrink-0',
+                      sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : isActive ? 'text-indigo-500' : 'text-gray-300')} />
+                    <span className={clsx('text-xs flex-1 font-medium',
+                      isActive ? 'text-indigo-700' :
+                      sec.done ? 'text-gray-700' :
+                      sec.hasCritical ? 'text-red-600' : 'text-gray-500')}>
+                      {sec.label}
+                    </span>
+                    <span className={clsx('text-[10px] font-bold shrink-0 tabular-nums',
+                      sec.done ? 'text-emerald-500' : isActive ? 'text-indigo-400' : 'text-gray-300')}>
+                      {displayOk}/{displayTotal}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Campos críticos pendientes */}
+            {!listoParaPostular && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-red-50">
+                <p className="text-[10px] font-bold text-red-700 uppercase tracking-wide mb-2">Campos obligatorios</p>
+                <div className="space-y-1.5">
+                  {completitud.filter(c => c.critical && !c.filled).map(c => (
+                    <div key={c.key} className="flex items-center gap-1.5">
+                      <AlertCircle size={9} className="text-red-400 shrink-0" />
+                      <span className="text-[10px] text-red-600 leading-tight">{c.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {listoParaPostular && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-emerald-50 text-center">
+                <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-1" />
+                <p className="text-[10px] font-bold text-emerald-700">¡Listo para postular!</p>
+              </div>
+            )}
+
+          </div>
+        </div>
 
         {/* ── FORMULARIO ─────────────────────────────────────── */}
         <div className="flex-1 space-y-10 min-w-0">
@@ -632,79 +703,6 @@ export default function PerfilIAPage() {
           </div>
 
         </div>{/* end form */}
-
-        {/* ── PANEL DERECHO: PROGRESO ──────────────────────── */}
-        <div className="w-56 shrink-0 hidden lg:block">
-          <div className="sticky top-6">
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-4">
-
-              {/* % grande */}
-              <div className="text-center">
-                <div className={clsx('text-4xl font-black',
-                  pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-indigo-600')}>
-                  {pct}%
-                </div>
-                <p className="text-[10px] text-gray-400 mt-0.5">perfil completado</p>
-                <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
-                  <div className={clsx('h-1.5 rounded-full transition-all duration-500',
-                    pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
-                    style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-
-              {/* Lista de secciones */}
-              <div className="space-y-1">
-                {progresoSecciones.map(sec => {
-                  const Icon = sec.icon
-                  return (
-                    <button key={sec.key} onClick={() => scrollTo(sec.key)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left group">
-                      <Icon size={12} className={clsx('shrink-0',
-                        sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : 'text-gray-300')} />
-                      <span className={clsx('text-[11px] flex-1 truncate',
-                        sec.done ? 'text-emerald-700 font-medium' : sec.hasCritical ? 'text-red-600 font-medium' : 'text-gray-500')}>
-                        {sec.label}
-                      </span>
-                      {sec.total > 0 && (
-                        <span className={clsx('text-[10px] font-bold shrink-0',
-                          sec.done ? 'text-emerald-500' : 'text-gray-300')}>
-                          {sec.ok}/{sec.total}
-                        </span>
-                      )}
-                      {sec.key === 'documentos' && (
-                        <span className={clsx('text-[10px] font-bold shrink-0',
-                          sec.done ? 'text-emerald-500' : 'text-gray-300')}>
-                          {Object.keys(docsMeta).length}/{DOCS_TIPOS.length}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Campos críticos pendientes */}
-              {!listoParaPostular && (
-                <div className="border-t border-gray-100 pt-3 space-y-1">
-                  <p className="text-[10px] font-semibold text-gray-500 mb-1.5">Faltan campos críticos</p>
-                  {completitud.filter(c => c.critical && !c.filled).map(c => (
-                    <div key={c.key} className="flex items-center gap-1.5">
-                      <AlertCircle size={10} className="text-red-400 shrink-0" />
-                      <span className="text-[10px] text-red-600">{c.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {listoParaPostular && (
-                <div className="border-t border-gray-100 pt-3 text-center">
-                  <CheckCircle2 size={18} className="text-emerald-500 mx-auto mb-1" />
-                  <p className="text-[10px] font-semibold text-emerald-700">Listo para postular</p>
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
 
       </div>{/* end flex */}
     </div>
