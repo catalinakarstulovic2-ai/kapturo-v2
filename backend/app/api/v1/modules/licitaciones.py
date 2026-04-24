@@ -319,7 +319,7 @@ La descripción debe:
 
 Responde SOLO con el texto de la descripción, sin comillas ni explicaciones."""
 
-    elif data.campo == "proyectos":
+    elif data.campo in ("proyectos", "proyectos_anteriores"):
         prompt = f"""Genera 3 ejemplos de proyectos anteriores ficticios pero realistas para una empresa que trabaja en: {rubros_str}
 Regiones: {regiones_str}
 
