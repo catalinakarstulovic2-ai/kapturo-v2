@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, CheckCircle2, AlertCircle, Loader2, X, ArrowRight,
-  Building2, MapPin, Users, Award, Wand2, ChevronDown, ChevronUp,
+  Building2, MapPin, Users, Award, Wand2, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
@@ -107,13 +107,24 @@ export default function PerfilIAPage() {
   const [activeSection, setActiveSection] = useState<string>('basico')
 
   useEffect(() => {
+    // Find the scrollable ancestor at mount time
+    const firstSection = document.getElementById('basico')
+    let scrollRoot: Element | null = null
+    if (firstSection) {
+      let p = firstSection.parentElement
+      while (p && p !== document.body) {
+        const ov = window.getComputedStyle(p).overflowY
+        if (ov === 'auto' || ov === 'scroll') { scrollRoot = p; break }
+        p = p.parentElement
+      }
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) setActiveSection(entry.target.id)
         })
       },
-      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+      { root: scrollRoot, rootMargin: '-10% 0px -60% 0px', threshold: 0 }
     )
     const sections = document.querySelectorAll('[data-perfil-section]')
     sections.forEach(s => observer.observe(s))
@@ -123,9 +134,19 @@ export default function PerfilIAPage() {
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
     if (!el) return
-    // Try scrollIntoView first, fallback to manual scroll
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setActiveSection(id)
+    // Find nearest scrollable ancestor
+    let parent = el.parentElement
+    while (parent && parent !== document.body) {
+      const { overflowY } = window.getComputedStyle(parent)
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        const top = el.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - 24
+        parent.scrollTo({ top, behavior: 'smooth' })
+        return
+      }
+      parent = parent.parentElement
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
@@ -220,10 +241,23 @@ export default function PerfilIAPage() {
               {totalOk}/{completitud.length} · {pct}%
             </span>
           </div>
-          <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
-            className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors shrink-0">
-            {guardarMutation.isPending ? <><Loader2 size={13} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={13} /> Guardar</>}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                if (!confirm('¿Borrar toda la información del perfil?')) return
+                setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
+                setOpenCats(new Set())
+              }}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              title="Limpiar todo el perfil"
+            >
+              <Trash2 size={12} /> Limpiar
+            </button>
+            <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
+              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+              {guardarMutation.isPending ? <><Loader2 size={13} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={13} /> Guardar</>}
+            </button>
+          </div>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-1.5">
           <div className={clsx('h-1.5 rounded-full transition-all duration-500',

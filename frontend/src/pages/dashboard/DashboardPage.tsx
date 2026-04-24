@@ -243,6 +243,28 @@ export default function DashboardPage() {
   const perfilLicitCompleto = !!(perfilLicit?.descripcion && perfilLicit?.rubros?.length > 0 && perfilLicit?.rut_empresa && perfilLicit?.nombre_contacto)
 
   const busquedasGuardadas = useAdjudicadasStore(s => s.busquedasGuardadas)
+  const { data: licitStats } = useQuery({
+    queryKey: ['licit-dashboard-stats'],
+    queryFn: () => api.get('/modules/licitaciones/prospectos?limit=200').then(r => {
+      const items = r.data?.items ?? []
+      return {
+        guardadas: items.length,
+        analizadas: items.filter((p: any) => p.score > 0).length,
+        conDocumentos: items.filter((p: any) => (p.documentos_ia?.length ?? 0) > 0).length,
+        postuladas: items.filter((p: any) => ['postulada','evaluando','ganada'].includes(p.postulacion_estado ?? '')).length,
+        proximasRaw: items.filter((p: any) => {
+          if (!p.licitacion_fecha_cierre) return false
+          const m = String(p.licitacion_fecha_cierre).match(/(\d{2})\/(\d{2})\/(\d{4})/)
+          if (!m) return false
+          const d = new Date(+m[3], +m[2]-1, +m[1])
+          const diff = Math.ceil((d.getTime() - Date.now()) / 86400000)
+          return diff >= 0 && diff <= 7
+        }).length,
+      }
+    }).catch(() => null),
+    enabled: tieneLicitador,
+    staleTime: 2 * 60 * 1000,
+  })
   // Búsquedas creadas en los últimos 7 días (el id es Date.now())
   const hace7dias = Date.now() - 7 * 86_400_000
   const busquedasRecientes = busquedasGuardadas.filter(b => Number(b.id) >= hace7dias).length
@@ -343,20 +365,32 @@ export default function DashboardPage() {
       {/* ── Alertas de cambio de estado en licitaciones ─────────────────── */}
       <AlertasLicitacion alertas={stats?.alertas_licitacion ?? []} />
 
-      {/* Stat cards — fila 1: conteos */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Users}     label="Total prospectos"    value={isPending ? '—' : (stats?.total_prospectos ?? 0)} sub={isPending ? '' : `+${stats?.esta_semana ?? 0} esta semana`} color="bg-brand-500"   onClick={() => navigate('/prospectos')} />
-        <StatCard icon={Star}      label="Calificados ≥60"     value={isPending ? '—' : (stats?.calificados ?? 0)}      sub="Score alto"                                                 color="bg-amber-500"  onClick={() => navigate('/prospectos')} />
-        <StatCard icon={TrendingUp}label="En pipeline"         value={isPending ? '—' : (stats?.en_pipeline ?? 0)}      sub="Leads activos"                                              color="bg-emerald-500" onClick={() => navigate('/pipeline')} />
-        <StatCard icon={Bell}      label="Alarmas pendientes"  value={isPending ? '—' : (stats?.alarmas_pendientes ?? 0)} sub={stats?.alarmas_pendientes > 0 ? '¡Revisar hoy!' : 'Al día'} color={stats?.alarmas_pendientes > 0 ? 'bg-red-500' : 'bg-gray-400'} />
-      </div>
+      {/* Stats licitaciones */}
+      {tieneLicitador && !tieneProspector && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={FileText}    label="Guardadas"          value={licitStats?.guardadas ?? 0}      sub="En Mis postulaciones"      color="bg-brand-500"    onClick={() => navigate('/licitaciones?tab=postulaciones')} />
+          <StatCard icon={Bot}         label="Analizadas con IA"  value={licitStats?.analizadas ?? 0}     sub="Con score asignado"        color="bg-violet-500"  onClick={() => navigate('/licitaciones?tab=postulaciones')} />
+          <StatCard icon={FileSearch}  label="Con documentos"     value={licitStats?.conDocumentos ?? 0}  sub="Docs generados"            color="bg-emerald-500" onClick={() => navigate('/licitaciones/generar')} />
+          <StatCard icon={Bell}        label="Cierran esta semana" value={licitStats?.proximasRaw ?? 0}   sub={licitStats?.proximasRaw ? '⚠️ Revisar' : 'Sin urgentes'} color={licitStats?.proximasRaw ? 'bg-red-500' : 'bg-gray-400'} onClick={() => navigate('/licitaciones?tab=postulaciones')} />
+        </div>
+      )}
 
-      {/* Stat cards — fila 2: negocio + actividad */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={DollarSign} label="Monto en pipeline"     value={isPending ? '—' : formatM(stats?.monto_pipeline ?? 0)}    sub="Deals activos"                                                                              color="bg-violet-500" onClick={() => navigate('/pipeline')} />
-        <StatCard icon={TrendingUp} label="Ganado este mes"        value={isPending ? '—' : formatM(stats?.monto_ganado_mes ?? 0)}  sub={`${stats?.tasa_conversion ?? 0}% tasa de cierre`}                                           color="bg-emerald-600" onClick={() => navigate('/pipeline')} />
-        <StatCard icon={Clock}      label="Días prom. en pipeline" value={isPending ? '—' : `${stats?.dias_promedio_pipeline ?? 0}d`} sub="Tiempo promedio activo"                                                                     color="bg-sky-500"    onClick={() => navigate('/pipeline')} />
-      </div>
+      {/* Stats prospector (si tiene) */}
+      {tieneProspector && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard icon={Users}     label="Total prospectos"    value={isPending ? '—' : (stats?.total_prospectos ?? 0)} sub={`+${stats?.esta_semana ?? 0} esta semana`} color="bg-brand-500"   onClick={() => navigate('/prospectos')} />
+            <StatCard icon={Star}      label="Calificados ≥60"     value={isPending ? '—' : (stats?.calificados ?? 0)}      sub="Score alto"                                color="bg-amber-500"  onClick={() => navigate('/prospectos')} />
+            <StatCard icon={TrendingUp}label="En pipeline"         value={isPending ? '—' : (stats?.en_pipeline ?? 0)}      sub="Leads activos"                             color="bg-emerald-500" onClick={() => navigate('/pipeline')} />
+            <StatCard icon={Bell}      label="Alarmas pendientes"  value={isPending ? '—' : (stats?.alarmas_pendientes ?? 0)} sub={stats?.alarmas_pendientes > 0 ? '¡Revisar hoy!' : 'Al día'} color={stats?.alarmas_pendientes > 0 ? 'bg-red-500' : 'bg-gray-400'} />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard icon={DollarSign} label="Monto en pipeline"     value={isPending ? '—' : formatM(stats?.monto_pipeline ?? 0)}   sub="Deals activos"              color="bg-violet-500" onClick={() => navigate('/pipeline')} />
+            <StatCard icon={TrendingUp} label="Ganado este mes"        value={isPending ? '—' : formatM(stats?.monto_ganado_mes ?? 0)} sub={`${stats?.tasa_conversion ?? 0}% tasa de cierre`} color="bg-emerald-600" onClick={() => navigate('/pipeline')} />
+            <StatCard icon={Clock}      label="Días prom. pipeline"    value={isPending ? '—' : `${stats?.dias_promedio_pipeline ?? 0}d`} sub="Tiempo promedio activo"   color="bg-sky-500"   onClick={() => navigate('/pipeline')} />
+          </div>
+        </>
+      )}
 
       {/* ── Para hoy — briefing unificado ───────────────────────────────── */}
       <div className="card p-5 space-y-5">
@@ -388,7 +422,7 @@ export default function DashboardPage() {
                   <><span className="font-bold text-red-700">{licHoy} licitación{licHoy !== 1 ? 'es' : ''}</span> {licHoy !== 1 ? 'vencen' : 'vence'} <span className="font-semibold">hoy</span></>
                 ),
                 badge: { text: 'Urgente', cls: 'bg-red-100 text-red-700' },
-                cta: { label: 'Ver ahora', onClick: () => navigate('/adjudicadas') },
+                cta: { label: 'Ver ahora', onClick: () => navigate('/licitaciones?tab=postulaciones') },
               },
               // Licitaciones esta semana
               licSemana > 0 && {
@@ -399,7 +433,7 @@ export default function DashboardPage() {
                   <><span className="font-bold text-orange-700">{licSemana} licitación{licSemana !== 1 ? 'es' : ''}</span> cierran esta semana en Mercado Público</>
                 ),
                 badge: null,
-                cta: { label: 'Ver licitaciones', onClick: () => navigate('/adjudicadas') },
+                cta: { label: 'Ver licitaciones', onClick: () => navigate('/licitaciones?tab=postulaciones') },
               },
               // Búsquedas guardadas
               busquedasGuardadas.length > 0 && {
@@ -411,10 +445,10 @@ export default function DashboardPage() {
                   {busquedasRecientes > 0 && <> · <span className="text-violet-500">{busquedasRecientes} nueva{busquedasRecientes !== 1 ? 's' : ''} esta semana</span></>}</>
                 ),
                 badge: null,
-                cta: { label: 'Buscar ahora', onClick: () => navigate('/adjudicadas') },
+                cta: { label: 'Buscar ahora', onClick: () => navigate('/licitaciones') },
               },
-              // Prospectos sin contactar
-              sinContact > 0 && {
+              // Prospectos sin contactar — solo para usuarios con prospector
+              tieneProspector && sinContact > 0 && {
                 icon: Users,
                 iconBg: 'bg-sky-100',
                 iconColor: 'text-sky-600',
@@ -512,6 +546,7 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {tieneProspector && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Pipeline por etapa */}
@@ -606,9 +641,9 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      )}{/* end tieneProspector pipeline */}
 
-      {/* Top prospectos */}
-      {(isPending || stats?.top_prospectos?.length > 0) && (
+      {tieneProspector && (isPending || stats?.top_prospectos?.length > 0) && (
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">

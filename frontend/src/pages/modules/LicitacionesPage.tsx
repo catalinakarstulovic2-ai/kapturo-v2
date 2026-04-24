@@ -191,7 +191,12 @@ const PERFIL_CRITICOS = [
   { key: 'nombre_contacto', label: 'Nombre firmante' },
 ]
 
-function GuiaRapida({ perfil }: { perfil?: any }) {
+function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
+  perfil?: any
+  prospectos?: Array<{ score?: number; documentos_ia?: any[]; postulacion_estado?: string }>
+  onIrABuscar?: () => void
+  onIrAPostulaciones?: () => void
+}) {
   const navigate = useNavigate()
   const [cerrada, setCerrada] = useState(() => localStorage.getItem('guia_licit_cerrada') === '1')
 
@@ -204,15 +209,27 @@ function GuiaRapida({ perfil }: { perfil?: any }) {
   const completados = camposOk.length
   const perfilListo = completados === totalCriticos
 
-  // El paso activo es el primero no completado
+  // Progreso real basado en datos
+  const tieneGuardadas = (prospectos?.length ?? 0) > 0
+  const tieneAnalizada = prospectos?.some(p => p.score != null && p.score > 0) ?? false
+  const tieneDocumento = prospectos?.some(p => (p.documentos_ia?.length ?? 0) > 0) ?? false
+  const tienePostulada = prospectos?.some(p => p.postulacion_estado && p.postulacion_estado !== 'en_preparacion') ?? false
+
+  // pasoActivo = primer paso no completado
+  const pasoActivo = !perfilListo ? 1
+    : !tieneGuardadas ? 2
+    : !tieneAnalizada ? 3
+    : !tienePostulada ? 4
+    : 4
+
   const pasos = [
     {
       num: 1,
       icon: Settings,
       titulo: 'Completa tu Perfil IA',
       desc: perfilListo
-        ? 'Perfil listo — la IA ya puede personalizar tus búsquedas'
-        : `Completa ${totalCriticos - completados} campo${totalCriticos - completados !== 1 ? 's' : ''} más (${completados}/${totalCriticos})`,
+        ? 'Perfil listo — la IA ya conoce tu empresa'
+        : `Faltan ${totalCriticos - completados} campo${totalCriticos - completados !== 1 ? 's' : ''} (${completados}/${totalCriticos})`,
       done: perfilListo,
       cta: !perfilListo ? 'Completar perfil →' : null,
       ctaFn: () => navigate('/licitaciones/perfil'),
@@ -223,55 +240,48 @@ function GuiaRapida({ perfil }: { perfil?: any }) {
     {
       num: 2,
       icon: Search,
-      titulo: 'Busca licitaciones',
-      desc: 'Filtra por rubro, región o monto. Kapturo busca en Mercado Público en tiempo real.',
-      done: false,
-      cta: null,
-      ctaFn: null,
+      titulo: 'Busca y guarda licitaciones',
+      desc: tieneGuardadas
+        ? `${prospectos?.length} guardada${(prospectos?.length ?? 0) !== 1 ? 's' : ''} en Mis postulaciones`
+        : 'Filtra por rubro y región, haz clic en "Guardar" en cada una que te interese.',
+      done: tieneGuardadas,
+      cta: !tieneGuardadas ? 'Buscar ahora →' : null,
+      ctaFn: () => onIrABuscar?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-indigo-100 text-indigo-600',
       colorPending: 'bg-gray-100 text-gray-400',
     },
     {
       num: 3,
-      icon: BookmarkPlus,
-      titulo: 'Guarda las que te interesan',
-      desc: 'Haz clic en "Guardar" en cada licitación para agregarla a Mis postulaciones.',
-      done: false,
-      cta: null,
-      ctaFn: null,
+      icon: Sparkles,
+      titulo: 'Analiza con IA',
+      desc: tieneAnalizada
+        ? 'Análisis completado — revisa el score de cada una'
+        : 'Entra a Mis postulaciones → "Analizar" en cada licitación. La IA evalúa si calificas (~30 seg).',
+      done: tieneAnalizada,
+      cta: tieneGuardadas && !tieneAnalizada ? 'Ver mis postulaciones →' : null,
+      ctaFn: () => onIrAPostulaciones?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-violet-100 text-violet-600',
       colorPending: 'bg-gray-100 text-gray-400',
     },
     {
       num: 4,
-      icon: Sparkles,
-      titulo: 'Analiza con IA',
-      desc: 'La IA descarga las bases y evalúa si calificas. Tarda ~30 seg.',
-      done: false,
-      cta: null,
-      ctaFn: null,
-      colorDone: 'bg-emerald-100 text-emerald-600',
-      colorActive: 'bg-amber-100 text-amber-700',
-      colorPending: 'bg-gray-100 text-gray-400',
-    },
-    {
-      num: 5,
       icon: FileSignature,
       titulo: 'Genera documentos y postula',
-      desc: 'Genera propuesta técnica, oferta económica o carta. Luego marca como Postulada.',
-      done: false,
-      cta: null,
-      ctaFn: null,
+      desc: tienePostulada
+        ? '¡Postulando! Sigue el estado en Mis postulaciones.'
+        : tieneDocumento
+        ? 'Documentos generados — marca la licitación como Postulada.'
+        : 'Genera propuesta técnica, oferta económica o carta de presentación.',
+      done: tienePostulada,
+      cta: tieneAnalizada && !tienePostulada ? 'Generar documentos →' : null,
+      ctaFn: () => navigate('/licitaciones/generar'),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-blue-100 text-blue-600',
       colorPending: 'bg-gray-100 text-gray-400',
     },
   ]
-
-  // Paso activo = primero no done (solo relevante para step 1 en este diseño)
-  const pasoActivo = perfilListo ? 2 : 1
 
   if (cerrada) {
     return (
@@ -1128,8 +1138,13 @@ export default function LicitacionesPage() {
         )}
       </div>
 
-      {/* Guía rápida solo en buscar */}
-      {mainTab !== 'postulaciones' && <GuiaRapida perfil={perfilEmpresa} />}
+      {/* Guía rápida — siempre visible en ambos tabs */}
+      <GuiaRapida
+        perfil={perfilEmpresa}
+        prospectos={postulacionesData?.items ?? []}
+        onIrABuscar={() => setMainTab('buscar')}
+        onIrAPostulaciones={() => setMainTab('postulaciones')}
+      />
 
       {/* ─────────── PANEL MIS POSTULACIONES ─────────── */}
       {mainTab === 'postulaciones' && (
