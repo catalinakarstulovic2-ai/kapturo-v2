@@ -317,8 +317,8 @@ export default function PerfilIAPage() {
       <div className="flex gap-6 items-start">
 
         {/* ── SIDEBAR IZQUIERDO: PROGRESO Y NAVEGACIÓN ─────── */}
-        <div className="w-52 shrink-0 hidden lg:block">
-          <div className="sticky top-6 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="w-52 shrink-0 hidden lg:block self-start sticky top-4">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto">
 
             {/* % progreso */}
             <div className="px-4 pt-5 pb-4 border-b border-gray-100">
