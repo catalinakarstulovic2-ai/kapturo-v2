@@ -164,6 +164,7 @@ export default function PerfilIAPage() {
   }
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
+  const [openRubros, setOpenRubros] = useState(false)
   const toggleCat = (label: string) =>
     setOpenCats(prev => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s })
 
@@ -211,12 +212,9 @@ export default function PerfilIAPage() {
   const toggleRubro = (r: string) =>
     setForm(f => ({ ...f, rubros: f.rubros.includes(r) ? f.rubros.filter(x => x !== r) : [...f.rubros, r] }))
 
-  const ORDEN_REGIONES = ['XV','I','II','III','IV','V','RM','VI','VII','XVI','VIII','IX','XIV','X','XI','XII']
   const regionesOrdenadas = catalogo?.regiones
-    ? [...catalogo.regiones].sort((a: any, b: any) => {
-        const ia = ORDEN_REGIONES.indexOf(a.codigo); const ib = ORDEN_REGIONES.indexOf(b.codigo)
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
-      })
+    ? [...catalogo.regiones].sort((a: any, b: any) =>
+        a.nombre.localeCompare(b.nombre, 'es'))
     : []
 
   const regionesFiltradas = regionQuery.trim()
@@ -321,21 +319,23 @@ export default function PerfilIAPage() {
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto">
 
             {/* % progreso */}
-            <div className="px-4 pt-5 pb-4 border-b border-gray-100">
-              <div className={clsx('text-5xl font-black leading-none',
+            <div className="px-3 pt-3 pb-3 border-b border-gray-100 flex items-center gap-3">
+              <div className={clsx('text-3xl font-black leading-none shrink-0',
                 pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-indigo-600')}>
                 {pct}%
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">perfil completado</p>
-              <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3">
-                <div className={clsx('h-1.5 rounded-full transition-all duration-700',
-                  pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
-                  style={{ width: `${pct}%` }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-400">perfil completado</p>
+                <div className="w-full bg-gray-100 rounded-full h-1 mt-1">
+                  <div className={clsx('h-1 rounded-full transition-all duration-700',
+                    pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
+                    style={{ width: `${pct}%` }} />
+                </div>
               </div>
             </div>
 
             {/* Lista de secciones navegables */}
-            <div className="px-2 py-2 space-y-0.5">
+            <div className="px-1.5 py-1.5 space-y-0.5">
               {progresoSecciones.map(sec => {
                 const Icon = sec.icon
                 const isActive = activeSection === sec.key
@@ -345,14 +345,14 @@ export default function PerfilIAPage() {
                 return (
                   <button key={sec.key} onClick={() => scrollTo(sec.key)}
                     className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all text-left',
+                      'w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-all text-left',
                       isActive
-                        ? 'bg-indigo-50 ring-1 ring-indigo-300 ring-inset'
+                        ? 'bg-indigo-50 ring-1 ring-indigo-200 ring-inset'
                         : 'hover:bg-gray-50'
                     )}>
-                    <Icon size={13} className={clsx('shrink-0',
+                    <Icon size={12} className={clsx('shrink-0',
                       sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : isActive ? 'text-indigo-500' : 'text-gray-300')} />
-                    <span className={clsx('text-xs flex-1 font-medium',
+                    <span className={clsx('text-[11px] flex-1 font-medium leading-tight',
                       isActive ? 'text-indigo-700' :
                       sec.done ? 'text-gray-700' :
                       sec.hasCritical ? 'text-red-600' : 'text-gray-500')}>
@@ -369,12 +369,12 @@ export default function PerfilIAPage() {
 
             {/* Campos críticos pendientes */}
             {!listoParaPostular && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-red-50">
-                <p className="text-[10px] font-bold text-red-700 uppercase tracking-wide mb-2">Campos obligatorios</p>
-                <div className="space-y-1.5">
+              <div className="px-3 py-2.5 border-t border-gray-100 bg-red-50">
+                <p className="text-[9px] font-bold text-red-700 uppercase tracking-wide mb-1.5">Obligatorios</p>
+                <div className="space-y-1">
                   {completitud.filter(c => c.critical && !c.filled).map(c => (
-                    <div key={c.key} className="flex items-center gap-1.5">
-                      <AlertCircle size={9} className="text-red-400 shrink-0" />
+                    <div key={c.key} className="flex items-center gap-1">
+                      <AlertCircle size={8} className="text-red-400 shrink-0" />
                       <span className="text-[10px] text-red-600 leading-tight">{c.label}</span>
                     </div>
                   ))}
@@ -453,76 +453,90 @@ export default function PerfilIAPage() {
                   {/* ── RUBROS Y REGIONES ── */}
                   {sec.key === 'rubros' && (<>
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
-                        {form.rubros.length > 0 && (
-                          <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>
-                        )}
-                      </div>
-                      {form.rubros.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {form.rubros.map(r => (
-                            <button key={r} type="button" onClick={() => toggleRubro(r)}
-                              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
-                              {r} <X size={10} />
-                            </button>
-                          ))}
+                      {/* Trigger compacto */}
+                      <button type="button" onClick={() => setOpenRubros(v => !v)}
+                        className={clsx('w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors text-left',
+                          openRubros ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50')}>
+                        <span className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></span>
+                          {form.rubros.length > 0 && (
+                            <span className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{form.rubros.length} sel.</span>
+                          )}
+                        </span>
+                        {openRubros ? <ChevronUp size={13} className="text-indigo-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
+                      </button>
+
+                      {/* Panel expandible */}
+                      {openRubros && (
+                        <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+                          {/* Chips de seleccionados */}
+                          {form.rubros.length > 0 && (
+                            <div className="px-3 py-2 bg-indigo-50 flex flex-wrap gap-1 items-center">
+                              {form.rubros.map(r => (
+                                <button key={r} type="button" onClick={() => toggleRubro(r)}
+                                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
+                                  {r} <X size={9} />
+                                </button>
+                              ))}
+                              <button onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400 ml-1">limpiar</button>
+                            </div>
+                          )}
+                          {RUBRO_CATEGORIAS.map(cat => {
+                            const sel = cat.rubros.filter(r => form.rubros.includes(r))
+                            const open = openCats.has(cat.label)
+                            return (
+                              <div key={cat.label}>
+                                <button type="button" onClick={() => toggleCat(cat.label)}
+                                  className={clsx('w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-left transition-colors',
+                                    open ? 'bg-indigo-50 text-indigo-800' : 'text-gray-700 hover:bg-gray-50')}>
+                                  <span className="flex items-center gap-2">
+                                    {cat.label}
+                                    {sel.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{sel.length}</span>}
+                                  </span>
+                                  {open ? <ChevronUp size={12} className="text-indigo-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />}
+                                </button>
+                                {open && (
+                                  <div className="px-4 pt-2 pb-3 flex flex-wrap gap-1.5 bg-gray-50 border-t border-gray-100">
+                                    {cat.rubros.map(r => (
+                                      <button key={r} type="button" onClick={() => toggleRubro(r)}
+                                        className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
+                                          form.rubros.includes(r) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
+                                        {r}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
-                      <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
-                        {RUBRO_CATEGORIAS.map(cat => {
-                          const sel = cat.rubros.filter(r => form.rubros.includes(r))
-                          const open = openCats.has(cat.label)
-                          return (
-                            <div key={cat.label}>
-                              <button type="button" onClick={() => toggleCat(cat.label)}
-                                className={clsx('w-full flex items-center justify-between px-4 py-3 text-xs font-medium text-left transition-colors',
-                                  open ? 'bg-indigo-50 text-indigo-800' : 'text-gray-700 hover:bg-gray-50')}>
-                                <span className="flex items-center gap-2">
-                                  {cat.label}
-                                  {sel.length > 0 && <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{sel.length}</span>}
-                                </span>
-                                {open ? <ChevronUp size={13} className="text-indigo-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
-                              </button>
-                              {open && (
-                                <div className="px-4 pt-2 pb-3 flex flex-wrap gap-1.5 bg-gray-50 border-t border-gray-100">
-                                  {cat.rubros.map(r => (
-                                    <button key={r} type="button" onClick={() => toggleRubro(r)}
-                                      className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
-                                        form.rubros.includes(r) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
-                                      {r}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
                     </div>
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span></label>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span>
+                          {form.regiones.length > 0 && <span className="ml-2 text-indigo-600 font-bold">{form.regiones.length} sel.</span>}
+                        </label>
                         <div className="flex gap-2">
-                          {form.regiones.length > 0 && <button onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>}
-                          <button onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-indigo-500 hover:text-indigo-700">todas</button>
+                          {form.regiones.length > 0 && <button type="button" onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>}
+                          <button type="button" onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-indigo-500 hover:text-indigo-700">todas</button>
                         </div>
                       </div>
-                      <input type="text" value={regionQuery} onChange={e => setRegionQuery(e.target.value)}
-                        placeholder="Busca región…" className="input text-xs w-full mb-2" />
                       <div className="flex flex-wrap gap-1.5">
-                        {regionesFiltradas.map((r: any) => {
-                          const nombre = r.nombre.replace('Región Metropolitana de Santiago', 'RM — Santiago').replace('Región de ', '').replace('Región del ', '')
+                        {regionesOrdenadas.map((r: any) => {
+                          const nombre = r.nombre
+                            .replace('Región Metropolitana de Santiago', 'Metropolitana')
+                            .replace('Región de ', '')
+                            .replace('Región del ', '')
                           return (
                             <button key={r.codigo} type="button" onClick={() => toggleRegion(r.codigo)}
                               className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors',
-                                form.regiones.includes(r.codigo) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300')}>
+                                form.regiones.includes(r.codigo) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
                               {nombre}
                             </button>
                           )
                         })}
                       </div>
-                      {form.regiones.length > 0 && <p className="text-[10px] text-indigo-500 mt-1.5">{form.regiones.length} región{form.regiones.length > 1 ? 'es' : ''} seleccionada{form.regiones.length > 1 ? 's' : ''}</p>}
                     </div>
                   </>)}
 
