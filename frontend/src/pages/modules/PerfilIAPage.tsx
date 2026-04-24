@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, CheckCircle2, AlertCircle, Loader2, X, ArrowRight,
   Building2, MapPin, Users, Award, Wand2, ChevronDown, ChevronUp, Trash2,
+  FileText, Upload, Download, FilePlus,
 } from 'lucide-react'
 import api from '../../api/client'
 import toast from 'react-hot-toast'
@@ -26,18 +27,24 @@ const RUBRO_CATEGORIAS = [
 ]
 
 const CAMPOS_COMPLETITUD = [
-  { key: 'rut_empresa',        label: 'RUT empresa',           critical: true,  grupo: 'legal' },
-  { key: 'razon_social',       label: 'Razón social',          critical: true,  grupo: 'legal' },
-  { key: 'descripcion',        label: 'Descripción empresa',   critical: true,  grupo: 'ia' },
-  { key: 'rubros',             label: 'Rubros',                critical: true,  grupo: 'ia' },
-  { key: 'regiones',           label: 'Regiones',              critical: true,  grupo: 'ia' },
-  { key: 'nombre_contacto',    label: 'Nombre del firmante',   critical: true,  grupo: 'contacto' },
-  { key: 'cargo_contacto',     label: 'Cargo del firmante',    critical: false, grupo: 'contacto' },
-  { key: 'correo',             label: 'Correo electrónico',    critical: false, grupo: 'contacto' },
-  { key: 'telefono',           label: 'Teléfono',              critical: false, grupo: 'contacto' },
-  { key: 'proyectos_anteriores', label: 'Proyectos anteriores', critical: false, grupo: 'ia' },
-  { key: 'equipo_tecnico',     label: 'Equipo técnico',        critical: false, grupo: 'ia' },
-  { key: 'certificaciones',    label: 'Certificaciones',       critical: false, grupo: 'ia' },
+  { key: 'rut_empresa',          label: 'RUT empresa',           critical: true,  grupo: 'empresa'   },
+  { key: 'razon_social',         label: 'Razón social',          critical: true,  grupo: 'empresa'   },
+  { key: 'rubros',               label: 'Rubros',                critical: true,  grupo: 'rubros'    },
+  { key: 'regiones',             label: 'Regiones',              critical: true,  grupo: 'rubros'    },
+  { key: 'descripcion',          label: 'Descripción empresa',   critical: true,  grupo: 'que_hace'  },
+  { key: 'nombre_contacto',      label: 'Nombre del firmante',   critical: true,  grupo: 'contacto'  },
+  { key: 'cargo_contacto',       label: 'Cargo del firmante',    critical: false, grupo: 'contacto'  },
+  { key: 'correo',               label: 'Correo electrónico',    critical: false, grupo: 'contacto'  },
+  { key: 'telefono',             label: 'Teléfono',              critical: false, grupo: 'contacto'  },
+  { key: 'proyectos_anteriores', label: 'Proyectos anteriores',  critical: false, grupo: 'que_hace'  },
+  { key: 'equipo_tecnico',       label: 'Equipo técnico',        critical: false, grupo: 'equipo'    },
+  { key: 'certificaciones',      label: 'Certificaciones',       critical: false, grupo: 'que_hace'  },
+]
+
+const DOCS_TIPOS = [
+  { key: 'cv_empresa',          label: 'CV de empresa',             desc: 'Presentación institucional — se adjunta en cada postulación', requerido: true  },
+  { key: 'certificaciones_pdf', label: 'Certificados (ISO, etc.)',  desc: 'ISO 9001, 14001, OHSAS 18001, ChileValora u otros',           requerido: false },
+  { key: 'declaracion_jurada',  label: 'Declaración jurada',        desc: 'Sin deudas tributarias, sin inhabilidades',                   requerido: false },
 ]
 
 function apiError(err: any, fallback: string) {
@@ -100,15 +107,22 @@ export default function PerfilIAPage() {
       equipo_tecnico: perfilRemoto.equipo_tecnico || '',
       metodologia_trabajo: perfilRemoto.metodologia_trabajo || '',
     })
+    // Cargar metadatos de documentos
+    if (perfilRemoto.documentos && typeof perfilRemoto.documentos === 'object') {
+      setDocsMeta(perfilRemoto.documentos)
+    }
   }, [perfilRemoto])
 
   const [generando, setGenerando] = useState<string | null>(null)
   const [regionQuery, setRegionQuery] = useState('')
-  const [activeSection, setActiveSection] = useState<string>('basico')
+  const [activeSection, setActiveSection] = useState<string>('empresa')
+  // Documentos: metadatos de los archivos subidos (sin base64, eso viene del backend)
+  const [docsMeta, setDocsMeta] = useState<Record<string, { nombre: string; size: number; subido_at: string }>>({})
+  const [subiendo, setSubiendo] = useState<string | null>(null)
 
   useEffect(() => {
     // Find the scrollable ancestor at mount time
-    const firstSection = document.getElementById('basico')
+    const firstSection = document.getElementById('empresa')
     let scrollRoot: Element | null = null
     if (firstSection) {
       let p = firstSection.parentElement
@@ -212,12 +226,48 @@ export default function PerfilIAPage() {
   const toggleRegion = (c: string) =>
     setForm(f => ({ ...f, regiones: f.regiones.includes(c) ? f.regiones.filter(x => x !== c) : [...f.regiones, c] }))
 
+  const subirDocumento = async (tipo: string, file: File) => {
+    if (file.size > 3 * 1024 * 1024) { toast.error('El archivo supera el límite de 3 MB'); return }
+    setSubiendo(tipo)
+    try {
+      const fd = new FormData()
+      fd.append('archivo', file)
+      const res = await api.post(`/modules/licitaciones/documentos/${tipo}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setDocsMeta(prev => ({ ...prev, [tipo]: { nombre: res.data.nombre, size: res.data.size, subido_at: new Date().toISOString() } }))
+      toast.success(`✅ ${res.data.nombre} subido`)
+    } catch { toast.error('Error al subir el documento') }
+    finally { setSubiendo(null) }
+  }
+
+  const eliminarDocumento = async (tipo: string) => {
+    if (!confirm('¿Eliminar este documento?')) return
+    try {
+      await api.delete(`/modules/licitaciones/documentos/${tipo}`)
+      setDocsMeta(prev => { const n = { ...prev }; delete n[tipo]; return n })
+      toast.success('Documento eliminado')
+    } catch { toast.error('Error al eliminar') }
+  }
+
+  const descargarDocumento = async (tipo: string, nombre: string) => {
+    try {
+      const res = await api.get(`/modules/licitaciones/documentos/${tipo}/download`)
+      const { base64, mime } = res.data
+      const blob = new Blob([Uint8Array.from(atob(base64), c => c.charCodeAt(0))], { type: mime })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = nombre; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al descargar') }
+  }
+
   const SECCIONES = [
-    { key: 'basico', label: 'Datos legales', icon: Building2, desc: 'RUT, razón social, inscripción' },
-    { key: 'ia', label: 'Perfil para IA', icon: Sparkles, desc: 'Lo que usa la IA para generar documentos' },
-    { key: 'rubros', label: 'Rubros y regiones', icon: MapPin, desc: 'Dónde y en qué opera tu empresa' },
-    { key: 'contacto', label: 'Contacto y firmante', icon: Users, desc: 'Datos para cartas y propuestas formales' },
-    { key: 'equipo', label: 'Equipo y metodología', icon: Award, desc: 'Para propuestas técnicas detalladas' },
+    { key: 'empresa',    label: 'Tu empresa',          icon: Building2, desc: 'RUT, razón social y datos legales' },
+    { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera tu empresa' },
+    { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, certificaciones' },
+    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos' },
+    { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas' },
+    { key: 'documentos', label: 'Documentos',          icon: FileText,  desc: 'CV empresa, certificados PDF' },
   ]
 
   if (isLoading) return (
@@ -247,6 +297,7 @@ export default function PerfilIAPage() {
                 if (!confirm('¿Borrar toda la información del perfil?')) return
                 setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
                 setOpenCats(new Set())
+                setDocsMeta({})
               }}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
               title="Limpiar todo el perfil"
@@ -288,10 +339,14 @@ export default function PerfilIAPage() {
         <nav className="w-40 shrink-0">
           <div className="sticky top-6 space-y-px">
             {SECCIONES.map(sec => {
-              const camposSec = completitud.filter(c => c.grupo === sec.key || (sec.key === 'basico' && c.grupo === 'legal'))
+              const camposSec = completitud.filter(c => c.grupo === sec.key)
               const secOk = camposSec.filter(c => c.filled).length
+              // Para documentos, usar docsMeta en lugar de campos de formulario
+              const docSecOk = sec.key === 'documentos' ? Object.keys(docsMeta).length : 0
               const isActive = activeSection === sec.key
-              const isDone = camposSec.length > 0 && secOk === camposSec.length
+              const isDone = sec.key === 'documentos'
+                ? docsMeta['cv_empresa'] !== undefined
+                : camposSec.length > 0 && secOk === camposSec.length
               return (
                 <button
                   key={sec.key}
@@ -304,7 +359,7 @@ export default function PerfilIAPage() {
                   <span>{sec.label}</span>
                   {isDone
                     ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    : camposSec.some(c => c.critical && !c.filled)
+                    : sec.key !== 'documentos' && camposSec.some(c => c.critical && !c.filled)
                       ? <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                       : null
                   }
@@ -319,8 +374,9 @@ export default function PerfilIAPage() {
 
       {SECCIONES.map(sec => {
         const Icon = sec.icon
-        const camposSec = completitud.filter(c => c.grupo === sec.key || (sec.key === 'basico' && c.grupo === 'legal'))
+        const camposSec = completitud.filter(c => c.grupo === sec.key)
         const secOk = camposSec.filter(c => c.filled).length
+        const docsCount = sec.key === 'documentos' ? Object.keys(docsMeta).length : 0
         return (
           <section key={sec.key} id={sec.key} data-perfil-section>
             {/* Section header */}
@@ -333,17 +389,17 @@ export default function PerfilIAPage() {
                 <p className="text-sm font-semibold text-gray-900">{sec.label}</p>
                 <p className="text-xs text-gray-400">{sec.desc}</p>
               </div>
-              {camposSec.length > 0 && (
+              {(camposSec.length > 0 || sec.key === 'documentos') && (
                 <span className={clsx('ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0',
-                  secOk === camposSec.length ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
-                  {secOk}/{camposSec.length}
+                  (sec.key === 'documentos' ? docsCount > 0 : secOk === camposSec.length) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+                  {sec.key === 'documentos' ? `${docsCount}/${DOCS_TIPOS.length}` : `${secOk}/${camposSec.length}`}
                 </span>
               )}
             </div>
             <div className="space-y-4">
 
-                {/* ── DATOS LEGALES ── */}
-                {sec.key === 'basico' && (<>
+                {/* ── EMPRESA ── */}
+                {sec.key === 'empresa' && (<>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">RUT empresa <span className="text-red-400">*</span></label>
@@ -371,55 +427,17 @@ export default function PerfilIAPage() {
                       </label>
                     </div>
                   </div>
-                </>)}
-
-                {/* ── PERFIL PARA IA ── */}
-                {sec.key === 'ia' && (<>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-gray-700">¿Qué hace tu empresa? <span className="text-red-400">*</span>
-                        <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante</span>
-                      </label>
-                      <button type="button" onClick={() => generarConIA('descripcion')} disabled={generando === 'descripcion'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                        {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
-                      </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Dirección</label>
+                      <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
+                        value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
                     </div>
-                    <textarea className="input text-sm w-full resize-none" rows={3}
-                      placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas certificadas en RM y Biobío. Contamos con ISO 9001..."
-                      value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
-                      <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-                        {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
-                      </button>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Sitio web</label>
+                      <input className="input text-xs w-full" placeholder="www.empresa.cl"
+                        value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
                     </div>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Suministro de equipos Hospital Regional de Temuco (2023), Mantención vial Municipalidad de Rancagua…"
-                      value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
-                    <input className="input text-xs w-full" placeholder="ISO 9001, OHSAS 18001…"
-                      value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-gray-700">¿Qué diferencia a tu empresa?</label>
-                      <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
-                        {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                        {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
-                      </button>
-                    </div>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Únicos con certificación ISO en la región, respuesta en 24h, equipo bilingüe…"
-                      value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
                   </div>
                 </>)}
 
@@ -495,6 +513,74 @@ export default function PerfilIAPage() {
                   </div>
                 </>)}
 
+                {/* ── QUÉ HACE TU EMPRESA ── */}
+                {sec.key === 'que_hace' && (<>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-gray-700">Descripción de la empresa <span className="text-red-400">*</span>
+                        <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante</span>
+                      </label>
+                      <button type="button" onClick={() => generarConIA('descripcion')} disabled={generando === 'descripcion'}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                        {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                        {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
+                      </button>
+                    </div>
+                    <textarea className="input text-sm w-full resize-none" rows={3}
+                      placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas certificadas en RM y Biobío. Contamos con ISO 9001..."
+                      value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
+                      <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                        {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+                        {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
+                      </button>
+                    </div>
+                    <textarea rows={3} className="input text-xs w-full resize-none"
+                      placeholder="Ej: Suministro de equipos Hospital Regional de Temuco (2023) — contrato 12 meses&#10;Mantención vial Municipalidad de Rancagua (2022) — $65M adjudicado"
+                      value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
+                    <input className="input text-xs w-full"
+                      placeholder="Ej: ISO 9001, ISO 14001, OHSAS 18001, ChileValora, NCh3262…"
+                      value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
+                    <p className="text-[10px] text-gray-400 mt-1">Escribe los nombres de las certificaciones separadas por coma</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-gray-700">¿Qué diferencia a tu empresa?</label>
+                      <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                        {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                        {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
+                      </button>
+                    </div>
+                    <textarea rows={2} className="input text-xs w-full resize-none"
+                      placeholder="Ej: Únicos con certificación ISO en la región, respuesta en 24h, equipo bilingüe…"
+                      value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
+                  </div>
+                </>)}
+
+                {/* ── EQUIPO Y METODOLOGÍA ── */}
+                {sec.key === 'equipo' && (<>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Equipo técnico que ejecuta proyectos</label>
+                    <textarea rows={2} className="input text-xs w-full resize-none"
+                      placeholder="Ej: Equipo de 15 técnicos: 3 ingenieros civiles, 5 supervisores certificados, 7 operarios. Liderado por Ing. Juan Pérez (20 años de experiencia)."
+                      value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Metodología de trabajo estándar</label>
+                    <textarea rows={2} className="input text-xs w-full resize-none"
+                      placeholder="Ej: Trabajamos bajo ISO 9001. Dividimos cada proyecto en diagnóstico, ejecución y entrega. Control semanal con el encargado del organismo."
+                      value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
+                  </div>
+                </>)}
+
                 {/* ── CONTACTO ── */}
                 {sec.key === 'contacto' && (<>
                   <div className="grid grid-cols-2 gap-3">
@@ -518,16 +604,6 @@ export default function PerfilIAPage() {
                       <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
                         value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Sitio web</label>
-                      <input className="input text-xs w-full" placeholder="www.empresa.cl"
-                        value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Dirección</label>
-                      <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
-                        value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Email para alertas de licitaciones</label>
@@ -537,19 +613,74 @@ export default function PerfilIAPage() {
                   </div>
                 </>)}
 
-                {/* ── EQUIPO Y METODOLOGÍA ── */}
-                {sec.key === 'equipo' && (<>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Equipo técnico que ejecuta proyectos</label>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Equipo de 15 técnicos: 3 ingenieros civiles, 5 supervisores certificados, 7 operarios. Liderado por Ing. Juan Pérez (20 años de experiencia)."
-                      value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
+                {/* ── DOCUMENTOS ── */}
+                {sec.key === 'documentos' && (<>
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 mb-2">
+                    <strong>¿Para qué sirven?</strong> Estos documentos se adjuntan automáticamente al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de las licitaciones públicas.
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Metodología de trabajo estándar</label>
-                    <textarea rows={2} className="input text-xs w-full resize-none"
-                      placeholder="Ej: Trabajamos bajo ISO 9001. Dividimos cada proyecto en diagnóstico, ejecución y entrega. Control semanal con el encargado del organismo."
-                      value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
+                  <div className="space-y-3">
+                    {DOCS_TIPOS.map(doc => {
+                      const meta = docsMeta[doc.key]
+                      const isUploading = subiendo === doc.key
+                      return (
+                        <div key={doc.key} className="border border-gray-200 rounded-xl p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+                                meta ? 'bg-emerald-100' : 'bg-gray-100')}>
+                                <FileText size={14} className={meta ? 'text-emerald-600' : 'text-gray-400'} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-gray-800">
+                                  {doc.label}
+                                  {doc.requerido && <span className="ml-1 text-red-400 font-normal text-[10px]">requerido</span>}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{doc.desc}</p>
+                                {meta && (
+                                  <p className="text-[10px] text-emerald-600 mt-1 font-medium truncate">
+                                    ✅ {meta.nombre} ({Math.round(meta.size / 1024)} KB)
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {meta && (
+                                <>
+                                  <button onClick={() => descargarDocumento(doc.key, meta.nombre)}
+                                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Descargar">
+                                    <Download size={12} />
+                                  </button>
+                                  <button onClick={() => eliminarDocumento(doc.key)}
+                                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </>
+                              )}
+                              <label className={clsx(
+                                'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors',
+                                meta ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-indigo-600 text-white hover:bg-indigo-700',
+                                isUploading && 'opacity-50 pointer-events-none'
+                              )}>
+                                {isUploading ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
+                                {isUploading ? 'Subiendo…' : meta ? 'Reemplazar' : 'Subir PDF'}
+                                <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) subirDocumento(doc.key, f); e.target.value = '' }} />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* Documento libre adicional */}
+                    <div className="border border-dashed border-gray-300 rounded-xl p-3 text-center">
+                      <FilePlus size={16} className="text-gray-300 mx-auto mb-1" />
+                      <p className="text-[10px] text-gray-400">¿Tienes otros documentos? Puedes subir certificados, resoluciones, etc.</p>
+                      <label className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 cursor-pointer mt-1.5 hover:text-indigo-800">
+                        <Upload size={10} /> Subir otro documento
+                        <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) subirDocumento('otros', f); e.target.value = '' }} />
+                      </label>
+                    </div>
                   </div>
                 </>)}
 

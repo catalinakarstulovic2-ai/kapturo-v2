@@ -2,11 +2,12 @@
 Endpoints del módulo Licitaciones.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+import base64
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import uuid
 import json
@@ -357,7 +358,92 @@ Sin numeración. Sin explicaciones. Solo las líneas."""
         raise HTTPException(status_code=500, detail=f"Error al generar: {str(e)}")
 
 
-# ── Búsqueda con IA (lenguaje natural) ───────────────────────────────────────
+# ── Documentos del perfil (CV empresa, certificados PDF, etc.) ────────────────
+
+TIPOS_DOCUMENTOS_VALIDOS = {"cv_empresa", "certificaciones_pdf", "declaracion_jurada", "otros"}
+
+@router.post("/documentos/{tipo}")
+async def subir_documento_perfil(
+    tipo: str,
+    archivo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sube un documento PDF al perfil de empresa (guardado en niche_config)."""
+    if tipo not in TIPOS_DOCUMENTOS_VALIDOS:
+        raise HTTPException(status_code=422, detail=f"Tipo inválido. Válidos: {TIPOS_DOCUMENTOS_VALIDOS}")
+    content = await archivo.read()
+    if len(content) > 3 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 3 MB")
+    b64 = base64.b64encode(content).decode("utf-8")
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo licitaciones no encontrado")
+    from sqlalchemy.orm.attributes import flag_modified
+    config = dict(modulo.niche_config or {})
+    docs = dict(config.get("documentos", {}))
+    docs[tipo] = {
+        "nombre": archivo.filename,
+        "mime": archivo.content_type or "application/octet-stream",
+        "size": len(content),
+        "base64": b64,
+        "subido_at": datetime.now(timezone.utc).isoformat(),
+    }
+    config["documentos"] = docs
+    modulo.niche_config = config
+    flag_modified(modulo, "niche_config")
+    db.commit()
+    return {"ok": True, "nombre": archivo.filename, "size": len(content), "tipo": tipo}
+
+
+@router.get("/documentos/{tipo}/download")
+def descargar_documento_perfil(
+    tipo: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve el documento como base64 para descarga en el frontend."""
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+    docs = (modulo.niche_config or {}).get("documentos", {})
+    doc = docs.get(tipo)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return {"nombre": doc["nombre"], "mime": doc["mime"], "base64": doc["base64"]}
+
+
+@router.delete("/documentos/{tipo}")
+def eliminar_documento_perfil(
+    tipo: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Elimina un documento del perfil."""
+    modulo = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+    if not modulo:
+        raise HTTPException(status_code=404, detail="Módulo no encontrado")
+    from sqlalchemy.orm.attributes import flag_modified
+    config = dict(modulo.niche_config or {})
+    docs = dict(config.get("documentos", {}))
+    if tipo in docs:
+        del docs[tipo]
+        config["documentos"] = docs
+        modulo.niche_config = config
+        flag_modified(modulo, "niche_config")
+        db.commit()
+    return {"ok": True}
+
+
 
 class BusquedaIARequest(BaseModel):
     consulta: str  # "quiero limpiar hospitales en Santiago"

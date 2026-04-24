@@ -292,7 +292,15 @@ def obtener_licitaciones_profile(
     ).first()
     if not mod:
         raise HTTPException(status_code=404, detail="Módulo licitaciones no activo")
-    return mod.niche_config or {}
+    config = dict(mod.niche_config or {})
+    # Devolver metadatos de documentos sin el base64 (puede ser muy pesado)
+    if "documentos" in config:
+        config["documentos"] = {
+            k: {kk: vv for kk, vv in v.items() if kk != "base64"}
+            for k, v in config["documentos"].items()
+            if isinstance(v, dict)
+        }
+    return config
 
 
 @router.put("/me/licitaciones-profile")
