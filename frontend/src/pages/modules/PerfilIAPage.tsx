@@ -62,8 +62,8 @@ export default function PerfilIAPage() {
   })
 
   const { data: catalogo } = useQuery({
-    queryKey: ['licitaciones-catalogo'],
-    queryFn: () => api.get('/modules/licitaciones/catalogo').then(r => r.data).catch(() => null),
+    queryKey: ['licitaciones-catalogos'],
+    queryFn: () => api.get('/modules/licitaciones/catalogos').then(r => r.data).catch(() => null),
     staleTime: 60 * 60 * 1000,
   })
 
