@@ -121,46 +121,60 @@ export default function PerfilIAPage() {
   const [subiendo, setSubiendo] = useState<string | null>(null)
 
   useEffect(() => {
-    // Find the scrollable ancestor at mount time
-    const firstSection = document.getElementById('empresa')
-    let scrollRoot: Element | null = null
-    if (firstSection) {
-      let p = firstSection.parentElement
-      while (p && p !== document.body) {
-        const ov = window.getComputedStyle(p).overflowY
-        if (ov === 'auto' || ov === 'scroll') { scrollRoot = p; break }
-        p = p.parentElement
-      }
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id)
-        })
-      },
-      { root: scrollRoot, rootMargin: '-10% 0px -60% 0px', threshold: 0 }
-    )
-    const sections = document.querySelectorAll('[data-perfil-section]')
-    sections.forEach(s => observer.observe(s))
-    return () => observer.disconnect()
+    // Esperar a que el DOM esté listo antes de observar
+    const timer = setTimeout(() => {
+      const sections = document.querySelectorAll('[data-perfil-section]')
+      if (!sections.length) return
+
+      // Buscar el contenedor scrollable (el <main> del layout)
+      let scrollRoot: Element | null = null
+      sections.forEach(s => {
+        let p = s.parentElement
+        while (p && p !== document.body) {
+          const ov = window.getComputedStyle(p).overflowY
+          if (ov === 'auto' || ov === 'scroll' || ov === 'overlay') { scrollRoot = p; return }
+          p = p.parentElement
+        }
+      })
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          // Tomar la sección más alta visible
+          const visible = entries.filter(e => e.isIntersecting)
+          if (visible.length) {
+            const top = visible.reduce((a, b) =>
+              a.boundingClientRect.top < b.boundingClientRect.top ? a : b
+            )
+            setActiveSection(top.target.id)
+          }
+        },
+        { root: scrollRoot, rootMargin: '-5% 0px -50% 0px', threshold: 0 }
+      )
+      sections.forEach(s => observer.observe(s))
+      return () => observer.disconnect()
+    }, 300)
+    return () => clearTimeout(timer)
   }, [])
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
     if (!el) return
     setActiveSection(id)
-    // Find nearest scrollable ancestor
+
+    // Buscar contenedor scrollable
     let parent = el.parentElement
     while (parent && parent !== document.body) {
-      const { overflowY } = window.getComputedStyle(parent)
-      if (overflowY === 'auto' || overflowY === 'scroll') {
-        const top = el.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - 24
-        parent.scrollTo({ top, behavior: 'smooth' })
+      const ov = window.getComputedStyle(parent).overflowY
+      if (ov === 'auto' || ov === 'scroll' || ov === 'overlay') {
+        const offset = el.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - 80
+        parent.scrollTo({ top: offset, behavior: 'smooth' })
         return
       }
       parent = parent.parentElement
     }
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Fallback: window scroll
+    const y = el.getBoundingClientRect().top + window.scrollY - 80
+    window.scrollTo({ top: y, behavior: 'smooth' })
   }
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
