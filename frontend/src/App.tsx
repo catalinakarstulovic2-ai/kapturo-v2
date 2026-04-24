@@ -64,6 +64,7 @@ export default function App() {
           <Route path="pipeline" element={<PipelinePage />} />
           <Route path="licitaciones" element={<LicitacionesPage />} />
           <Route path="licitaciones/perfil" element={<PerfilIAPage />} />
+          <Route path="licitaciones/generar" element={<Navigate to="/propuestas/licitaciones" replace />} />
           <Route path="adjudicadas" element={<AdjudicadasPage />} />
           <Route path="prospeccion" element={<ProspeccionPage />} />
           {/* Aliases para compatibilidad con links viejos */}

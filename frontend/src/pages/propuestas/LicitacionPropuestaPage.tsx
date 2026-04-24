@@ -146,6 +146,18 @@ const PERFIL_CAMPOS_CHECK = [
   { key: 'certificaciones',      label: 'Certificaciones',        critical: false },
 ]
 
+// Campos requeridos por documento — si faltan, ese doc se bloquea
+const DOC_CAMPOS_REQUERIDOS: Record<TipoDoc, string[]> = {
+  propuesta_tecnica:  ['rut_empresa', 'razon_social', 'descripcion', 'rubros', 'nombre_contacto'],
+  metodologia:        ['razon_social', 'descripcion', 'rubros'],
+  cv_empresa:         ['rut_empresa', 'razon_social', 'descripcion', 'proyectos_anteriores'],
+  cv_equipo:          ['razon_social', 'equipo_tecnico'],
+  carta_gantt:        ['razon_social', 'descripcion'],
+  oferta_economica:   ['rut_empresa', 'razon_social', 'nombre_contacto'],
+  carta_presentacion: ['rut_empresa', 'razon_social', 'nombre_contacto', 'cargo_contacto', 'correo'],
+  carta_seguimiento:  ['razon_social', 'nombre_contacto', 'correo'],
+}
+
 // Mapea patrones de [CAMPO] en documentos → campo del perfil donde vive el dato
 // Si no está en este mapa = dato específico de la licitación = completar a mano
 const CAMPOS_A_PERFIL: Array<{ patron: RegExp; perfilKey: string; perfilLabel: string }> = [
@@ -379,7 +391,14 @@ export default function LicitacionPropuestaPage() {
 
   const handleGenerarTodos = async () => {
     if (!selectedPostulacion) return
-    const docs = Array.from(todosSeleccionados)
+    // Only generate unlocked docs
+    const docs = Array.from(todosSeleccionados).filter(id => {
+      const reqs = DOC_CAMPOS_REQUERIDOS[id] ?? []
+      return reqs.every(key => {
+        const val = perfilEmpresa?.[key]
+        return val && (!Array.isArray(val) || val.length > 0)
+      })
+    })
     const resultados: Partial<Record<TipoDoc, string>> = {}
     const errores = new Set<TipoDoc>()
     setTodosProgreso({ corriendo: true, actual: 0, total: docs.length, labelActual: '', resultados: {}, errores: new Set() })
@@ -761,6 +780,58 @@ export default function LicitacionPropuestaPage() {
     const { corriendo, actual, total, labelActual, resultados, errores } = todosProgreso
     const completado = !corriendo && Object.keys(resultados).length > 0
 
+    // PASO 0: Seleccionar licitación si aún no hay una
+    if (!selectedPostulacion && !completado && !corriendo) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-gray-800">¿Para cuál licitación?</p>
+            <button onClick={() => setModoTodos(false)} className="text-xs text-gray-400 hover:text-gray-600">← Volver</button>
+          </div>
+          <div className="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 flex items-center gap-3">
+            <Sparkles size={16} className="text-violet-600 shrink-0" />
+            <p className="text-xs text-violet-800">Selecciona la licitación para la que quieres generar <strong>todos los documentos de una vez</strong>.</p>
+          </div>
+          {loadingPostulaciones ? (
+            <div className="flex items-center justify-center py-10 text-gray-400">
+              <Loader2 size={20} className="animate-spin mr-2" /> Cargando postulaciones…
+            </div>
+          ) : postulaciones.length === 0 ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-700">
+              No tienes licitaciones guardadas. Ve a <strong>Buscar licitaciones</strong> y guarda alguna primero.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+              {postulaciones.map(p => {
+                const docsCount = p.documentos_ia?.length ?? 0
+                return (
+                  <button key={p.id} onClick={() => setSelectedPostulacion(p)}
+                    className="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-violet-400 hover:bg-violet-50 transition-all">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0 mt-0.5">
+                        <FileText size={14} className="text-violet-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+                          {p.licitacion_nombre ?? p.licitacion_codigo ?? p.id}
+                        </p>
+                        {p.licitacion_organismo && <p className="text-xs text-gray-500 truncate mt-0.5">{p.licitacion_organismo}</p>}
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          {p.licitacion_codigo && <span className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{p.licitacion_codigo}</span>}
+                          {docsCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{docsCount} doc{docsCount > 1 ? 's' : ''} generados</span>}
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-300 shrink-0 mt-1" />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )
+    }
+
     if (completado) return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -867,6 +938,17 @@ export default function LicitacionPropuestaPage() {
     const perfilPct = Math.round((perfilCompletos / perfilTotal) * 100)
     const bloqueado = perfilCriticosFaltantes.length > 0 || !selectedPostulacion
 
+    // Helper: campos faltantes por documento
+    const camposFaltantesDoc = (tipoDoc: TipoDoc): string[] => {
+      const requeridos = DOC_CAMPOS_REQUERIDOS[tipoDoc] ?? []
+      return requeridos
+        .filter(key => {
+          const val = perfilEmpresa?.[key]
+          return !val || (Array.isArray(val) && val.length === 0)
+        })
+        .map(key => PERFIL_CAMPOS_CHECK.find(c => c.key === key)?.label ?? key)
+    }
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -874,16 +956,39 @@ export default function LicitacionPropuestaPage() {
           <button onClick={() => setModoTodos(false)} className="text-xs text-gray-400 hover:text-gray-600">← Volver</button>
         </div>
 
+        {/* Licitación seleccionada — con opción de cambiar */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-violet-50 border border-violet-200 rounded-xl">
+          <FileText size={14} className="text-violet-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Licitación</p>
+            <p className="text-xs font-semibold text-violet-900 truncate">{selectedPostulacion?.licitacion_nombre ?? selectedPostulacion?.licitacion_codigo}</p>
+          </div>
+          <button type="button" onClick={() => setSelectedPostulacion(null)}
+            className="text-[10px] font-semibold text-violet-500 hover:text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
+            Cambiar
+          </button>
+        </div>
+        {perfilPct === 100 && selectedPostulacion && (
+          <div className="rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 p-3 flex items-center gap-3">
+            <span className="text-2xl">🎯</span>
+            <div>
+              <p className="text-xs font-bold text-emerald-800">Tu perfil está al 100% — listo para generar</p>
+              <p className="text-[10px] text-emerald-600">Todos los documentos están disponibles sin restricciones</p>
+            </div>
+          </div>
+        )}
+
         {/* ── Progreso de preparación ─────────────────────────────────── */}
         <div className={clsx(
           'rounded-xl border-2 p-4 space-y-3 transition-all',
-          bloqueado ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'
+          bloqueado ? 'border-red-200 bg-red-50' : perfilPct === 100 ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
         )}>
           <div className="flex items-center justify-between gap-2">
-            <p className={clsx('text-xs font-bold', bloqueado ? 'text-red-700' : 'text-emerald-700')}>
+            <p className={clsx('text-xs font-bold', bloqueado ? 'text-red-700' : perfilPct === 100 ? 'text-emerald-700' : 'text-amber-700')}>
               {bloqueado
                 ? `⛔ Completa ${perfilCriticosFaltantes.length + (!selectedPostulacion ? 1 : 0)} requisito${(perfilCriticosFaltantes.length + (!selectedPostulacion ? 1 : 0)) !== 1 ? 's' : ''} para desbloquear`
-                : '✅ Listo para generar'}
+                : perfilPct === 100 ? '✅ Perfil completo — todos los docs disponibles'
+                : `⚠️ Perfil al ${perfilPct}% — algunos docs bloqueados`}
             </p>
             <span className={clsx(
               'text-[11px] font-bold px-2 py-0.5 rounded-full',
@@ -956,21 +1061,44 @@ export default function LicitacionPropuestaPage() {
           {TODOS_TIPOS.map(t => {
             const tab = TABS.find(tb => tb.items.some(i => i.id === t.id))
             const sel = todosSeleccionados.has(t.id)
+            const faltantes = camposFaltantesDoc(t.id)
+            const docBloqueado = faltantes.length > 0
             return (
               <button key={t.id}
-                onClick={() => setTodosSeleccionados(prev => { const s = new Set(prev); sel ? s.delete(t.id) : s.add(t.id); return s })}
+                onClick={() => {
+                  if (docBloqueado) return
+                  setTodosSeleccionados(prev => { const s = new Set(prev); sel ? s.delete(t.id) : s.add(t.id); return s })
+                }}
+                disabled={docBloqueado}
+                title={docBloqueado ? `Falta: ${faltantes.join(', ')}` : undefined}
                 className={clsx('w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 text-left transition-all',
-                  sel ? (tab?.color === 'violet' ? 'border-violet-400 bg-violet-50' : tab?.color === 'emerald' ? 'border-emerald-400 bg-emerald-50' : 'border-blue-400 bg-blue-50') : 'border-gray-200 hover:border-gray-300')}>
+                  docBloqueado
+                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                    : sel
+                      ? (tab?.color === 'violet' ? 'border-violet-400 bg-violet-50' : tab?.color === 'emerald' ? 'border-emerald-400 bg-emerald-50' : 'border-blue-400 bg-blue-50')
+                      : 'border-gray-200 hover:border-gray-300')}>
                 <div className={clsx('w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all',
-                  sel ? (tab?.color === 'violet' ? 'border-violet-500 bg-violet-500' : tab?.color === 'emerald' ? 'border-emerald-500 bg-emerald-500' : 'border-blue-500 bg-blue-500') : 'border-gray-300')}>
-                  {sel && <CheckCircle2 size={11} className="text-white" />}
+                  docBloqueado
+                    ? 'border-gray-300 bg-gray-100'
+                    : sel
+                      ? (tab?.color === 'violet' ? 'border-violet-500 bg-violet-500' : tab?.color === 'emerald' ? 'border-emerald-500 bg-emerald-500' : 'border-blue-500 bg-blue-500')
+                      : 'border-gray-300')}>
+                  {docBloqueado ? <span className="text-[9px]">🔒</span> : sel && <CheckCircle2 size={11} className="text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{t.label}</p>
-                  <p className="text-[11px] text-gray-500 truncate">{t.desc}</p>
+                  <p className={clsx('text-sm font-medium', docBloqueado ? 'text-gray-400' : 'text-gray-900')}>{t.label}</p>
+                  {docBloqueado
+                    ? <p className="text-[10px] text-red-400 truncate">Falta: {faltantes.slice(0, 2).join(', ')}{faltantes.length > 2 ? ` +${faltantes.length - 2}` : ''}</p>
+                    : <p className="text-[11px] text-gray-500 truncate">{t.desc}</p>}
                 </div>
-                {docStatuses[t.id]?.state === 'done' && (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0">✓ Ya generado</span>
+                {docStatuses[t.id]?.state === 'done' && !docBloqueado && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0">✓</span>
+                )}
+                {docBloqueado && (
+                  <button type="button" onClick={e => { e.stopPropagation(); navigate('/licitaciones/perfil') }}
+                    className="text-[10px] text-indigo-500 hover:underline shrink-0 whitespace-nowrap">
+                    Completar →
+                  </button>
                 )}
               </button>
             )
@@ -978,9 +1106,21 @@ export default function LicitacionPropuestaPage() {
         </div>
 
         <div className="space-y-2 pt-1">
-          <p className="text-xs text-gray-400 text-center">
-            {todosSeleccionados.size} documento{todosSeleccionados.size !== 1 ? 's' : ''} · ~{todosSeleccionados.size * 30} seg estimados
-          </p>
+          {(() => {
+            const desbloqueados = Array.from(todosSeleccionados).filter(id => camposFaltantesDoc(id).length === 0)
+            const bloqueadosCount = TODOS_TIPOS.filter(t => camposFaltantesDoc(t.id).length > 0).length
+            return (<>
+              {bloqueadosCount > 0 && (
+                <p className="text-[10px] text-center text-amber-600">
+                  🔒 {bloqueadosCount} doc{bloqueadosCount !== 1 ? 's' : ''} bloqueado{bloqueadosCount !== 1 ? 's' : ''} por perfil incompleto
+                  {' · '}<button type="button" onClick={() => navigate('/licitaciones/perfil')} className="underline font-semibold">Completar perfil</button>
+                </p>
+              )}
+              <p className="text-xs text-gray-400 text-center">
+                {desbloqueados.length} documento{desbloqueados.length !== 1 ? 's' : ''} listos · ~{desbloqueados.length * 30} seg estimados
+              </p>
+            </>)
+          })()}
           <button
             onClick={handleGenerarTodos}
             disabled={todosSeleccionados.size === 0 || bloqueado || todosProgreso.corriendo}
@@ -1023,6 +1163,19 @@ export default function LicitacionPropuestaPage() {
         >
           <Sparkles size={15} /> Generar todos los documentos
         </button>
+        {/* Licitación activa */}
+        {selectedPostulacion ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-xl">
+            <CheckCircle2 size={13} className="text-violet-500 shrink-0" />
+            <p className="text-[11px] text-violet-800 font-medium flex-1 truncate">{selectedPostulacion.licitacion_nombre ?? selectedPostulacion.licitacion_codigo}</p>
+            <button type="button" onClick={() => setSelectedPostulacion(null)} className="text-[10px] text-violet-400 hover:text-violet-700">cambiar</button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertCircle size={13} className="text-amber-500 shrink-0" />
+            <p className="text-[11px] text-amber-700">Sin licitación seleccionada — selecciona al generar</p>
+          </div>
+        )}
         {/* Perfil de empresa */}
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">

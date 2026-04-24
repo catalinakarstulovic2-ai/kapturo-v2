@@ -399,6 +399,8 @@ Solo el documento, sin explicaciones.""",
         if instrucciones_extra:
             prompt += f"\n\nINSTRUCCIONES ADICIONALES DEL USUARIO: {instrucciones_extra}"
 
+        prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
+
         return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=1500)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -657,5 +659,7 @@ Reglas:
 
         if instrucciones_extra:
             prompt += f"\n\nINSTRUCCIONES ADICIONALES DEL USUARIO: {instrucciones_extra}"
+
+        prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
 
         return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=6000)

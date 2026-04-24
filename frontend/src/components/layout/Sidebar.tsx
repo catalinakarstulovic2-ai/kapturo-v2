@@ -8,9 +8,9 @@ import { useAuthStore } from '../../store/authStore'
 const nav = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',           module: null,           hideSuperAdmin: false, onlySuperAdmin: false, group: null },
   { to: '/licitaciones',  icon: FileText,        label: 'Buscar licitaciones', module: 'licitaciones', hideSuperAdmin: true,  onlySuperAdmin: false, group: 'licitaciones' },
+  { to: '/licitaciones/perfil', icon: SlidersHorizontal, label: 'Perfil IA', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
   { to: '/licitaciones?tab=postulaciones', icon: ClipboardList, label: 'Mis postulaciones', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
   { to: '/propuestas/licitaciones', icon: FileSignature, label: 'Generar documentos', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
-  { to: '/licitaciones/perfil', icon: SlidersHorizontal, label: 'Perfil IA', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
   { to: '/adjudicadas',   icon: Trophy,          label: 'Mercado Público',     module: 'adjudicadas',  hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/pipeline',      icon: Kanban,          label: 'Pipeline',            module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/prospectos',    icon: Users,           label: 'Prospectos',          module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
