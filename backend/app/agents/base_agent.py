@@ -27,7 +27,7 @@ class BaseAgent(ABC):
     def _call_claude(
         self,
         prompt: str,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = "claude-haiku-4-5",
         max_tokens: int = 500,
     ) -> str:
         """

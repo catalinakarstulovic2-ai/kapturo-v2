@@ -12,12 +12,14 @@ import asyncio
 import logging
 from sqlalchemy.orm import Session
 from app.modules.prospector.gmaps_client import GoogleMapsProspectorClient
+from app.modules.prospector.enrichment_chain import enriquecer_cadena
 
 logger = logging.getLogger(__name__)
 from app.modules.prospector.hunter_client import HunterClient
 from app.modules.prospector.normalizer import normalizar_gmaps
 from app.modules.inmobiliaria.scorer import InmobiliariaScorer, SCORE_THRESHOLD
 from app.models.prospect import Prospect, ProspectStatus, ProspectSource
+from app.models.pipeline import PipelineCard, PipelineStage
 from app.models.tenant import Tenant
 from app.core.config import settings
 
@@ -153,7 +155,60 @@ class InmobiliariaService:
         self.db.add(prospect)
         self.db.flush()
 
+        if score >= SCORE_THRESHOLD:
+            self._auto_agregar_pipeline(prospect.id)
+
         return {"calificado": score >= SCORE_THRESHOLD, "enriquecido": enriched}
+
+    def _auto_agregar_pipeline(self, prospect_id: str) -> None:
+        """
+        Agrega el prospecto a la primera etapa del pipeline Kanban
+        si aún no tiene una tarjeta activa.
+        Se llama automáticamente cuando un lead es calificado (score >= threshold).
+        """
+        try:
+            # Verificar si ya tiene tarjeta en el pipeline
+            ya_existe = (
+                self.db.query(PipelineCard)
+                .filter(PipelineCard.prospect_id == prospect_id)
+                .first()
+            )
+            if ya_existe:
+                return
+
+            # Buscar "Sin contactar", si no existe tomar la segunda etapa (skip "Nuevo")
+            primera_etapa = (
+                self.db.query(PipelineStage)
+                .filter(
+                    PipelineStage.tenant_id == self.tenant_id,
+                    PipelineStage.name == "Sin contactar",
+                )
+                .first()
+            ) or (
+                self.db.query(PipelineStage)
+                .filter(PipelineStage.tenant_id == self.tenant_id)
+                .order_by(PipelineStage.order)
+                .offset(1)
+                .first()
+            ) or (
+                self.db.query(PipelineStage)
+                .filter(PipelineStage.tenant_id == self.tenant_id)
+                .order_by(PipelineStage.order)
+                .first()
+            )
+            if not primera_etapa:
+                logger.warning(f"[Pipeline Auto] Tenant {self.tenant_id} sin etapas — no se puede agregar prospect {prospect_id}")
+                return
+
+            card = PipelineCard(
+                tenant_id=self.tenant_id,
+                prospect_id=prospect_id,
+                stage_id=primera_etapa.id,
+            )
+            self.db.add(card)
+            logger.info(f"[Pipeline Auto] Prospect {prospect_id} agregado a etapa '{primera_etapa.name}'")
+        except Exception as e:
+            logger.error(f"[Pipeline Auto] Error al agregar prospect {prospect_id}: {e}")
 
     async def _guardar(self, p_dict: dict):
         """Guarda un prospecto ya procesado en la BD."""
@@ -308,6 +363,41 @@ class InmobiliariaService:
 
             try:
                 await self._guardar(p_dict)
+                self.db.flush()
+                # Obtener el prospect recién guardado para agregarlo al pipeline
+                if score >= 65:
+                    ultimo = (
+                        self.db.query(Prospect)
+                        .filter(
+                            Prospect.tenant_id == self.tenant_id,
+                            Prospect.is_qualified == True,
+                        )
+                        .order_by(Prospect.created_at.desc())
+                        .first()
+                    )
+                    if ultimo:
+                        # Si no tiene contacto → enriquecer en cadena
+                        if not ultimo.email and not ultimo.phone:
+                            try:
+                                enrich = await enriquecer_cadena(
+                                    contact_name=ultimo.contact_name or "",
+                                    company_name=ultimo.company_name or "",
+                                    website=ultimo.website or "",
+                                    linkedin_url=ultimo.linkedin_url or "",
+                                    city=ultimo.city or "",
+                                    country=ultimo.country or "",
+                                )
+                                if enrich["found"]:
+                                    if enrich.get("email"):
+                                        ultimo.email = enrich["email"]
+                                    if enrich.get("phone"):
+                                        ultimo.phone = enrich["phone"]
+                                    ultimo.enrichment_source = enrich["enrichment_source"]
+                            except Exception as enrich_err:
+                                logger.warning(f"[Enrichment] Error para {ultimo.contact_name}: {enrich_err}")
+                        # Agregar al Kanban solo si tiene algún medio de contacto
+                        if ultimo.email or ultimo.phone or ultimo.linkedin_url:
+                            self._auto_agregar_pipeline(ultimo.id)
                 self.db.commit()
                 guardados += 1
                 if score >= 65:
@@ -375,6 +465,28 @@ class InmobiliariaService:
             guardados += 1
             if score >= SCORE_THRESHOLD:
                 calificados += 1
+                # Si no tiene email ni teléfono → enriquecer en cadena
+                if not prospect.email and not prospect.phone:
+                    try:
+                        enrich = await enriquecer_cadena(
+                            contact_name=prospect.contact_name or "",
+                            company_name=prospect.company_name or "",
+                            website=prospect.website or "",
+                            linkedin_url=prospect.linkedin_url or "",
+                            city=prospect.city or "",
+                            country=prospect.country or "",
+                        )
+                        if enrich["found"]:
+                            if enrich.get("email"):
+                                prospect.email = enrich["email"]
+                            if enrich.get("phone"):
+                                prospect.phone = enrich["phone"]
+                            prospect.enrichment_source = enrich["enrichment_source"]
+                    except Exception as enrich_err:
+                        logger.warning(f"[Enrichment] Error para {prospect.contact_name}: {enrich_err}")
+                # Agregar al Kanban solo si tiene algún medio de contacto
+                if prospect.email or prospect.phone or prospect.linkedin_url:
+                    self._auto_agregar_pipeline(prospect.id)
 
         self.db.commit()
         return {
@@ -577,10 +689,42 @@ class InmobiliariaService:
 
             try:
                 await self._guardar(p_dict)
-                self.db.commit()
+                self.db.flush()
                 guardados += 1
                 if score >= 65:
                     calificados += 1
+                    # Enriquecer y agregar al Kanban
+                    prospect_obj = (
+                        self.db.query(Prospect)
+                        .filter(
+                            Prospect.tenant_id == self.tenant_id,
+                            Prospect.contact_name == p_dict.get("contact_name"),
+                        )
+                        .order_by(Prospect.created_at.desc())
+                        .first()
+                    )
+                    if prospect_obj:
+                        if not prospect_obj.email and not prospect_obj.phone:
+                            try:
+                                enrich = await enriquecer_cadena(
+                                    contact_name=prospect_obj.contact_name or "",
+                                    company_name=prospect_obj.company_name or "",
+                                    website=prospect_obj.website or "",
+                                    linkedin_url=prospect_obj.linkedin_url or "",
+                                    city=prospect_obj.city or "",
+                                    country=prospect_obj.country or "",
+                                )
+                                if enrich["found"]:
+                                    if enrich.get("email"):
+                                        prospect_obj.email = enrich["email"]
+                                    if enrich.get("phone"):
+                                        prospect_obj.phone = enrich["phone"]
+                                    prospect_obj.enrichment_source = enrich["enrichment_source"]
+                            except Exception as enrich_err:
+                                logger.warning(f"[Enrichment] Error social para {prospect_obj.contact_name}: {enrich_err}")
+                        if prospect_obj.email or prospect_obj.phone or prospect_obj.linkedin_url:
+                            self._auto_agregar_pipeline(prospect_obj.id)
+                self.db.commit()
             except Exception as e:
                 logger.error(f"Error guardando lead de anuncio: {e}", exc_info=True)
                 self.db.rollback()
@@ -655,10 +799,44 @@ class InmobiliariaService:
             perfil["status"] = ProspectStatus.qualified if score >= 65 else ProspectStatus.new
             try:
                 await self._guardar(perfil)
-                self.db.commit()
+                self.db.flush()
                 guardados += 1
                 if score >= 65:
                     calificados += 1
+                    # Obtener el prospect recién guardado
+                    prospect_obj = (
+                        self.db.query(Prospect)
+                        .filter(
+                            Prospect.tenant_id == self.tenant_id,
+                            Prospect.contact_name == perfil.get("contact_name"),
+                        )
+                        .order_by(Prospect.created_at.desc())
+                        .first()
+                    )
+                    if prospect_obj:
+                        # Si no tiene contacto → enriquecer en cadena
+                        if not prospect_obj.email and not prospect_obj.phone:
+                            try:
+                                enrich = await enriquecer_cadena(
+                                    contact_name=prospect_obj.contact_name or "",
+                                    company_name=prospect_obj.company_name or "",
+                                    website=prospect_obj.website or "",
+                                    linkedin_url=prospect_obj.linkedin_url or "",
+                                    city=prospect_obj.city or "",
+                                    country=prospect_obj.country or "",
+                                )
+                                if enrich["found"]:
+                                    if enrich.get("email"):
+                                        prospect_obj.email = enrich["email"]
+                                    if enrich.get("phone"):
+                                        prospect_obj.phone = enrich["phone"]
+                                    prospect_obj.enrichment_source = enrich["enrichment_source"]
+                            except Exception as enrich_err:
+                                logger.warning(f"[Enrichment] Error para {prospect_obj.contact_name}: {enrich_err}")
+                        # Agregar al Kanban solo si tiene algún medio de contacto
+                        if prospect_obj.email or prospect_obj.phone or prospect_obj.linkedin_url:
+                            self._auto_agregar_pipeline(prospect_obj.id)
+                self.db.commit()
             except Exception as guardar_err:
                 logger.error(f"Error guardando {perfil.get('contact_name')}: {guardar_err}", exc_info=True)
                 self.db.rollback()

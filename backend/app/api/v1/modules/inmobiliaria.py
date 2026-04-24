@@ -6,7 +6,7 @@ GET  /api/v1/inmobiliaria/buscar/{job_id} → estado del job
 GET  /api/v1/inmobiliaria/prospectos      → lista leads del módulo con filtros
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.middleware import get_current_user, require_admin
@@ -464,3 +464,87 @@ async def enriquecer_prospecto(
         return {"ok": True, "email": result["email"], "confidence": result.get("confidence")}
     else:
         return {"ok": False, "email": None, "mensaje": "No se encontró email con Hunter.io"}
+
+
+@router.post("/prospectos/enriquecer-batch")
+async def enriquecer_batch(
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Enriquece en batch todos los leads calificados sin email ni teléfono.
+    Usa la cadena Hunter → Apollo → Google Maps.
+    Si encuentra contacto, agrega al Kanban automáticamente.
+    Corre en background para no bloquear.
+    """
+    from app.modules.prospector.enrichment_chain import enriquecer_cadena
+    from app.models.prospect import Prospect
+    from app.models.mpipeline import PipelineCard, PipelineStage
+
+    tenant_id = current_user.tenant_id
+
+    leads_sin_contacto = (
+        db.query(Prospect)
+        .filter(
+            Prospect.tenant_id == tenant_id,
+            Prospect.is_qualified == True,
+            Prospect.excluido == False,
+            Prospect.email == None,
+            Prospect.phone == None,
+        )
+        .all()
+    )
+
+    total = len(leads_sin_contacto)
+
+    async def _procesar():
+        enriquecidos = 0
+        en_pipeline = 0
+        for p in leads_sin_contacto:
+            try:
+                enrich = await enriquecer_cadena(
+                    contact_name=p.contact_name or "",
+                    company_name=p.company_name or "",
+                    website=p.website or "",
+                    linkedin_url=p.linkedin_url or "",
+                    city=p.city or "",
+                    country=p.country or "",
+                )
+                if enrich["found"]:
+                    if enrich.get("email"):
+                        p.email = enrich["email"]
+                    if enrich.get("phone"):
+                        p.phone = enrich["phone"]
+                    p.enrichment_source = enrich["enrichment_source"]
+                    enriquecidos += 1
+
+                # Agregar al Kanban si tiene algún medio de contacto
+                tiene_contacto = p.email or p.phone or p.linkedin_url
+                if tiene_contacto:
+                    ya_existe = db.query(PipelineCard).filter(PipelineCard.prospect_id == p.id).first()
+                    if not ya_existe:
+                        primera_etapa = (
+                            db.query(PipelineStage)
+                            .filter(PipelineStage.tenant_id == tenant_id)
+                            .order_by(PipelineStage.order)
+                            .first()
+                        )
+                        if primera_etapa:
+                            db.add(PipelineCard(
+                                tenant_id=tenant_id,
+                                prospect_id=p.id,
+                                stage_id=primera_etapa.id,
+                            ))
+                            en_pipeline += 1
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                import logging
+                logging.getLogger(__name__).warning(f"[Batch] Error enriqueciendo {p.contact_name}: {e}")
+
+        import logging
+        logging.getLogger(__name__).info(f"[Batch] Completado: {enriquecidos} enriquecidos, {en_pipeline} al pipeline de {total} leads")
+
+    background_tasks.add_task(_procesar)
+    return {"ok": True, "leads_a_procesar": total, "mensaje": f"Procesando {total} leads en background. Revisa el Kanban en ~1-2 minutos."}

@@ -94,7 +94,7 @@ Responde SOLO con JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=700)
+        raw = self._call_claude(prompt, model="claude-haiku-4-5", max_tokens=700)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -158,7 +158,7 @@ Responde SOLO con un JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=400)
+        raw = self._call_claude(prompt, model="claude-haiku-4-5", max_tokens=400)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")

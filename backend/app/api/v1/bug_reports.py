@@ -9,11 +9,16 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import Optional
 import base64
+import logging
 
 from app.core.database import get_db
 from app.core.middleware import get_current_user
+from app.core.config import settings
 from app.models.user import User
 from app.models.bug_report import BugReport
+from app.services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/bug-reports", tags=["bug-reports"])
 
@@ -64,5 +69,37 @@ async def crear_bug_report(
     )
     db.add(log)
     db.commit()
+
+    # Notificar al super admin por email
+    if settings.RESEND_API_KEY and settings.SUPER_ADMIN_EMAIL:
+        try:
+            pagina_html = f"<br><strong>Página:</strong> {pagina}" if pagina else ""
+            html = f"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #7c3aed;">🐛 Nuevo reporte de problema — Kapturo</h2>
+                <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; padding: 16px; border-radius: 6px; margin: 16px 0;">
+                    <p style="margin: 0 0 8px 0;"><strong>Descripción:</strong></p>
+                    <p style="margin: 0; color: #333;">{descripcion}</p>
+                </div>
+                <p style="color: #555; font-size: 14px;">
+                    <strong>Reportado por:</strong> {current_user.full_name or current_user.email} ({current_user.email}){pagina_html}
+                </p>
+                <a href="https://app.kapturo.cl/superadmin"
+                   style="display: inline-block; background: #7c3aed; color: white; padding: 10px 20px;
+                          border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 8px;">
+                    Ver reportes en SuperAdmin
+                </a>
+                <p style="color: #999; font-size: 12px; margin-top: 24px;">Kapturo · Plataforma de prospección B2B</p>
+            </div>
+            """
+            svc = EmailService()
+            import asyncio
+            asyncio.create_task(svc.send(
+                to=settings.SUPER_ADMIN_EMAIL,
+                subject=f"🐛 Nuevo reporte de problema de {current_user.email}",
+                html=html,
+            ))
+        except Exception as e:
+            logger.warning(f"No se pudo enviar email de bug report: {e}")
 
     return {"ok": True, "id": report.id}

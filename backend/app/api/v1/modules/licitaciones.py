@@ -99,7 +99,7 @@ Solo el JSON, sin texto adicional."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         raw = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 200
+            agent._call_claude, prompt, "claude-haiku-4-5", 200
         )
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -350,7 +350,7 @@ Sin numeración. Sin explicaciones. Solo las líneas."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         texto = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 400
+            agent._call_claude, prompt, "claude-haiku-4-5", 400
         )
         return {"texto": texto.strip()}
     except Exception as e:
