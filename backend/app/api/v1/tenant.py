@@ -314,7 +314,7 @@ def guardar_licitaciones_profile(
 
     from sqlalchemy.orm.attributes import flag_modified
     profile = dict(mod.niche_config or {})
-    profile.update(data.model_dump(exclude_none=True))
+    profile.update(data.model_dump(exclude_unset=False))
     mod.niche_config = profile
     flag_modified(mod, "niche_config")
     db.commit()
