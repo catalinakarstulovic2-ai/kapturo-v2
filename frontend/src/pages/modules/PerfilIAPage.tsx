@@ -261,12 +261,12 @@ export default function PerfilIAPage() {
   }
 
   const SECCIONES = [
-    { key: 'empresa',    label: 'Tu empresa',          icon: Building2, desc: 'RUT, razón social y datos legales' },
-    { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera tu empresa' },
-    { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, certificaciones' },
-    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos' },
-    { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas' },
-    { key: 'documentos', label: 'Documentos',          icon: FileText,  desc: 'CV empresa, certificados PDF' },
+    { key: 'empresa',    label: 'Tu empresa',          icon: Building2, desc: 'RUT, razón social y datos legales',      badge: 'obligatorio' },
+    { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas',       badge: 'obligatorio' },
+    { key: 'documentos', label: 'Documentos',          icon: FileText,  desc: 'CV empresa, certificados PDF',           badge: 'obligatorio' },
+    { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera tu empresa',        badge: 'obligatorio' },
+    { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, certificaciones', badge: 'complementa la IA' },
+    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos',          badge: 'complementa la IA' },
   ]
 
   if (isLoading) return (
@@ -343,6 +343,7 @@ export default function PerfilIAPage() {
                 const docCount = sec.key === 'documentos' ? Object.keys(docsMeta).length : null
                 const displayOk = docCount !== null ? docCount : sec.ok
                 const displayTotal = docCount !== null ? DOCS_TIPOS.length : sec.total
+                const isComplementary = (sec as any).badge === 'complementa la IA'
                 return (
                   <button key={sec.key} onClick={() => scrollTo(sec.key)}
                     className={clsx(
@@ -356,7 +357,8 @@ export default function PerfilIAPage() {
                     <span className={clsx('text-[11px] flex-1 font-medium leading-tight',
                       isActive ? 'text-indigo-700' :
                       sec.done ? 'text-gray-700' :
-                      sec.hasCritical ? 'text-red-600' : 'text-gray-500')}>
+                      sec.hasCritical ? 'text-red-600' :
+                      isComplementary ? 'text-gray-400' : 'text-gray-500')}>
                       {sec.label}
                     </span>
                     <span className={clsx('text-[10px] font-bold shrink-0 tabular-nums',
@@ -405,6 +407,10 @@ export default function PerfilIAPage() {
                   <Icon size={15} className="text-indigo-500 shrink-0" />
                   <h2 className="text-sm font-bold text-gray-900">{sec.label}</h2>
                   <span className="text-xs text-gray-400">{sec.desc}</span>
+                  <span className={clsx('ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0',
+                    sec.badge === 'obligatorio' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500')}>
+                    {sec.badge}
+                  </span>
                 </div>
                 <div className="space-y-4">
 
@@ -477,20 +483,27 @@ export default function PerfilIAPage() {
                       {/* Tabs de categorías */}
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         {/* Tab bar */}
-                        <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-200 bg-gray-50">
+                        <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50 gap-1 p-1.5">
                           {RUBRO_CATEGORIAS.map(cat => {
                             const sel = cat.rubros.filter(r => form.rubros.includes(r)).length
                             const active = tabCat === cat.label
                             return (
                               <button key={cat.label} type="button" onClick={() => setTabCat(cat.label)}
                                 className={clsx(
-                                  'flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium whitespace-nowrap shrink-0 border-b-2 transition-colors',
+                                  'flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap shrink-0 rounded-lg transition-all',
                                   active
-                                    ? 'border-indigo-600 text-indigo-700 bg-white'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                    : sel > 0
+                                      ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                      : 'text-gray-500 hover:text-gray-800 hover:bg-white'
                                 )}>
                                 {cat.label.split(' ')[0]}
-                                {sel > 0 && <span className="bg-indigo-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shrink-0">{sel}</span>}
+                                {sel > 0 && (
+                                  <span className={clsx('text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shrink-0',
+                                    active ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white')}>
+                                    {sel}
+                                  </span>
+                                )}
                               </button>
                             )
                           })}
