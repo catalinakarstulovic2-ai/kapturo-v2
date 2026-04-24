@@ -104,7 +104,29 @@ export default function PerfilIAPage() {
 
   const [generando, setGenerando] = useState<string | null>(null)
   const [regionQuery, setRegionQuery] = useState('')
-  const [seccionAbierta, setSeccionAbierta] = useState<string>('basico')
+  const [activeSection, setActiveSection] = useState<string>('basico')
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) setActiveSection(entry.target.id)
+        })
+      },
+      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+    )
+    const sections = document.querySelectorAll('[data-perfil-section]')
+    sections.forEach(s => observer.observe(s))
+    return () => observer.disconnect()
+  }, [])
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    // Try scrollIntoView first, fallback to manual scroll
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveSection(id)
+  }
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
   const toggleCat = (label: string) =>
@@ -184,10 +206,10 @@ export default function PerfilIAPage() {
   )
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-10 p-6">
+    <div className="max-w-4xl mx-auto pb-10 px-6 pt-6">
 
       {/* Header compacto + progreso en una sola franja */}
-      <div className="space-y-2">
+      <div className="space-y-2 mb-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles size={15} className="text-indigo-600 shrink-0" />
@@ -225,41 +247,66 @@ export default function PerfilIAPage() {
         )}
       </div>
 
-      {/* Secciones acordeón */}
+      {/* Layout Railway: sidebar + contenido */}
+      <div className="flex gap-10">
+
+        {/* Sidebar sticky */}
+        <nav className="w-40 shrink-0">
+          <div className="sticky top-6 space-y-px">
+            {SECCIONES.map(sec => {
+              const camposSec = completitud.filter(c => c.grupo === sec.key || (sec.key === 'basico' && c.grupo === 'legal'))
+              const secOk = camposSec.filter(c => c.filled).length
+              const isActive = activeSection === sec.key
+              const isDone = camposSec.length > 0 && secOk === camposSec.length
+              return (
+                <button
+                  key={sec.key}
+                  onClick={() => scrollTo(sec.key)}
+                  className={clsx(
+                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between gap-2 group',
+                    isActive ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  )}
+                >
+                  <span>{sec.label}</span>
+                  {isDone
+                    ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    : camposSec.some(c => c.critical && !c.filled)
+                      ? <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                      : null
+                  }
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+
+        {/* Contenido — todas las secciones visibles */}
+        <div className="flex-1 space-y-10 min-w-0">
+
       {SECCIONES.map(sec => {
-        const abierta = seccionAbierta === sec.key
         const Icon = sec.icon
         const camposSec = completitud.filter(c => c.grupo === sec.key || (sec.key === 'basico' && c.grupo === 'legal'))
         const secOk = camposSec.filter(c => c.filled).length
         return (
-          <div key={sec.key} className="card overflow-hidden">
-            <button
-              onClick={() => setSeccionAbierta(abierta ? '' : sec.key)}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                  secOk === camposSec.length && camposSec.length > 0 ? 'bg-emerald-100' : 'bg-indigo-100')}>
-                  <Icon size={15} className={secOk === camposSec.length && camposSec.length > 0 ? 'text-emerald-600' : 'text-indigo-600'} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{sec.label}</p>
-                  <p className="text-xs text-gray-500">{sec.desc}</p>
-                </div>
+          <section key={sec.key} id={sec.key} data-perfil-section>
+            {/* Section header */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                secOk === camposSec.length && camposSec.length > 0 ? 'bg-emerald-100' : 'bg-indigo-100')}>
+                <Icon size={15} className={secOk === camposSec.length && camposSec.length > 0 ? 'text-emerald-600' : 'text-indigo-600'} />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {camposSec.length > 0 && (
-                  <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full',
-                    secOk === camposSec.length ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
-                    {secOk}/{camposSec.length}
-                  </span>
-                )}
-                {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{sec.label}</p>
+                <p className="text-xs text-gray-400">{sec.desc}</p>
               </div>
-            </button>
-
-            {abierta && (
-              <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
+              {camposSec.length > 0 && (
+                <span className={clsx('ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0',
+                  secOk === camposSec.length ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500')}>
+                  {secOk}/{camposSec.length}
+                </span>
+              )}
+            </div>
+            <div className="space-y-4">
 
                 {/* ── DATOS LEGALES ── */}
                 {sec.key === 'basico' && (<>
@@ -472,11 +519,13 @@ export default function PerfilIAPage() {
                   </div>
                 </>)}
 
-              </div>
-            )}
-          </div>
+            </div>
+          </section>
         )
       })}
+
+        </div>{/* end content */}
+      </div>{/* end flex layout */}
 
       {/* CTA final */}
       {listoParaPostular && (

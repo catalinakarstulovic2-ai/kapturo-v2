@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, Zap, Search, Bot, FileSearch, Rocket,
   Building2, CreditCard, ShieldAlert,
   DollarSign, Clock, MessageCircle, UserX, Calendar, ExternalLink,
-  FileText, Settings, X,
+  FileText, Settings, X, Lock,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -296,31 +296,34 @@ export default function DashboardPage() {
             {/* Pasos interactivos */}
             <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
               {([
-                { n: 1, label: 'Completa tu Perfil IA', desc: 'Configura tu empresa para la IA', emoji: '🏢', href: '/licitaciones/perfil', active: true },
-                { n: 2, label: 'Busca licitaciones', desc: 'Encuentra oportunidades relevantes', emoji: '🔍', href: '/licitaciones', active: false },
-                { n: 3, label: 'Analiza con IA', desc: 'Califica si conviene postular', emoji: '🤖', href: '/licitaciones', active: false },
-                { n: 4, label: 'Genera documentos', desc: 'Propuesta, carta, ficha técnica…', emoji: '📄', href: '/licitaciones/generar', active: false },
+                { n: 1, label: 'Completa tu Perfil IA', desc: 'Configura tu empresa para la IA', emoji: '🏢', href: '/licitaciones/perfil', locked: false },
+                { n: 2, label: 'Busca licitaciones', desc: 'Encuentra oportunidades relevantes', emoji: '🔍', href: '/licitaciones', locked: true },
+                { n: 3, label: 'Analiza con IA', desc: 'Califica si conviene postular', emoji: '🤖', href: '/licitaciones?tab=postulaciones', locked: true },
+                { n: 4, label: 'Genera documentos', desc: 'Propuesta, carta, ficha técnica…', emoji: '📄', href: '/licitaciones/generar', locked: true },
               ] as const).map((step) => (
                 <button
                   key={step.n}
-                  onClick={() => navigate(step.href)}
+                  onClick={() => !step.locked && navigate(step.href)}
                   className={`group text-left rounded-xl px-4 py-3 transition-all duration-150 border ${
-                    step.active
-                      ? 'bg-amber-500 border-amber-500 shadow-md hover:bg-amber-600 hover:shadow-lg scale-[1.02]'
-                      : 'bg-white/70 border-amber-200 hover:bg-white hover:border-amber-400 hover:shadow-sm'
+                    !step.locked
+                      ? 'bg-amber-500 border-amber-500 shadow-md hover:bg-amber-600 hover:shadow-lg scale-[1.02] cursor-pointer'
+                      : 'bg-white/50 border-amber-100 cursor-not-allowed opacity-60'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      step.active ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-600'
+                      !step.locked ? 'bg-white text-amber-600' : 'bg-amber-50 text-amber-400'
                     }`}>{step.n}</span>
                     <span className="text-lg leading-none">{step.emoji}</span>
-                    {step.active && <span className="ml-auto text-[10px] font-bold text-white bg-white/30 px-1.5 py-0.5 rounded-full animate-pulse">Ahora</span>}
+                    {!step.locked && <span className="ml-auto text-[10px] font-bold text-white bg-white/30 px-1.5 py-0.5 rounded-full animate-pulse">Ahora</span>}
+                    {step.locked && <Lock size={11} className="ml-auto text-amber-300 shrink-0" />}
                   </div>
-                  <p className={`text-xs font-bold leading-tight ${step.active ? 'text-white' : 'text-amber-900'}`}>{step.label}</p>
-                  <p className={`text-[11px] mt-0.5 leading-tight ${step.active ? 'text-amber-100' : 'text-amber-600'}`}>{step.desc}</p>
-                  <div className={`mt-2 text-[10px] font-semibold flex items-center gap-1 ${step.active ? 'text-white/80' : 'text-amber-400 group-hover:text-amber-600'}`}>
-                    {step.active ? 'Empezar →' : 'Ver →'}
+                  <p className={`text-xs font-bold leading-tight ${!step.locked ? 'text-white' : 'text-amber-700'}`}>{step.label}</p>
+                  <p className={`text-[11px] mt-0.5 leading-tight ${!step.locked ? 'text-amber-100' : 'text-amber-400'}`}>{step.desc}</p>
+                  <div className={`mt-2 text-[10px] font-semibold ${
+                    !step.locked ? 'text-white/80' : 'text-amber-300'
+                  }`}>
+                    {!step.locked ? 'Empezar →' : 'Completa el paso anterior'}
                   </div>
                 </button>
               ))}
