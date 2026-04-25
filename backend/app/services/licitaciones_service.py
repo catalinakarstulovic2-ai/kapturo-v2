@@ -64,6 +64,54 @@ def _fechas_desde_rango(fecha_desde: str | None, fecha_hasta: str | None, max_di
         return [(datetime.now() - timedelta(days=1)).strftime("%d%m%Y")]
 
 
+def _calcular_fit_rapido(nombre_licit: str, categoria_licit: str, rubros_perfil: list[str], regiones_perfil: list[str], region_licit: str) -> dict:
+    """
+    Calcula un score de fit rápido (0-100) sin llamar a Claude.
+    Basado en coincidencia de rubros y región del perfil con la licitación.
+    """
+    txt = _norm((nombre_licit or '') + ' ' + (categoria_licit or ''))
+    match_rubros = 0
+    rubro_match = ''
+
+    # Si no hay rubros configurados en el perfil, no penalizamos por eso
+    sin_rubros_perfil = not rubros_perfil
+
+    for rubro in rubros_perfil:
+        r_norm = _norm(rubro)
+        palabras = [p for p in r_norm.split() if len(p) > 3]
+        if r_norm in txt or any(p in txt for p in palabras):
+            match_rubros += 1
+            if not rubro_match:
+                rubro_match = rubro
+    
+    # Score base por rubros: 0 match=0, 1=50, 2+=70
+    # Si el perfil no tiene rubros, no podemos evaluar → score neutro 50
+    if sin_rubros_perfil:
+        score_rubro = 50
+    elif match_rubros == 0:
+        score_rubro = 0
+    elif match_rubros == 1:
+        score_rubro = 50
+    else:
+        score_rubro = 70
+    
+    # Bonus por región
+    score_region = 0
+    if regiones_perfil and region_licit:
+        if region_licit in regiones_perfil or 'RM' in regiones_perfil:
+            score_region = 20
+    elif not regiones_perfil:  # sin restricción de región
+        score_region = 20
+    
+    fit = min(100, score_rubro + score_region)
+    motivo = (
+        "Perfil sin rubros configurados — configura tu Perfil IA para ver fit real" if sin_rubros_perfil
+        else f"Rubro calza: {rubro_match}" if match_rubros > 0
+        else "Sin coincidencia de rubros con tu perfil"
+    )
+    return {'fit_score': fit, 'fit_motivo': motivo, 'fit_rubro_match': match_rubros > 0}
+
+
 class LicitacionesService:
     def __init__(self, db: Session, tenant_id: str):
         self.db = db
@@ -77,7 +125,8 @@ class LicitacionesService:
 
     # ─── PREVIEW — busca y muestra, no guarda ────────────────────────────
 
-    async def buscar_preview(self, tipo: str, filtros: dict = None, pagina: int = 1) -> dict:
+    async def buscar_preview(self, tipo: str, filtros: dict = None, pagina: int = 1,
+                              rubros_perfil: list = None, regiones_perfil: list = None) -> dict:
         """
         Busca licitaciones y retorna para la tabla del frontend. No guarda nada.
 
@@ -103,7 +152,7 @@ class LicitacionesService:
         proveedor_txt   = (filtros.pop("proveedor", "") or "").strip().lower()
         fecha_desde     = filtros.pop("fecha_desde", None)
         fecha_hasta     = filtros.pop("fecha_hasta", None)
-        region          = filtros.get("region")
+        region          = filtros.pop("region", None)
 
         fechas = list(reversed(_fechas_desde_rango(fecha_desde, fecha_hasta, max_dias=180)))
         estado = "adjudicada" if tipo == "licitador_b" else "publicada"
@@ -251,6 +300,18 @@ class LicitacionesService:
                     item["enrichment_source"] = existing.enrichment_source
                     item["score"] = existing.score
                     item["score_reason"] = existing.score_reason
+
+        # ── Fit score rápido basado en rubros del perfil ───────────────────
+        for item in items:
+            if not item.get("prospect_id"):  # solo para las no guardadas aún
+                fit_data = _calcular_fit_rapido(
+                    item.get('nombre', ''),
+                    item.get('categoria', ''),
+                    rubros_perfil or [],
+                    regiones_perfil or [],
+                    item.get('region', ''),
+                )
+                item.update(fit_data)
 
         return {
             "total": total_disponible,

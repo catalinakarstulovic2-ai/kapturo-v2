@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../../api/client'
+import StepFeedback from '../../components/ui/StepFeedback'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { jsPDF } from 'jspdf'
 import {
   Sparkles, FileText, Copy, Download, ChevronRight, ChevronLeft,
@@ -126,6 +128,7 @@ interface PostulacionItem {
   licitacion_codigo?: string
   licitacion_monto?: number
   postulacion_estado?: string
+  score?: number | null
   documentos_ia?: Array<{ tipo: string; label: string; texto: string; created_at: string }>
 }
 
@@ -225,6 +228,8 @@ export default function LicitacionPropuestaPage() {
     corriendo: boolean; actual: number; total: number; labelActual: string
     resultados: Partial<Record<TipoDoc, string>>; errores: Set<TipoDoc>
   }>({ corriendo: false, actual: 0, total: 0, labelActual: '', resultados: {}, errores: new Set() })
+  const [showFeedbackDocs, setShowFeedbackDocs] = useState(false)
+  const canceladoRef = useRef(false)
 
   const { data: postulacionesData, isLoading: loadingPostulaciones } = useQuery({
     queryKey: ['licit-postulaciones-propuesta'],
@@ -282,8 +287,8 @@ export default function LicitacionPropuestaPage() {
             label_doc: tipoInfo?.label ?? tipo,
           })
           setGuardado(true)
-          const tienecampos = detectarCampos(texto).length > 0
-          setDocStatuses(prev => ({ ...prev, [tipo]: { state: tienecampos ? 'fields' : 'done', savedAt: new Date().toISOString() } }))
+          const tieneCampos = detectarCampos(texto).length > 0
+          setDocStatuses(prev => ({ ...prev, [tipo]: { state: tieneCampos ? 'fields' : 'done', savedAt: new Date().toISOString() } }))
           queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
           queryClient.invalidateQueries({ queryKey: ['licit-postulaciones-propuesta'] })
         } catch { /* silencioso — el usuario puede guardarlo manualmente */ }
@@ -307,8 +312,8 @@ export default function LicitacionPropuestaPage() {
       toast.success('Documento guardado en la postulación')
       // Marcar en tracker
       if (tipo) {
-        const tienecampos = detectarCampos(resultado).length > 0
-        setDocStatuses(prev => ({ ...prev, [tipo]: { state: tienecampos ? 'fields' : 'done', savedAt: new Date().toISOString() } }))
+        const tieneCampos = detectarCampos(resultado).length > 0
+        setDocStatuses(prev => ({ ...prev, [tipo]: { state: tieneCampos ? 'fields' : 'done', savedAt: new Date().toISOString() } }))
       }
       // Refrescar Mis postulaciones para que aparezca el documento
       queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
@@ -317,14 +322,21 @@ export default function LicitacionPropuestaPage() {
   })
 
   const detectarCampos = (texto: string): string[] => {
-    const m1: string[] = texto.match(/\[[A-Z\u00C0-\u017E_\s]{3,60}\]/g) ?? []
-    const m2: string[] = texto.match(/\[(?!\[)[^\]]{3,60}\]/g) ?? []
-    return Array.from(new Set([...m1, ...m2].filter(c => /[A-Z\u00C0-\u017E_]/.test(c)))).slice(0, 12)
+    const m1: string[] = texto.match(/\[[A-Z\u00C0-\u017E_\s]{3,60}\\?\]/g) ?? []
+    const m2: string[] = texto.match(/\[(?!\[)[^\]]{3,60}\\?\]/g) ?? []
+    return Array.from(new Set([...m1, ...m2]
+      .map(c => c.replace(/\\$/, '').replace(/\\\]$/, ']'))
+      .filter(c => /[A-Z\u00C0-\u017E_]/.test(c)))).slice(0, 12)
   }
 
   const puedeAvanzar = () => {
     if (step === 0) return !!tipo
-    if (step === 1) return !!selectedPostulacion
+    if (step === 1) {
+      if (!selectedPostulacion) return false
+      const score = selectedPostulacion.score
+      if (score == null || score === 0 || score < 50) return false
+      return true
+    }
     return true
   }
 
@@ -401,8 +413,10 @@ export default function LicitacionPropuestaPage() {
     })
     const resultados: Partial<Record<TipoDoc, string>> = {}
     const errores = new Set<TipoDoc>()
+    canceladoRef.current = false
     setTodosProgreso({ corriendo: true, actual: 0, total: docs.length, labelActual: '', resultados: {}, errores: new Set() })
     for (let i = 0; i < docs.length; i++) {
+      if (canceladoRef.current) break
       const tipoDoc = docs[i]
       const tipoInfo = TODOS_TIPOS.find(t => t.id === tipoDoc)
       setTodosProgreso(prev => ({ ...prev, actual: i, labelActual: tipoInfo?.label ?? tipoDoc }))
@@ -425,7 +439,10 @@ export default function LicitacionPropuestaPage() {
     // Refrescar Mis postulaciones
     queryClient.invalidateQueries({ queryKey: ['licitaciones-postulaciones'] })
     queryClient.invalidateQueries({ queryKey: ['licit-postulaciones-propuesta'] })
-    if (errores.size === 0) toast.success(`✅ ${docs.length} documentos generados y guardados`)
+    if (errores.size === 0) {
+      toast.success(`✅ ${docs.length} documentos generados y guardados`)
+      setShowFeedbackDocs(true)
+    }
     else toast.error(`${errores.size} documento${errores.size !== 1 ? 's' : ''} fallaron`)
   }
 
@@ -554,6 +571,9 @@ export default function LicitacionPropuestaPage() {
                       {p.licitacion_codigo && <span className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{p.licitacion_codigo}</span>}
                       {p.licitacion_monto && <span className="text-[11px] font-semibold text-gray-600">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(p.licitacion_monto)}</span>}
                       {p.postulacion_estado && <span className="text-[11px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium capitalize">{p.postulacion_estado.replace(/_/g, ' ')}</span>}
+                      {p.score != null && p.score > 0
+                        ? <span className={clsx('text-[11px] px-2 py-0.5 rounded-full font-bold', p.score >= 75 ? 'bg-emerald-100 text-emerald-700' : p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600')}>{p.score} pts</span>
+                        : <span className="text-[11px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Sin analizar</span>}
                       {docsCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{docsCount} doc{docsCount > 1 ? 's' : ''}</span>}
                     </div>
                   </div>
@@ -562,6 +582,21 @@ export default function LicitacionPropuestaPage() {
               </button>
             )
           })}
+        </div>
+      )}
+      {selectedPostulacion && (selectedPostulacion.score == null || selectedPostulacion.score === 0 || selectedPostulacion.score < 50) && (
+        <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+          <span className="text-red-500 shrink-0">⛔</span>
+          <div>
+            <p className="text-xs font-bold text-red-700">
+              {selectedPostulacion.score == null || selectedPostulacion.score === 0
+                ? 'Esta licitación no ha sido analizada con IA'
+                : `Score insuficiente: ${selectedPostulacion.score}/100`}
+            </p>
+            <p className="text-[11px] text-red-600 mt-0.5">
+              Ve a <strong>Mis postulaciones</strong> y haz clic en "Analizar" para obtener un score antes de generar documentos.
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -734,7 +769,7 @@ export default function LicitacionPropuestaPage() {
             <span className="text-5xl font-black text-indigo-200 opacity-20 rotate-[-35deg] select-none whitespace-nowrap">KAPTURO</span>
           </div>
           <div className="relative prose prose-sm max-w-none text-gray-700 text-xs leading-relaxed">
-            <ReactMarkdown>{resultado}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{resultado}</ReactMarkdown>
           </div>
         </div>
         <button
@@ -846,6 +881,14 @@ export default function LicitacionPropuestaPage() {
           {(Object.entries(resultados) as [TipoDoc, string][]).map(([tipoDoc, texto]) => {
             const tipoInfo = TODOS_TIPOS.find(t => t.id === tipoDoc)
             const campos = detectarCampos(texto)
+            // Clasificar campos: perfil vs organismo
+            const camposDelPerfil = campos.filter(c => CAMPOS_A_PERFIL.some(m => m.patron.test(c.replace(/[\[\]\\]/g, ''))))
+            const camposDelOrganismo = campos.filter(c => !CAMPOS_A_PERFIL.some(m => m.patron.test(c.replace(/[\[\]\\]/g, ''))))
+            const hayVaciosEnPerfil = camposDelPerfil.some(c => {
+              const match = CAMPOS_A_PERFIL.find(m => m.patron.test(c.replace(/[\[\]\\]/g, '')))
+              if (!match) return false
+              return !(perfilEmpresa?.[match.perfilKey] && (!Array.isArray(perfilEmpresa[match.perfilKey]) || perfilEmpresa[match.perfilKey].length > 0))
+            })
             return (
               <div key={tipoDoc} className="border border-gray-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -864,8 +907,31 @@ export default function LicitacionPropuestaPage() {
                   </div>
                 </div>
                 {campos.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {campos.map(c => <span key={c} className="text-[10px] font-mono bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">{c.replace(/[\[\]]/g, '')}</span>)}
+                  <div className="space-y-2">
+                    {camposDelPerfil.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-semibold text-violet-700">📋 Datos de tu empresa — completa en Perfil IA</p>
+                          {hayVaciosEnPerfil && (
+                            <button onClick={() => navigate('/licitaciones/perfil')}
+                              className="text-[10px] font-bold text-violet-600 bg-violet-100 hover:bg-violet-200 px-2 py-0.5 rounded-lg whitespace-nowrap transition-colors">
+                              Ir a completar →
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {camposDelPerfil.map(c => <span key={c} className="text-[10px] font-mono bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{c.replace(/[\[\]\\]/g, '')}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {camposDelOrganismo.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-semibold text-orange-700">✏️ Datos del organismo — completa a mano en Word/Docs</p>
+                        <div className="flex flex-wrap gap-1">
+                          {camposDelOrganismo.map(c => <span key={c} className="text-[10px] font-mono bg-orange-50 text-orange-800 px-1.5 py-0.5 rounded border border-orange-200">{c.replace(/[\[\]\\]/g, '')}</span>)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -921,7 +987,16 @@ export default function LicitacionPropuestaPage() {
               )
             })}
           </div>
-          <p className="text-[11px] text-center text-gray-400">No cierres esta página. Cada documento tarda ~30 seg.</p>
+          <p className="text-[11px] text-center text-gray-400">Cada documento tarda ~30 seg. No cierres esta página.</p>
+          <button
+            onClick={() => {
+              canceladoRef.current = true
+              setTodosProgreso(prev => ({ ...prev, corriendo: false, labelActual: 'Cancelado' }))
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm text-red-500 border border-red-200 hover:bg-red-50 transition-colors"
+          >
+            <XCircle size={14} /> Cancelar generación
+          </button>
         </div>
       )
     }
@@ -936,7 +1011,8 @@ export default function LicitacionPropuestaPage() {
     const perfilCompletos = perfilCamposCheck.filter(c => c.filled).length
     const perfilTotal = perfilCamposCheck.length
     const perfilPct = Math.round((perfilCompletos / perfilTotal) * 100)
-    const bloqueado = perfilCriticosFaltantes.length > 0 || !selectedPostulacion
+    const scoreBajo = selectedPostulacion != null && (selectedPostulacion.score == null || selectedPostulacion.score === 0 || selectedPostulacion.score < 50)
+    const bloqueado = perfilCriticosFaltantes.length > 0 || !selectedPostulacion || scoreBajo
 
     // Helper: campos faltantes por documento
     const camposFaltantesDoc = (tipoDoc: TipoDoc): string[] => {
@@ -985,7 +1061,9 @@ export default function LicitacionPropuestaPage() {
         )}>
           <div className="flex items-center justify-between gap-2">
             <p className={clsx('text-xs font-bold', bloqueado ? 'text-red-700' : perfilPct === 100 ? 'text-emerald-700' : 'text-amber-700')}>
-              {bloqueado
+              {scoreBajo
+                ? `⛔ Score insuficiente (${selectedPostulacion?.score ?? 0}/100) — analiza con IA primero`
+                : bloqueado
                 ? `⛔ Completa ${perfilCriticosFaltantes.length + (!selectedPostulacion ? 1 : 0)} requisito${(perfilCriticosFaltantes.length + (!selectedPostulacion ? 1 : 0)) !== 1 ? 's' : ''} para desbloquear`
                 : perfilPct === 100 ? '✅ Perfil completo — todos los docs disponibles'
                 : `⚠️ Perfil al ${perfilPct}% — algunos docs bloqueados`}
@@ -1158,10 +1236,25 @@ export default function LicitacionPropuestaPage() {
       <div className="space-y-4 lg:sticky lg:top-6">
         {/* Botón generar todos — siempre visible */}
         <button
-          onClick={() => setModoTodos(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-sm"
+          onClick={() => {
+            setModoTodos(true)
+            if (selectedPostulacion) {
+              // Si ya hay licitación seleccionada, arrancar generación directamente
+              setTimeout(() => handleGenerarTodos(), 50)
+            }
+          }}
+          disabled={todosProgreso.corriendo}
+          className={clsx(
+            'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors shadow-sm',
+            todosProgreso.corriendo
+              ? 'bg-violet-400 text-white cursor-not-allowed'
+              : 'bg-violet-600 text-white hover:bg-violet-700'
+          )}
         >
-          <Sparkles size={15} /> Generar todos los documentos
+          {todosProgreso.corriendo
+            ? <><Loader2 size={15} className="animate-spin" /> Generando…</>
+            : <><Sparkles size={15} /> Generar todos los documentos</>
+          }
         </button>
         {/* Licitación activa */}
         {selectedPostulacion ? (
@@ -1587,7 +1680,7 @@ export default function LicitacionPropuestaPage() {
               </div>
               {/* Contenido del documento */}
               <div className="relative z-20 prose prose-sm max-w-none text-gray-800 leading-relaxed">
-                <ReactMarkdown>{docViewer.texto}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{docViewer.texto}</ReactMarkdown>
               </div>
             </div>
             {/* Footer */}
@@ -1599,6 +1692,15 @@ export default function LicitacionPropuestaPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Micro-feedback: docs generados ── */}
+      {showFeedbackDocs && (
+        <StepFeedback
+          paso="documentos"
+          titulo="¿Cómo fue generar los documentos?"
+          onDone={() => setShowFeedbackDocs(false)}
+        />
       )}
     </div>
   )

@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import StepFeedback from '../../components/ui/StepFeedback'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, CheckCircle2, AlertCircle, Loader2, X, ArrowRight,
@@ -191,6 +192,7 @@ export default function PerfilIAPage() {
   })
   const [showUnlockConfirm, setShowUnlockConfirm] = useState(false)
   const [showResumenModal, setShowResumenModal] = useState(false)
+  const [showFeedbackPerfil, setShowFeedbackPerfil] = useState(false)
   const [resumenIA, setResumenIA] = useState<{ texto: string; faltantes: string[] } | null>(null)
   const [generandoResumen, setGenerandoResumen] = useState(false)
   const toggleCat = (label: string) =>
@@ -259,6 +261,8 @@ export default function PerfilIAPage() {
       queryClient.invalidateQueries({ queryKey: ['licitaciones-profile'] })
       syncedRef.current = false
       toast.success('✅ Perfil guardado')
+      setShowFeedbackPerfil(true)
+      setShowFeedbackPerfil(true)
       // Lock rubros after save
       if (form.rubros.length > 0) {
         setRubrosLocked(true)
@@ -797,6 +801,17 @@ export default function PerfilIAPage() {
                         })}
                       </div>
                     </div>
+                    <div className="pt-3 border-t border-gray-100">
+                      <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
+                        className={clsx('w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors',
+                          guardarMutation.isPending
+                            ? 'bg-indigo-300 text-white cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700')}>
+                        {guardarMutation.isPending
+                          ? <><Loader2 size={14} className="animate-spin" /> Guardando…</>
+                          : <><CheckCircle2 size={14} /> Guardar cambios</>}
+                      </button>
+                    </div>
                   </>)}
 
                   {/* ── QUÉ HACE TU EMPRESA ── */}
@@ -904,7 +919,7 @@ export default function PerfilIAPage() {
                       <strong>¿Para qué sirven?</strong> Se adjuntan al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de licitaciones públicas.
                     </div>
                     <div className="space-y-3">
-                      {DOCS_TIPOS.map(doc => {
+                      {[...DOCS_TIPOS, ...(docsMeta['otros'] ? [{ key: 'otros', label: 'Otro documento', desc: 'Documento adicional', requerido: false }] : [])].map(doc => {
                         const meta = docsMeta[doc.key]
                         const isUploading = subiendo === doc.key
                         return (
@@ -1001,6 +1016,15 @@ export default function PerfilIAPage() {
                 Buscar licitaciones <ArrowRight size={12} />
               </button>
             </div>
+          )}
+
+          {/* Feedback post-guardado */}
+          {showFeedbackPerfil && (
+            <StepFeedback
+              paso="perfil"
+              titulo="¿Cómo fue completar tu Perfil IA?"
+              onDone={() => setShowFeedbackPerfil(false)}
+            />
           )}
 
           {/* Guardar sticky */}

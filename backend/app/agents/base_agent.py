@@ -27,14 +27,14 @@ class BaseAgent(ABC):
     def _call_claude(
         self,
         prompt: str,
-        model: str = "claude-haiku-4-5",
+        model: str = "claude-3-5-haiku-20241022",
         max_tokens: int = 500,
     ) -> str:
         """
         Llama a Claude con un prompt y devuelve el texto de respuesta.
 
-        model: por defecto Haiku (rápido y barato)
-               usa "claude-sonnet-4-6" para tareas que requieren más inteligencia
+        model: por defecto Haiku (rápido y económico)
+               usa "claude-3-5-sonnet-20241022" para tareas que requieren más inteligencia
         """
         message = self.claude.messages.create(
             model=model,

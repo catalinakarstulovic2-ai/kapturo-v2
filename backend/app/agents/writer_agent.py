@@ -171,7 +171,7 @@ Solo escribe el mensaje, sin explicaciones adicionales."""
 
         return self._call_claude(
             prompt,
-            model="claude-sonnet-4-6",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=600,
         )
 

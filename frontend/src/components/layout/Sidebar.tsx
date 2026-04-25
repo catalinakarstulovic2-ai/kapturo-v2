@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Kanban, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin, FileSignature, ClipboardList, SlidersHorizontal } from 'lucide-react'
+import { LayoutDashboard, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin, FileSignature, ClipboardList, SlidersHorizontal } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -12,8 +12,6 @@ const nav = [
   { to: '/licitaciones?tab=postulaciones', icon: ClipboardList, label: 'Mis postulaciones', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
   { to: '/propuestas/licitaciones', icon: FileSignature, label: 'Generar documentos', module: 'licitaciones', hideSuperAdmin: true, onlySuperAdmin: false, group: 'licitaciones' },
   { to: '/adjudicadas',   icon: Trophy,          label: 'Mercado Público',     module: 'adjudicadas',  hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
-  { to: '/pipeline',      icon: Kanban,          label: 'Pipeline',            module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
-  { to: '/prospectos',    icon: Users,           label: 'Prospectos',          module: null,           hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/prospeccion',   icon: Search,          label: 'Prospección',         module: 'prospector',   hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/inmobiliaria',         icon: Building2, label: 'Inmobiliaria',       module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/linkedin-prospecting', icon: Linkedin,  label: 'LinkedIn',           module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },

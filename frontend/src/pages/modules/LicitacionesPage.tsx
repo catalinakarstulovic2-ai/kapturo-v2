@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams, NavLink } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import api from '../../api/client'
+import StepFeedback from '../../components/ui/StepFeedback'
 import { useAuthStore } from '../../store/authStore'
 import { useLicitacionesSearchStore } from '../../store/licitacionesSearchStore'
 import toast from 'react-hot-toast'
@@ -68,6 +70,9 @@ interface LicitacionPreview {
   enrichment_source?: string
   score?: number
   score_reason?: string
+  fit_score?: number
+  fit_motivo?: string
+  fit_rubro_match?: boolean
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,9 +179,28 @@ const ContactRow = ({ icon: Icon, label, value, source }: { icon: any; label: st
 )
 
 const ScoreBadge = ({ score }: { score?: number | null }) => {
-  if (score == null) return null
+  if (score == null || score === 0) return <span className="text-[10px] text-gray-400 px-1.5 py-0.5 rounded-full bg-gray-100">Sin analizar</span>
   const color = score >= 75 ? 'bg-emerald-100 text-emerald-700' : score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-  return <span className={clsx('text-xs font-bold px-2 py-0.5 rounded-full', color)}>{score.toFixed(0)}</span>
+  return <span className={clsx('text-xs font-bold px-2 py-0.5 rounded-full', color)}>{score.toFixed(0)} pts</span>
+}
+
+const FitBadge = ({ score, motivo }: { score?: number; motivo?: string }) => {
+  if (score == null) return <span className="text-[10px] text-gray-300">—</span>
+  if (score >= 70) return (
+    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+      Fit {score}%
+    </span>
+  )
+  if (score >= 40) return (
+    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+      Fit {score}%
+    </span>
+  )
+  return (
+    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
+      Fit {score}%
+    </span>
+  )
 }
 
 // ── Guía rápida ───────────────────────────────────────────────────────────────
@@ -231,7 +255,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
         ? 'Perfil listo — la IA ya conoce tu empresa'
         : `Faltan ${totalCriticos - completados} campo${totalCriticos - completados !== 1 ? 's' : ''} (${completados}/${totalCriticos})`,
       done: perfilListo,
-      cta: !perfilListo ? 'Completar perfil →' : null,
+      cta: perfilListo ? 'Editar perfil →' : 'Completar perfil →',
       ctaFn: () => navigate('/licitaciones/perfil'),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-amber-100 text-amber-700',
@@ -245,7 +269,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
         ? `${prospectos?.length} guardada${(prospectos?.length ?? 0) !== 1 ? 's' : ''} en Mis postulaciones`
         : 'Filtra por rubro y región, haz clic en "Guardar" en cada una que te interese.',
       done: tieneGuardadas,
-      cta: !tieneGuardadas ? 'Buscar ahora →' : null,
+      cta: tieneGuardadas ? 'Buscar más →' : 'Buscar ahora →',
       ctaFn: () => onIrABuscar?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-indigo-100 text-indigo-600',
@@ -259,7 +283,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
         ? 'Análisis completado — revisa el score de cada una'
         : 'Entra a Mis postulaciones → "Analizar" en cada licitación. La IA evalúa si calificas (~30 seg).',
       done: tieneAnalizada,
-      cta: tieneGuardadas && !tieneAnalizada ? 'Ver mis postulaciones →' : null,
+      cta: tieneGuardadas ? 'Ver mis postulaciones →' : null,
       ctaFn: () => onIrAPostulaciones?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-violet-100 text-violet-600',
@@ -268,15 +292,21 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
     {
       num: 4,
       icon: FileSignature,
-      titulo: 'Genera documentos y postula',
+      titulo: tienePostulada ? '✅ Postulando' : tieneDocumento ? 'Revisar docs y postular' : 'Genera documentos y postula',
       desc: tienePostulada
-        ? '¡Postulando! Sigue el estado en Mis postulaciones.'
+        ? 'Seguimiento activo — actualiza el estado cuando sepas el resultado.'
         : tieneDocumento
-        ? 'Documentos generados — marca la licitación como Postulada.'
-        : 'Genera propuesta técnica, oferta económica o carta de presentación.',
+        ? `${prospectos?.reduce((n, p) => n + (p.documentos_ia?.length ?? 0), 0)} docs generados — ábrelos, revísalos y envíalos en Mercado Público.`
+        : tieneAnalizada
+        ? 'Análisis listo — genera propuesta técnica, oferta económica o carta de presentación.'
+        : 'Primero analiza con IA (paso 3) para desbloquear la generación de documentos.',
       done: tienePostulada,
-      cta: tieneAnalizada && !tienePostulada ? 'Generar documentos →' : null,
-      ctaFn: () => navigate('/licitaciones/generar'),
+      cta: tieneDocumento
+        ? 'Ver documentos generados →'
+        : tieneAnalizada
+        ? 'Generar documentos →'
+        : null,
+      ctaFn: () => navigate('/propuestas/licitaciones'),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-blue-100 text-blue-600',
       colorPending: 'bg-gray-100 text-gray-400',
@@ -372,10 +402,17 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
                   )}>
                     {paso.desc}
                   </p>
-                  {isActive && paso.cta && paso.ctaFn && (
+                  {paso.cta && paso.ctaFn && (
                     <button
                       onClick={paso.ctaFn}
-                      className="mt-2 text-[10px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-lg transition-colors"
+                      className={clsx(
+                        'mt-2 text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors',
+                        isDone
+                          ? 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200'
+                          : isActive
+                          ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                          : 'text-gray-400 bg-gray-100 cursor-not-allowed pointer-events-none'
+                      )}
                     >
                       {paso.cta}
                     </button>
@@ -842,6 +879,8 @@ export default function LicitacionesPage() {
 
   // ── Analizar bases con IA — background + polling ─────────────────────────
   const [analysisJobId, setAnalysisJobId] = useState<string | null>(null)
+  const [showFeedbackGuardar, setShowFeedbackGuardar] = useState(false)
+  const [showFeedbackAnalisis, setShowFeedbackAnalisis] = useState(false)
   const [analysisSeconds, setAnalysisSeconds] = useState(0)
 
   // Iniciar job
@@ -883,6 +922,7 @@ export default function LicitacionesPage() {
         `✅ Análisis listo${sc != null ? ` · Score ${sc}/100` : ''}${ndocs > 0 ? ` · ${ndocs} base${ndocs !== 1 ? 's' : ''} analizada${ndocs !== 1 ? 's' : ''}` : ''}`,
         { duration: 5000 }
       )
+      setShowFeedbackAnalisis(true)
     } else if ((jobData as any).status === 'error') {
       toast.error((jobData as any).error || 'Error en el análisis')
       setAnalysisJobId(null)
@@ -986,6 +1026,7 @@ export default function LicitacionesPage() {
         toast('Ya estaba guardada — abriéndola…', { icon: 'ℹ️' })
       } else {
         toast.success(`Guardada ✓ — score ${res.data.score?.toFixed(0) ?? '—'}`)
+        setShowFeedbackGuardar(true)
       }
       if (prospectId) {
         navigate('/licitaciones?tab=postulaciones')
@@ -1573,7 +1614,9 @@ export default function LicitacionesPage() {
                       <td className="px-4 py-3 text-center">
                         {item.prospect_id
                           ? <ScoreBadge score={item.score} />
-                          : <span className="text-xs text-gray-300">—</span>}
+                          : item.fit_score != null
+                            ? <FitBadge score={item.fit_score} motivo={item.fit_motivo} />
+                            : <span className="text-[10px] text-gray-300" title="Guarda para analizar con IA">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {expandedId === item.codigo
@@ -1655,14 +1698,34 @@ export default function LicitacionesPage() {
                                     </button>
                                   </>
                                 ) : (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); guardarMutation.mutate(item) }}
-                                    disabled={savingCodigo === item.codigo}
-                                    className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 w-full"
-                                  >
-                                    {savingCodigo === item.codigo ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
-                                    Agregar a mis postulaciones
-                                  </button>
+                                  <>
+                                    {item.fit_score != null && item.fit_score < 40 ? (
+                                      <div className="space-y-2">
+                                        <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                          <span className="text-red-500 text-sm shrink-0">🔒</span>
+                                          <div>
+                                            <p className="text-xs font-bold text-red-700">Tu empresa no califica para esta licitación</p>
+                                            <p className="text-[11px] text-red-600 mt-0.5">{item.fit_motivo ?? 'Sin coincidencia de rubros con tu perfil'}</p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          onClick={() => navigate('/licitaciones/perfil')}
+                                          className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 w-full"
+                                        >
+                                          Revisar Perfil IA →
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); guardarMutation.mutate(item) }}
+                                        disabled={savingCodigo === item.codigo}
+                                        className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 w-full"
+                                      >
+                                        {savingCodigo === item.codigo ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
+                                        Agregar a mis postulaciones
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                                 <a
                                   href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
@@ -1929,7 +1992,7 @@ export default function LicitacionesPage() {
                       className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
                       style={{ fontSize: '13px' }}
                     >
-                      <ReactMarkdown>{propuestaTexto || 'No se generó propuesta.'}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{propuestaTexto || 'No se generó propuesta.'}</ReactMarkdown>
                     </div>
                   )}
 
@@ -2146,6 +2209,21 @@ export default function LicitacionesPage() {
         </div>
       )}
 
+      {/* ── Micro-feedback overlays ── */}
+      {showFeedbackGuardar && (
+        <StepFeedback
+          paso="guardar_licitacion"
+          titulo="¿Qué tal fue agregar esta licitación?"
+          onDone={() => setShowFeedbackGuardar(false)}
+        />
+      )}
+      {showFeedbackAnalisis && (
+        <StepFeedback
+          paso="analisis"
+          titulo="¿Qué tan útil fue el análisis IA?"
+          onDone={() => setShowFeedbackAnalisis(false)}
+        />
+      )}
     </div>
   )
 }
@@ -2276,6 +2354,20 @@ function PostulacionesPanel({
   const sinEstado = prospectosFiltrados.filter(p => !p.postulacion_estado)
   const conEstado = prospectosFiltrados.filter(p => !!p.postulacion_estado)
 
+  // Alertas de vencimiento (sobre TODOS los prospectos, sin filtro)
+  const alertasUrgentes = prospectos.filter(p => {
+    const d = diasAlCierre(p.licitacion_fecha_cierre)
+    return d !== null && d >= 0 && d <= 3
+  })
+  const alertasProximas = prospectos.filter(p => {
+    const d = diasAlCierre(p.licitacion_fecha_cierre)
+    return d !== null && d >= 4 && d <= 7
+  })
+  const sinDocumentos = prospectos.filter(p =>
+    (p.score != null && p.score > 0) && (p.documentos_ia?.length ?? 0) === 0 &&
+    (!p.postulacion_estado || p.postulacion_estado === 'en_preparacion')
+  )
+
   if (loading) return (
     <div className="card p-10 text-center text-gray-400">
       <Loader2 size={28} className="animate-spin mx-auto mb-2 text-indigo-400" />
@@ -2305,20 +2397,6 @@ function PostulacionesPanel({
     </div>
   )
 
-  // Compute urgency alerts
-  const urgentes = prospectos.filter(p => {
-    if (!p.licitacion_fecha_cierre) return false
-    const raw = p.licitacion_fecha_cierre
-    let fecha: Date | null = null
-    const ddmm = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
-    if (ddmm) fecha = new Date(Number(ddmm[3]), Number(ddmm[2]) - 1, Number(ddmm[1]))
-    else { const d = new Date(raw); if (!isNaN(d.getTime())) fecha = d }
-    if (!fecha) return false
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const dias = Math.ceil((fecha.getTime() - today.getTime()) / 86400000)
-    return dias >= 0 && dias <= 3
-  })
-
   return (
     <div className="space-y-4">
       {/* Intro banner */}
@@ -2333,14 +2411,56 @@ function PostulacionesPanel({
         </div>
       </div>
 
-      {/* Alerta de cierre urgente */}
-      {urgentes.length > 0 && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-          <span className="text-base mt-0.5">⚠️</span>
-          <div>
-            <span className="font-semibold">{urgentes.length} licitación{urgentes.length > 1 ? 'es cierran' : ' cierra'} en ≤3 días:</span>{' '}
-            {urgentes.map(u => u.licitacion_nombre || u.company_name).join(', ')}
-          </div>
+      {/* ─── Alertas de acción ─── */}
+      {(alertasUrgentes.length > 0 || alertasProximas.length > 0 || sinDocumentos.length > 0) && (
+        <div className="space-y-2">
+          {alertasUrgentes.map(p => {
+            const d = diasAlCierre(p.licitacion_fecha_cierre)!
+            return (
+              <div key={p.id} className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <span className="text-base mt-0.5">🚨</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-red-700">
+                    {d === 0 ? 'Cierra HOY' : d === 1 ? 'Cierra MAÑANA' : `Cierra en ${d} días`}
+                    {' — '}<span className="font-normal">{p.licitacion_nombre || p.company_name}</span>
+                  </p>
+                  <p className="text-[11px] text-red-500 mt-0.5">
+                    {(p.documentos_ia?.length ?? 0) === 0
+                      ? '⚠️ Aún no tienes documentos generados para esta licitación'
+                      : `${p.documentos_ia!.length} doc${p.documentos_ia!.length !== 1 ? 's' : ''} listo${p.documentos_ia!.length !== 1 ? 's' : ''} — revísalos y envíalos`}
+                  </p>
+                </div>
+                <NavLink
+                  to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
+                  className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-lg"
+                >
+                  Abrir →
+                </NavLink>
+              </div>
+            )
+          })}
+          {alertasProximas.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <span className="text-base mt-0.5">⏰</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-amber-800">Cierran en 4–7 días ({alertasProximas.length})</p>
+                <p className="text-[11px] text-amber-600 mt-0.5">
+                  {alertasProximas.map(p => p.licitacion_nombre || p.company_name).join(' · ')}
+                </p>
+              </div>
+            </div>
+          )}
+          {sinDocumentos.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+              <span className="text-base mt-0.5">📄</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-violet-800">
+                  {sinDocumentos.length} licitación{sinDocumentos.length !== 1 ? 'es analizadas' : ' analizada'} sin documentos
+                </p>
+                <p className="text-[11px] text-violet-600 mt-0.5">Tienes el análisis listo — genera tu propuesta antes de que cierren.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2681,11 +2801,8 @@ function PostulacionCard({
   onEliminar: (id: string) => void
 }) {
   const [showChecklist, setShowChecklist] = useState(false)
-  const [showNotas, setShowNotas] = useState(false)
   const [showDocs, setShowDocs] = useState(false)
-  const [notasText, setNotasText] = useState(p.notes || '')
-  const [notasSaved, setNotasSaved] = useState(false)
-  const notasTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const estadoBtnRef = useRef<HTMLButtonElement>(null)
   const estado = p.postulacion_estado ? ESTADOS_CONFIG[p.postulacion_estado] : null
   const monto = p.licitacion_monto
     ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(p.licitacion_monto)
@@ -2729,11 +2846,43 @@ function PostulacionCard({
                   ⏰ {diasCierre === 0 ? 'Cierra hoy' : diasCierre === 1 ? 'Cierra mañana' : `Cierra en ${diasCierre}d`}
                 </span>
               )}
-              {estado && (
-                <span className={clsx('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0', estado.color)}>
-                  <estado.icon size={9} />
-                  {estado.label}
-                </span>
+              {estado ? (
+                <>
+                  <button
+                    ref={estadoBtnRef}
+                    onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
+                    disabled={updatingId === p.id}
+                    className={clsx('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 hover:opacity-80 transition-opacity cursor-pointer', estado.color)}
+                  >
+                    <estado.icon size={9} />
+                    {estado.label} ▾
+                  </button>
+                  {estadoDropdown === p.id && (
+                    <EstadoMenuPortal
+                      anchorRef={estadoBtnRef}
+                      onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
+                      onClose={() => setEstadoDropdown(null)}
+                    />
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    ref={estadoBtnRef}
+                    onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
+                    disabled={updatingId === p.id}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 border-gray-200 text-gray-400 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <Flag size={9} /> Estado ▾
+                  </button>
+                  {estadoDropdown === p.id && (
+                    <EstadoMenuPortal
+                      anchorRef={estadoBtnRef}
+                      onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
+                      onClose={() => setEstadoDropdown(null)}
+                    />
+                  )}
+                </>
               )}
             </div>
             <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
@@ -2742,46 +2891,76 @@ function PostulacionCard({
               {p.licitacion_fecha_cierre && <span>Cierre: {p.licitacion_fecha_cierre}</span>}
               {p.licitacion_codigo && <span className="font-mono">{p.licitacion_codigo}</span>}
               {p.score != null && p.score > 0 && (
-                <span className={clsx(
-                  'font-bold px-1.5 py-0.5 rounded-full',
-                  p.score >= 75 ? 'bg-emerald-100 text-emerald-700' :
-                  p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                )}>
-                  {p.score.toFixed(0)} pts
+                <span
+                  title="Score de análisis IA — basado en las bases técnicas de esta licitación"
+                  className={clsx(
+                    'font-bold px-1.5 py-0.5 rounded-full text-xs cursor-help',
+                    p.score >= 75 ? 'bg-emerald-100 text-emerald-700' :
+                    p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                  )}>
+                  {p.score.toFixed(0)} pts IA
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Botón documentos — protagonista */}
+            {/* Si hay docs generados → mostrar contador */}
             {(p.documentos_ia?.length ?? 0) > 0 ? (
-              <button
-                onClick={() => setShowDocs(v => !v)}
-                className={clsx(
-                  'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-semibold transition-colors',
-                  showDocs
-                    ? 'bg-violet-600 text-white border-violet-600'
-                    : 'bg-violet-50 border-violet-300 text-violet-700 hover:bg-violet-100'
-                )}
-              >
-                <FileSignature size={12} />
-                {p.documentos_ia!.length} doc{p.documentos_ia!.length !== 1 ? 's' : ''} ✓
-              </button>
+              <>
+                <button
+                  onClick={() => setShowDocs(v => !v)}
+                  className={clsx(
+                    'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-semibold transition-colors',
+                    showDocs
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-violet-50 border-violet-300 text-violet-700 hover:bg-violet-100'
+                  )}
+                >
+                  <FileSignature size={12} />
+                  {p.documentos_ia!.length} doc{p.documentos_ia!.length !== 1 ? 's' : ''} ✓
+                </button>
+                <button
+                  onClick={() => onAnalizar(p)}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                  title="Re-analizar con IA"
+                >
+                  <ClipboardList size={11} /> Re-analizar
+                </button>
+              </>
+            ) : (p.score != null && p.score > 0) ? (
+              /* Tiene análisis pero aún no generó docs */
+              <>
+                <NavLink
+                  to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold"
+                >
+                  <FileSignature size={12} /> Generar docs
+                </NavLink>
+                <button
+                  onClick={() => onAnalizar(p)}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                  title="Re-analizar con IA"
+                >
+                  <ClipboardList size={11} /> Re-analizar
+                </button>
+              </>
             ) : (
-              <NavLink
-                to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold"
-              >
-                <FileSignature size={12} /> Generar docs
-              </NavLink>
+              /* Sin análisis → solo mostrar Analizar */
+              <>
+                <span
+                  title="Primero analiza con IA para desbloquear los documentos"
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed font-semibold"
+                >
+                  <FileSignature size={12} /> Generar docs 🔒
+                </span>
+                <button
+                  onClick={() => onAnalizar(p)}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold"
+                >
+                  <ClipboardList size={11} /> Analizar IA
+                </button>
+              </>
             )}
-            {/* Analizar con IA */}
-            <button
-              onClick={() => onAnalizar(p)}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              <ClipboardList size={11} /> Analizar
-            </button>
             {/* Postular en MP */}
             {mpUrl && (
               <a
@@ -2793,40 +2972,7 @@ function PostulacionCard({
                 <ExternalLink size={11} /> MP
               </a>
             )}
-            <div className="relative">
-              {(() => {
-                const btnRef = React.useRef<HTMLButtonElement>(null)
-                return <>
-                  <button
-                    ref={btnRef}
-                    onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
-                    disabled={updatingId === p.id}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {updatingId === p.id
-                      ? <Loader2 size={11} className="animate-spin" />
-                      : <><Flag size={11} /> Estado</>}
-                  </button>
-                  {estadoDropdown === p.id && (
-                    <EstadoMenuPortal
-                      anchorRef={btnRef}
-                      onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
-                      onClose={() => setEstadoDropdown(null)}
-                    />
-                  )}
-                </>
-              })()}
-            </div>
-            <button
-              onClick={() => setShowNotas(v => !v)}
-              className={clsx(
-                'flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border transition-colors',
-                notasText ? 'border-indigo-200 bg-indigo-50 text-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-              )}
-              title="Notas de esta postulación"
-            >
-              <FileText size={11} /> {notasText ? 'Nota ✓' : 'Nota'}
-            </button>
+
             <button
               onClick={() => setShowChecklist(v => !v)}
               className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
@@ -2848,32 +2994,6 @@ function PostulacionCard({
           </div>
         </div>
       </div>
-
-      {showNotas && (
-        <div className="mx-4 mb-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
-          <p className="text-[11px] font-semibold text-indigo-600 mb-2 flex items-center gap-1">
-            <FileText size={10} /> Notas de esta postulación
-          </p>
-          <textarea
-            value={notasText}
-            onChange={e => {
-              setNotasText(e.target.value)
-              setNotasSaved(false)
-              if (notasTimer.current) clearTimeout(notasTimer.current)
-              notasTimer.current = setTimeout(() => {
-                onGuardarNotas(p.id, e.target.value)
-                setNotasSaved(true)
-              }, 1000)
-            }}
-            placeholder="Ej: Enviamos consulta el lunes 21. Exigen garantía de 3%. Contacto: María González 9-1234567..."
-            rows={3}
-            className="w-full text-xs rounded-lg border border-indigo-200 bg-white px-3 py-2 text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-none"
-          />
-          <p className="text-[10px] text-gray-400 mt-1 text-right">
-            {notasSaved ? '✓ Guardado' : notasText ? 'Guardando...' : 'Se guarda automáticamente'}
-          </p>
-        </div>
-      )}
 
       {/* Documentos generados por IA */}
       {showDocs && (p.documentos_ia?.length ?? 0) > 0 && (
@@ -2902,9 +3022,12 @@ function PostulacionCard({
                   </p>
                 </div>
               </div>
-              <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold shrink-0">
-                <CheckCircle2 size={11} /> Listo
-              </span>
+              <NavLink
+                to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}&doc=${doc.tipo}`}
+                className="flex items-center gap-1 text-[10px] font-bold text-violet-700 bg-violet-100 hover:bg-violet-200 px-2.5 py-1 rounded-lg shrink-0 transition-colors"
+              >
+                <ExternalLink size={9} /> Abrir
+              </NavLink>
             </div>
           ))}
         </div>
@@ -2986,6 +3109,7 @@ function PostulacionCard({
           )}
         </div>
       )}
+
     </div>
   )
 }

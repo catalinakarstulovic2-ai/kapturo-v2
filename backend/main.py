@@ -8,6 +8,7 @@ from app.api.v1.modules import inmobiliaria
 from app.api.v1.modules import adjudicadas
 from app.api.v1 import pipeline, agents, messages, cron
 from app.api.v1 import bug_reports
+from app.api.v1 import step_feedback
 
 app = FastAPI(
     title="Kapturo API",
@@ -57,6 +58,7 @@ app.include_router(agents.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
 app.include_router(cron.router, prefix="/api/v1")
 app.include_router(bug_reports.router, prefix="/api/v1")
+app.include_router(step_feedback.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
@@ -146,6 +148,21 @@ def _do_migrations():
         """,
         "CREATE INDEX IF NOT EXISTS ix_bug_reports_user_id ON bug_reports (user_id)",
         "CREATE INDEX IF NOT EXISTS ix_bug_reports_timestamp ON bug_reports (timestamp)",
+        # Micro-feedback por paso del flujo
+        """
+        CREATE TABLE IF NOT EXISTS step_feedback (
+            id VARCHAR PRIMARY KEY,
+            user_id VARCHAR NOT NULL,
+            tenant_id VARCHAR,
+            paso VARCHAR(50) NOT NULL,
+            reaccion VARCHAR(50) NOT NULL,
+            comentario TEXT,
+            pagina VARCHAR(300),
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_step_feedback_paso ON step_feedback (paso)",
+        "CREATE INDEX IF NOT EXISTS ix_step_feedback_tenant ON step_feedback (tenant_id)",
         # Convertir config de String a JSONB si aún es texto (limpia datos inválidos primero)
         """
         DO $$

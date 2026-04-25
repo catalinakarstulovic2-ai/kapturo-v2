@@ -94,7 +94,7 @@ Responde SOLO con JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-haiku-4-5", max_tokens=700)
+        raw = self._call_claude(prompt, model="claude-3-5-haiku-20241022", max_tokens=700)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -158,7 +158,7 @@ Responde SOLO con un JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-haiku-4-5", max_tokens=400)
+        raw = self._call_claude(prompt, model="claude-3-5-haiku-20241022", max_tokens=400)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -239,7 +239,7 @@ La metodología debe tener:
 ## Gestión de riesgos
 ## Comunicación con el organismo
 
-Usa lenguaje técnico apropiado al rubro. Máximo 600 palabras. Solo el documento, sin explicaciones.""",
+Usa lenguaje técnico apropiado al rubro. Completa todas las secciones sin cortarte. Solo el documento, sin explicaciones.""",
 
             "curriculum": f"""Redacta el CURRÍCULUM EMPRESA en Markdown, listo para adjuntar a una licitación.
 
@@ -334,7 +334,7 @@ Formato carta formal chilena:
 - Cuerpo: presentación, interés en la licitación, fortalezas, cierre formal
 - Firma y datos de contacto (placeholders)
 
-Tono profesional y persuasivo. Máximo 300 palabras.""",
+Tono profesional y persuasivo. Completa la carta sin cortarte.""",
 
             "carta_seguimiento": f"""Redacta una CARTA DE SEGUIMIENTO POST-POSTULACIÓN en Markdown.
 
@@ -359,7 +359,7 @@ Formato carta formal chilena:
 - Párrafo 3: disponibilidad y contacto
 - Cierre formal y firma
 
-Tono cercano pero profesional. Máximo 250 palabras.""",
+Tono cercano pero profesional. Completa la carta sin cortarte.""",
 
             "carta_gantt": f"""Genera un PLAN DE TRABAJO con Carta Gantt en Markdown para esta licitación.
 
@@ -401,7 +401,7 @@ Solo el documento, sin explicaciones.""",
 
         prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
 
-        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=1500)
+        return self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=4000)
 
     # ─────────────────────────────────────────────────────────────────────────
     # 3. Analizar bases técnicas + score + propuesta calibrada
@@ -557,7 +557,7 @@ Responde SOLO con JSON válido:
 
 Solo el JSON."""
 
-        raw = self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=1000)
+        raw = self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=1000)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -662,4 +662,4 @@ Reglas:
 
         prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
 
-        return self._call_claude(prompt, model="claude-sonnet-4-6", max_tokens=6000)
+        return self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=6000)

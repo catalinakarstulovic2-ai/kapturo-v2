@@ -100,7 +100,7 @@ Solo el JSON, sin texto adicional."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         raw = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5", 200
+            agent._call_claude, prompt, "claude-3-5-haiku-20241022", 200
         )
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -163,9 +163,22 @@ async def preview_licitaciones(
     except Exception:
         pass
 
+    # Obtener rubros y regiones del perfil del tenant para fit score
+    rubros_perfil: list = []
+    regiones_perfil: list = []
+    try:
+        from app.models.tenant import Tenant
+        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+        if tenant and tenant.licitaciones_profile:
+            rubros_perfil = tenant.licitaciones_profile.get('rubros') or []
+            regiones_perfil = tenant.licitaciones_profile.get('regiones') or []
+    except Exception:
+        pass
+
     try:
         servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
-        return await servicio.buscar_preview(tipo=tipo, filtros=filtros, pagina=pagina)
+        return await servicio.buscar_preview(tipo=tipo, filtros=filtros, pagina=pagina,
+                                              rubros_perfil=rubros_perfil, regiones_perfil=regiones_perfil)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -177,7 +190,7 @@ async def preview_licitaciones(
 @router.post("/guardar")
 async def guardar_licitacion(
     data: GuardarRequest,
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -351,7 +364,7 @@ Sin numeración. Sin explicaciones. Solo las líneas."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         texto = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5", 400
+            agent._call_claude, prompt, "claude-3-5-haiku-20241022", 400
         )
         return {"texto": texto.strip()}
     except Exception as e:
