@@ -458,6 +458,88 @@ def eliminar_documento_perfil(
 
 
 
+@router.post("/analizar-empresa-pdf")
+async def analizar_empresa_pdf(
+    archivo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recibe un PDF de la empresa (brochure, presentación, carpeta de servicios, etc.)
+    y usa Claude para extraer automáticamente los campos del perfil.
+    Devuelve los campos sugeridos para que el usuario los apruebe.
+    """
+    content = await archivo.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 5 MB")
+
+    # Extraer texto del PDF usando base64 + Claude vision o texto plano
+    import base64 as _b64
+    b64 = _b64.b64encode(content).decode("utf-8")
+
+    import anthropic as _anthropic
+    import json as _json
+
+    prompt = """Analiza este documento PDF de una empresa y extrae la información relevante para completar su perfil de proveedor de licitaciones públicas chilenas.
+
+Extrae y devuelve un JSON con estos campos (deja en null si no encuentras el dato):
+{
+  "razon_social": "Nombre legal de la empresa",
+  "rut_empresa": "RUT si aparece",
+  "descripcion": "Descripción de 60-100 palabras de qué hace la empresa",
+  "rubros": ["lista", "de", "rubros", "del", "catálogo"],
+  "regiones": ["lista de regiones de Chile donde opera"],
+  "experiencia_anos": null,
+  "proyectos_anteriores": "3 proyectos reales o representativos encontrados en el documento",
+  "certificaciones": "certificaciones o acreditaciones mencionadas",
+  "diferenciadores": "3-4 diferenciadores competitivos",
+  "nombre_contacto": "nombre del representante o contacto principal",
+  "cargo_contacto": "cargo",
+  "correo": "email si aparece",
+  "telefono": "teléfono si aparece",
+  "sitio_web": "sitio web si aparece",
+  "direccion": "dirección si aparece"
+}
+
+Para el campo "rubros", usa solo términos de esta lista: asesoría, auditoría, consultoría, contabilidad, gestión, legal, recursos humanos, administración, finanzas, marketing, comunicaciones, arquitectura, construcción, ingeniería, instalaciones eléctricas, obras civiles, pavimentación, sanitaria, topografía, diseño, proyectos, infraestructura, capacitación, educación, formación, equipamiento, insumos, maquinaria, mobiliario, vehículos, vestuario, materiales, herramientas, suministros, imprenta, señalética, agua, energía renovable, medioambiente, residuos, sustentabilidad, eficiencia energética, solar, reciclaje, enfermería, equipos médicos, farmacia, laboratorio, medicina, psicología, salud, dental, kinesiología, nutrición, alimentación, aseo, catering, logística, mantención, seguridad, transporte, vigilancia, jardinería, lavandería, casino, limpieza, ciberseguridad, informática, inteligencia artificial, software, soporte técnico, tecnología, telecomunicaciones, desarrollo web, aplicaciones, cloud, datos, redes, sistemas, automatización, erp, crm.
+
+Responde SOLO con el JSON, sin explicaciones."""
+
+    try:
+        client = _anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+        def _call():
+            return client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1500,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": archivo.content_type or "application/pdf",
+                                "data": b64,
+                            },
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }],
+            )
+
+        respuesta = await asyncio.to_thread(_call)
+        texto = respuesta.content[0].text.strip()
+        if texto.startswith("```"):
+            texto = texto.split("```")[1]
+            if texto.startswith("json"):
+                texto = texto[4:]
+        campos = _json.loads(texto.strip())
+        return {"campos": campos, "nombre_archivo": archivo.filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al analizar el PDF: {str(e)}")
+
+
 class BusquedaIARequest(BaseModel):
     consulta: str  # "quiero limpiar hospitales en Santiago"
     pagina: int = 1

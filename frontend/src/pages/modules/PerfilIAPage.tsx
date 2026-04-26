@@ -195,6 +195,9 @@ export default function PerfilIAPage() {
   const [showFeedbackPerfil, setShowFeedbackPerfil] = useState(false)
   const [resumenIA, setResumenIA] = useState<{ texto: string; faltantes: string[] } | null>(null)
   const [generandoResumen, setGenerandoResumen] = useState(false)
+  const [analizandoPDF, setAnalizandoPDF] = useState(false)
+  const [camposSugeridosPDF, setCamposSugeridosPDF] = useState<Record<string, any> | null>(null)
+  const [nombreArchivoPDF, setNombreArchivoPDF] = useState<string | null>(null)
   const toggleCat = (label: string) =>
     setOpenCats(prev => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s })
 
@@ -760,6 +763,28 @@ export default function PerfilIAPage() {
                             )
                           })}
                         </div>
+                        {/* Seleccionar todos / quitar todos de la categoría */}
+                        {(() => {
+                          const cat = RUBRO_CATEGORIAS.find(c => c.label === tabCat)
+                          if (!cat) return null
+                          const todosSeleccionados = cat.rubros.every(r => form.rubros.includes(r))
+                          return (
+                            <div className="px-3 pt-2 pb-1 flex items-center justify-between border-b border-gray-100 bg-white">
+                              <span className="text-[10px] text-gray-400">{cat.rubros.filter(r => form.rubros.includes(r)).length} de {cat.rubros.length} seleccionados</span>
+                              <button type="button"
+                                onClick={() => {
+                                  if (todosSeleccionados) {
+                                    setForm(f => ({ ...f, rubros: f.rubros.filter(r => !cat.rubros.includes(r)) }))
+                                  } else {
+                                    setForm(f => ({ ...f, rubros: Array.from(new Set([...f.rubros, ...cat.rubros])) }))
+                                  }
+                                }}
+                                className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                {todosSeleccionados ? 'Quitar todos' : 'Seleccionar todos'}
+                              </button>
+                            </div>
+                          )
+                        })()}
                         {/* Rubros de la tab activa */}
                         <div className="px-3 py-3 flex flex-wrap gap-1.5 bg-white">
                           {(RUBRO_CATEGORIAS.find(c => c.label === tabCat)?.rubros ?? []).map(r => (
@@ -915,6 +940,101 @@ export default function PerfilIAPage() {
 
                   {/* ── DOCUMENTOS ── */}
                   {sec.key === 'documentos' && (<>
+
+                    {/* ── Auto-rellenar perfil desde PDF ── */}
+                    <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/50 p-4 mb-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                          <Sparkles size={16} className="text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-indigo-900">Sube tu contenido y te ayudamos</p>
+                          <p className="text-xs text-indigo-600 mt-0.5">Sube un brochure, presentación o carpeta de servicios — la IA extrae automáticamente tu perfil completo.</p>
+                        </div>
+                      </div>
+
+                      {!camposSugeridosPDF ? (
+                        <label className={clsx('flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors',
+                          analizandoPDF
+                            ? 'bg-indigo-200 text-indigo-500 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700')}>
+                          {analizandoPDF
+                            ? <><Loader2 size={13} className="animate-spin" /> Analizando con IA…</>
+                            : <><Upload size={13} /> Subir PDF de tu empresa</>}
+                          <input type="file" accept=".pdf" className="hidden" disabled={analizandoPDF}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              if (file.size > 5 * 1024 * 1024) { toast.error('El archivo supera el límite de 5 MB'); return }
+                              setAnalizandoPDF(true)
+                              try {
+                                const fd = new FormData()
+                                fd.append('archivo', file)
+                                const res = await api.post('/modules/licitaciones/analizar-empresa-pdf', fd, {
+                                  headers: { 'Content-Type': 'multipart/form-data' }
+                                })
+                                setCamposSugeridosPDF(res.data.campos)
+                                setNombreArchivoPDF(res.data.nombre_archivo)
+                              } catch (err: any) {
+                                toast.error(err.response?.data?.detail || 'Error al analizar el PDF')
+                              } finally {
+                                setAnalizandoPDF(false)
+                                e.target.value = ''
+                              }
+                            }} />
+                        </label>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={14} className="text-emerald-500" />
+                            <p className="text-xs font-semibold text-gray-800">La IA encontró esto en <span className="text-indigo-600">{nombreArchivoPDF}</span></p>
+                          </div>
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                            {Object.entries(camposSugeridosPDF).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).map(([key, val]) => (
+                              <div key={key} className="flex items-start gap-2 text-xs">
+                                <span className="text-gray-400 shrink-0 w-28 truncate capitalize">{key.replace(/_/g, ' ')}</span>
+                                <span className="text-gray-800 font-medium line-clamp-2">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button type="button"
+                              onClick={() => {
+                                const c = camposSugeridosPDF
+                                setForm(f => ({
+                                  ...f,
+                                  ...(c.razon_social && { razon_social: c.razon_social }),
+                                  ...(c.rut_empresa && { rut_empresa: c.rut_empresa }),
+                                  ...(c.descripcion && { descripcion: c.descripcion }),
+                                  ...(c.rubros?.length && { rubros: c.rubros }),
+                                  ...(c.regiones?.length && { regiones: c.regiones }),
+                                  ...(c.experiencia_anos && { experiencia_anos: String(c.experiencia_anos) }),
+                                  ...(c.proyectos_anteriores && { proyectos_anteriores: c.proyectos_anteriores }),
+                                  ...(c.certificaciones && { certificaciones: c.certificaciones }),
+                                  ...(c.diferenciadores && { diferenciadores: c.diferenciadores }),
+                                  ...(c.nombre_contacto && { nombre_contacto: c.nombre_contacto }),
+                                  ...(c.cargo_contacto && { cargo_contacto: c.cargo_contacto }),
+                                  ...(c.correo && { correo: c.correo }),
+                                  ...(c.telefono && { telefono: c.telefono }),
+                                  ...(c.sitio_web && { sitio_web: c.sitio_web }),
+                                  ...(c.direccion && { direccion: c.direccion }),
+                                }))
+                                setCamposSugeridosPDF(null)
+                                toast.success('Perfil pre-rellenado. Revisa y guarda.')
+                              }}
+                              className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                              Aprobar y aplicar al perfil
+                            </button>
+                            <button type="button"
+                              onClick={() => { setCamposSugeridosPDF(null); setNombreArchivoPDF(null) }}
+                              className="px-3 py-2 rounded-xl text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Descartar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 mb-4">
                       <strong>¿Para qué sirven?</strong> Se adjuntan al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de licitaciones públicas.
                     </div>
