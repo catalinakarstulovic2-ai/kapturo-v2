@@ -299,13 +299,13 @@ def get_rubros_tenant(
     ).fetchone()
     todos = MercadoPublicoClient().obtener_catalogo()["rubros"]
     if not row:
-        return {"todos": todos, "habilitados": todos, "personalizado": False}
+        return {"todos": todos, "habilitados": [], "personalizado": False}
     import json as _json
     niche = row[1] if isinstance(row[1], dict) else (_json.loads(row[1]) if row[1] else {})
     rubros = niche.get("rubros_habilitados")
     return {
         "todos": todos,
-        "habilitados": rubros if rubros is not None else todos,
+        "habilitados": rubros if rubros is not None else [],
         "personalizado": rubros is not None,
     }
 
