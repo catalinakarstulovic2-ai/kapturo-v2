@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.message import Message, Conversation
 from app.models.tenant import Tenant
+from app.models.prospect import Prospect
 from app.services.whatsapp_service import WhatsAppService
 from app.services.message_service import MessageService
 
