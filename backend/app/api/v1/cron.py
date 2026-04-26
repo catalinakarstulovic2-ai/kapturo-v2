@@ -390,7 +390,21 @@ async def alertas_cierre(
                 .order_by(User.created_at.asc())
                 .first()
             )
-            if not admin or not admin.email:
+            if not admin:
+                continue
+
+            # Usar email_alertas del perfil si está configurado, si no el email del admin
+            from app.models.tenant import TenantModule
+            licit_mod = db.query(TenantModule).filter(
+                TenantModule.tenant_id == p.tenant_id,
+                TenantModule.is_active == True,
+            ).filter(TenantModule.module.in_(["licitaciones", "licitador"])).first()
+            email_destino = None
+            if licit_mod and licit_mod.niche_config:
+                email_destino = licit_mod.niche_config.get("email_alertas") or None
+            if not email_destino:
+                email_destino = admin.email
+            if not email_destino:
                 continue
 
             nombre = p.licitacion_nombre or p.licitacion_codigo or p.id[:8]
@@ -452,7 +466,7 @@ async def alertas_cierre(
             """
 
             await email_service.send(
-                to=admin.email,
+                to=email_destino,
                 subject=f"{urgencia} — {nombre[:60]}",
                 html=html,
             )

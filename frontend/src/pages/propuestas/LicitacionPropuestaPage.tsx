@@ -213,6 +213,7 @@ export default function LicitacionPropuestaPage() {
   const [selectedPostulacion, setSelectedPostulacion] = useState<PostulacionItem | null>(null)
   const [instrucciones, setInstrucciones] = useState('')
   const [resultado, setResultado] = useState('')
+  const [campoValues, setCampoValues] = useState<Record<string, string>>({})
   const [copiado, setCopiado] = useState(false)
   const [docViewer, setDocViewer] = useState<{ texto: string; titulo: string } | null>(null)
   const [guardado, setGuardado] = useState(false)
@@ -341,7 +342,7 @@ export default function LicitacionPropuestaPage() {
   }
 
   const copiar = () => {
-    navigator.clipboard.writeText(resultado); setCopiado(true)
+    navigator.clipboard.writeText(resultadoConCampos); setCopiado(true)
     toast.success('Copiado al portapapeles')
     setTimeout(() => setCopiado(false), 2500)
   }
@@ -393,13 +394,19 @@ export default function LicitacionPropuestaPage() {
   const descargar = () => {
     const nombre = selectedPostulacion?.licitacion_nombre ?? 'licitacion'
     const tipoInfo = TODOS_TIPOS.find(t => t.id === tipo)
-    descargarPDF(resultado, tipoInfo?.label ?? String(tipo), nombre)
+    descargarPDF(resultadoConCampos, tipoInfo?.label ?? String(tipo), nombre)
   }
 
   const reiniciar = () => {
-    setTipo(''); setInstrucciones(''); setResultado(''); setGuardado(false); setStep(0); setActiveTab(0)
+    setTipo(''); setInstrucciones(''); setResultado(''); setGuardado(false); setStep(0); setActiveTab(0); setCampoValues({})
     // No resetear selectedPostulacion ni docStatuses — mantener contexto de licitación
   }
+
+  // Aplica los valores escritos por el usuario a los [CAMPOS] del resultado
+  const resultadoConCampos = resultado.replace(/\[([^\]]{3,60})\]/g, (match) => {
+    const key = match.replace(/[\[\]\\]/g, '').trim()
+    return campoValues[key] !== undefined && campoValues[key] !== '' ? campoValues[key] : match
+  })
 
   const handleGenerarTodos = async () => {
     if (!selectedPostulacion) return
@@ -746,17 +753,29 @@ export default function LicitacionPropuestaPage() {
                   </div>
                 </div>
               )}
-              {/* Campos específicos de la licitación */}
+              {/* Campos específicos de la licitación — rellenar aquí */}
               {camposManuales.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-amber-800">✏️ Datos del organismo — completa a mano en Word/Docs</p>
-                  <p className="text-[11px] text-amber-600">Son datos que cambian por cada licitación (contacto del organismo, fechas específicas, etc.)</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {camposManuales.map(c => (
-                      <span key={c} className="text-[11px] font-mono bg-orange-100 text-orange-900 px-2 py-0.5 rounded font-semibold">
-                        {c.replace(/[\[\]\\]/g, '')}
-                      </span>
-                    ))}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-amber-800">✏️ Completa estos datos de la licitación</p>
+                  <div className="space-y-1.5">
+                    {camposManuales.map(c => {
+                      const key = c.replace(/[\[\]\\]/g, '').trim()
+                      const filled = campoValues[key] !== undefined && campoValues[key] !== ''
+                      return (
+                        <div key={c} className="flex items-center gap-2">
+                          <span className={clsx('text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 font-semibold', filled ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-900')}>
+                            {key}
+                          </span>
+                          <input
+                            type="text"
+                            placeholder={`Escribe ${key.toLowerCase().replace(/_/g, ' ')}…`}
+                            value={campoValues[key] ?? ''}
+                            onChange={e => setCampoValues(v => ({ ...v, [key]: e.target.value }))}
+                            className="flex-1 text-xs border border-amber-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white"
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -769,13 +788,13 @@ export default function LicitacionPropuestaPage() {
             <span className="text-5xl font-black text-indigo-200 opacity-20 rotate-[-35deg] select-none whitespace-nowrap">KAPTURO</span>
           </div>
           <div className="relative prose prose-sm max-w-none text-gray-700 text-xs leading-relaxed">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{resultado}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{resultadoConCampos}</ReactMarkdown>
           </div>
         </div>
         <button
           onClick={() => {
             const tipoInfo = TODOS_TIPOS.find(t => t.id === tipo)
-            setDocViewer({ texto: resultado, titulo: tipoInfo?.label ?? 'Documento' })
+            setDocViewer({ texto: resultadoConCampos, titulo: tipoInfo?.label ?? 'Documento' })
           }}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
         >
