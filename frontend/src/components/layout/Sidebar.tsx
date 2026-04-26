@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin, FileSignature, ClipboardList, SlidersHorizontal } from 'lucide-react'
+import { LayoutDashboard, FileText, Settings, Zap, ShieldAlert, X, Trophy, Building2, Search, Linkedin, FileSignature, ClipboardList, SlidersHorizontal, MessageSquare } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
@@ -15,6 +15,7 @@ const nav = [
   { to: '/prospeccion',   icon: Search,          label: 'Prospección',         module: 'prospector',   hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/inmobiliaria',         icon: Building2, label: 'Inmobiliaria',       module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
   { to: '/linkedin-prospecting', icon: Linkedin,  label: 'LinkedIn',           module: 'inmobiliaria', hideSuperAdmin: true,  onlySuperAdmin: false, group: null },
+  { to: '/conversaciones',       icon: MessageSquare, label: 'Conversaciones',  module: null,           hideSuperAdmin: false, onlySuperAdmin: false, group: null },
   { to: '/configuracion',        icon: Settings,  label: 'Configuración',      module: null,           hideSuperAdmin: false, onlySuperAdmin: false, group: null },
   { to: '/superadmin',   icon: ShieldAlert,      label: 'Super Admin',        module: null,           hideSuperAdmin: false, onlySuperAdmin: true,  group: null },
 ]

@@ -21,6 +21,7 @@ import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import LicitacionPropuestaPage from './pages/propuestas/LicitacionPropuestaPage'
 import PerfilIAPage from './pages/modules/PerfilIAPage'
+import PrivacyPage from './pages/PrivacyPage'
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset" element={<ResetPage />} />

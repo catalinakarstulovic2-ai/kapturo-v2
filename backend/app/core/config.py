@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_VERIFY_TOKEN: str = ""
+    WHATSAPP_WABA_ID: str = ""
 
     RESEND_API_KEY: str = ""
     SUPER_ADMIN_EMAIL: str = "catalina@kapturo.cl"
