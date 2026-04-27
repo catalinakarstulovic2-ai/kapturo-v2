@@ -13,6 +13,7 @@ import uuid
 import json
 
 from app.core.database import get_db, SessionLocal
+from app.core.config import settings
 from app.core.middleware import get_current_user, require_admin
 from app.models.user import User
 from app.models.tenant import TenantModule
@@ -100,7 +101,7 @@ Solo el JSON, sin texto adicional."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         raw = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-3-5-haiku-20241022", 200
+            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 200
         )
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -177,8 +178,16 @@ async def preview_licitaciones(
 
     try:
         servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
-        return await servicio.buscar_preview(tipo=tipo, filtros=filtros, pagina=pagina,
-                                              rubros_perfil=rubros_perfil, regiones_perfil=regiones_perfil)
+        return await asyncio.wait_for(
+            servicio.buscar_preview(tipo=tipo, filtros=filtros, pagina=pagina,
+                                    rubros_perfil=rubros_perfil, regiones_perfil=regiones_perfil),
+            timeout=25.0,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=503,
+            detail="La búsqueda tardó demasiado. Intenta con un rango de fechas más corto o agrega un filtro de región.",
+        )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -364,7 +373,7 @@ Sin numeración. Sin explicaciones. Solo las líneas."""
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
     try:
         texto = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-3-5-haiku-20241022", 400
+            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 400
         )
         return {"texto": texto.strip()}
     except Exception as e:
@@ -510,7 +519,7 @@ Responde SOLO con el JSON, sin explicaciones."""
 
         def _call():
             return client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-5",
                 max_tokens=1500,
                 messages=[{
                     "role": "user",

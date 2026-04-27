@@ -410,6 +410,11 @@ export default function LicitacionPropuestaPage() {
 
   const handleGenerarTodos = async () => {
     if (!selectedPostulacion) return
+    const score = selectedPostulacion.score
+    if (score == null || score === 0 || score < 50) {
+      toast.error('Debes analizar esta licitación con IA antes de generar documentos')
+      return
+    }
     // Only generate unlocked docs
     const docs = Array.from(todosSeleccionados).filter(id => {
       const reqs = DOC_CAMPOS_REQUERIDOS[id] ?? []
@@ -1145,10 +1150,10 @@ export default function LicitacionPropuestaPage() {
 
           {bloqueado && (
             <button
-              onClick={() => navigate('/licitaciones/perfil')}
+              onClick={() => navigate(scoreBajo ? '/licitaciones?tab=postulaciones' : '/licitaciones/perfil')}
               className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors"
             >
-              Completar perfil ahora →
+              {scoreBajo ? 'Ir a analizar la licitación →' : 'Completar perfil ahora →'}
             </button>
           )}
         </div>
@@ -1229,7 +1234,9 @@ export default function LicitacionPropuestaPage() {
             )}
           >
             {bloqueado
-              ? <>⛔ Completa el perfil para generar</>
+              ? scoreBajo
+                ? <>⛔ Analiza la licitación antes de generar</>
+                : <>⛔ Completa el perfil para generar</>
               : <><Sparkles size={16} /> Generar {todosSeleccionados.size} documento{todosSeleccionados.size !== 1 ? 's' : ''} con IA</>
             }
           </button>
@@ -1254,27 +1261,38 @@ export default function LicitacionPropuestaPage() {
     return (
       <div className="space-y-4 lg:sticky lg:top-6">
         {/* Botón generar todos — siempre visible */}
-        <button
-          onClick={() => {
-            setModoTodos(true)
-            if (selectedPostulacion) {
-              // Si ya hay licitación seleccionada, arrancar generación directamente
-              setTimeout(() => handleGenerarTodos(), 50)
-            }
-          }}
-          disabled={todosProgreso.corriendo}
-          className={clsx(
-            'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors shadow-sm',
-            todosProgreso.corriendo
-              ? 'bg-violet-400 text-white cursor-not-allowed'
-              : 'bg-violet-600 text-white hover:bg-violet-700'
-          )}
-        >
-          {todosProgreso.corriendo
-            ? <><Loader2 size={15} className="animate-spin" /> Generando…</>
-            : <><Sparkles size={15} /> Generar todos los documentos</>
-          }
-        </button>
+        {(() => {
+          const panelScoreBajo = selectedPostulacion != null &&
+            (selectedPostulacion.score == null || selectedPostulacion.score === 0 || selectedPostulacion.score < 50)
+          return (
+            <button
+              onClick={() => {
+                if (panelScoreBajo) {
+                  toast.error('Analiza primero esta licitación en "Mis postulaciones"')
+                  return
+                }
+                setModoTodos(true)
+                if (selectedPostulacion) setTimeout(() => handleGenerarTodos(), 50)
+              }}
+              disabled={todosProgreso.corriendo}
+              className={clsx(
+                'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors shadow-sm',
+                todosProgreso.corriendo
+                  ? 'bg-violet-400 text-white cursor-not-allowed'
+                  : panelScoreBajo
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-violet-600 text-white hover:bg-violet-700'
+              )}
+            >
+              {todosProgreso.corriendo
+                ? <><Loader2 size={15} className="animate-spin" /> Generando…</>
+                : panelScoreBajo
+                  ? <>⛔ Analiza la licitación primero</>
+                  : <><Sparkles size={15} /> Generar todos los documentos</>
+              }
+            </button>
+          )
+        })()}
         {/* Licitación activa */}
         {selectedPostulacion ? (
           <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-xl">

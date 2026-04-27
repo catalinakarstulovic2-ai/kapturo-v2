@@ -94,7 +94,7 @@ Responde SOLO con JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-3-5-haiku-20241022", max_tokens=700)
+        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=700)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -158,7 +158,7 @@ Responde SOLO con un JSON válido:
 
 Solo el JSON, sin texto adicional."""
 
-        raw = self._call_claude(prompt, model="claude-3-5-haiku-20241022", max_tokens=400)
+        raw = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=400)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -401,7 +401,7 @@ Solo el documento, sin explicaciones.""",
 
         prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
 
-        return self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=4000)
+        return self._call_claude(prompt, model="claude-sonnet-4-5", max_tokens=4000)
 
     # ─────────────────────────────────────────────────────────────────────────
     # 3. Analizar bases técnicas + score + propuesta calibrada
@@ -557,7 +557,7 @@ Responde SOLO con JSON válido:
 
 Solo el JSON."""
 
-        raw = self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=1000)
+        raw = self._call_claude(prompt, model="claude-sonnet-4-5", max_tokens=1000)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             parts = cleaned.split("```")
@@ -662,4 +662,4 @@ Reglas:
 
         prompt += "\n\nIMPORTANTE: No uses emojis en ninguna parte del documento. Usa solo texto y markdown estándar (##, -, *, tablas)."
 
-        return self._call_claude(prompt, model="claude-3-5-sonnet-20241022", max_tokens=6000)
+        return self._call_claude(prompt, model="claude-sonnet-4-5", max_tokens=6000)

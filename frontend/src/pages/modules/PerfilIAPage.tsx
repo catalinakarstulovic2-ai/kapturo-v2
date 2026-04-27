@@ -120,6 +120,12 @@ export default function PerfilIAPage() {
   const [generando, setGenerando] = useState<string | null>(null)
   const [regionQuery, setRegionQuery] = useState('')
   const [activeSection, setActiveSection] = useState<string>('empresa')
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set(['contacto', 'documentos', 'que_hace', 'rubros', 'equipo'])
+  )
+  const toggleCollapse = (key: string) => setCollapsedSections(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
+  })
   // Documentos: metadatos de los archivos subidos (sin base64, eso viene del backend)
   const [docsMeta, setDocsMeta] = useState<Record<string, { nombre: string; size: number; subido_at: string }>>({})
   const [subiendo, setSubiendo] = useState<string | null>(null)
@@ -161,24 +167,28 @@ export default function PerfilIAPage() {
   }, [])
 
   const scrollTo = (id: string) => {
-    const el = document.getElementById(id)
-    if (!el) return
-    setActiveSection(id)
+    const wasCollapsed = collapsedSections.has(id)
+    if (wasCollapsed) setCollapsedSections(prev => { const next = new Set(prev); next.delete(id); return next })
 
-    // Buscar contenedor scrollable
-    let parent = el.parentElement
-    while (parent && parent !== document.body) {
-      const ov = window.getComputedStyle(parent).overflowY
-      if (ov === 'auto' || ov === 'scroll' || ov === 'overlay') {
-        const offset = el.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - 80
-        parent.scrollTo({ top: offset, behavior: 'smooth' })
-        return
+    const go = () => {
+      const el = document.getElementById(id)
+      if (!el) return
+      setActiveSection(id)
+      let parent = el.parentElement
+      while (parent && parent !== document.body) {
+        const ov = window.getComputedStyle(parent).overflowY
+        if (ov === 'auto' || ov === 'scroll' || ov === 'overlay') {
+          const offset = el.getBoundingClientRect().top - parent.getBoundingClientRect().top + parent.scrollTop - 80
+          parent.scrollTo({ top: offset, behavior: 'smooth' })
+          return
+        }
+        parent = parent.parentElement
       }
-      parent = parent.parentElement
+      const y = el.getBoundingClientRect().top + window.scrollY - 80
+      window.scrollTo({ top: y, behavior: 'smooth' })
     }
-    // Fallback: window scroll
-    const y = el.getBoundingClientRect().top + window.scrollY - 80
-    window.scrollTo({ top: y, behavior: 'smooth' })
+
+    wasCollapsed ? setTimeout(go, 80) : go()
   }
   // Estado de acordeón para categorías de rubros — DEBE estar aquí (no dentro del .map)
   const [openCats, setOpenCats] = useState<Set<string>>(new Set<string>())
@@ -479,22 +489,22 @@ export default function PerfilIAPage() {
                 return (
                   <button key={sec.key} onClick={() => scrollTo(sec.key)}
                     className={clsx(
-                      'w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-all text-left',
-                      isActive
-                        ? 'bg-indigo-50 ring-1 ring-indigo-200 ring-inset'
-                        : 'hover:bg-gray-50'
+                      'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all text-left',
+                      isActive ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50'
                     )}>
                     <Icon size={12} className={clsx('shrink-0',
-                      sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : isActive ? 'text-indigo-500' : 'text-gray-300')} />
+                      isActive ? 'text-white' :
+                      sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : 'text-gray-300')} />
                     <span className={clsx('text-[11px] flex-1 font-medium leading-tight',
-                      isActive ? 'text-indigo-700' :
+                      isActive ? 'text-white font-semibold' :
                       sec.done ? 'text-gray-700' :
                       sec.hasCritical ? 'text-red-600' :
                       isComplementary ? 'text-gray-400' : 'text-gray-500')}>
                       {sec.label}
                     </span>
                     <span className={clsx('text-[10px] font-bold shrink-0 tabular-nums',
-                      sec.done ? 'text-emerald-500' : isActive ? 'text-indigo-400' : 'text-gray-300')}>
+                      isActive ? 'text-indigo-200' :
+                      sec.done ? 'text-emerald-500' : 'text-gray-300')}>
                       {displayOk}/{displayTotal}
                     </span>
                   </button>
@@ -532,59 +542,86 @@ export default function PerfilIAPage() {
 
           {SECCIONES.map(sec => {
             const Icon = sec.icon
+            const isCollapsed = collapsedSections.has(sec.key)
             return (
               <section key={sec.key} id={sec.key} data-perfil-section>
-                {/* Section header */}
-                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100">
+                {/* Section header — colapsable */}
+                <button type="button" onClick={() => toggleCollapse(sec.key)}
+                  className="w-full flex items-center gap-2 mb-4 pb-2 border-b border-gray-100 hover:border-indigo-200 transition-colors group text-left">
                   <Icon size={15} className="text-indigo-500 shrink-0" />
                   <h2 className="text-sm font-bold text-gray-900">{sec.label}</h2>
-                  <span className="text-xs text-gray-400">{sec.desc}</span>
+                  <span className="text-xs text-gray-400 hidden sm:inline">{sec.desc}</span>
                   <span className={clsx('ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0',
                     sec.badge === 'obligatorio' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500')}>
                     {sec.badge}
                   </span>
-                </div>
-                <div className="space-y-4">
+                  <ChevronDown size={14} className={clsx('text-gray-300 group-hover:text-gray-500 transition-transform shrink-0 ml-1',
+                    isCollapsed ? '' : 'rotate-180')} />
+                </button>
+                {!isCollapsed && <div className="space-y-4">
 
                   {/* ── EMPRESA ── */}
                   {sec.key === 'empresa' && (<>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">RUT empresa <span className="text-red-400">*</span></label>
-                        <input className="input text-sm w-full" placeholder="76.123.456-7"
-                          value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
+                    {/* Datos legales obligatorios */}
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Datos legales obligatorios</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            RUT empresa <span className="text-red-400">*</span>
+                          </label>
+                          <input className="input text-sm w-full" placeholder="76.123.456-7"
+                            value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Razón social <span className="text-red-400">*</span>
+                          </label>
+                          <input className="input text-sm w-full" placeholder="Empresa Ejemplo SpA"
+                            value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Razón social <span className="text-red-400">*</span></label>
-                        <input className="input text-sm w-full" placeholder="Empresa Ejemplo SpA"
-                          value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
-                      </div>
+                      {/* Inscrito ChileProveedores */}
+                      <button type="button"
+                        onClick={() => setForm(f => ({ ...f, inscrito_chile_proveedores: !f.inscrito_chile_proveedores }))}
+                        className={clsx(
+                          'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border text-left transition-all',
+                          form.inscrito_chile_proveedores
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                        )}>
+                        <div className={clsx(
+                          'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors',
+                          form.inscrito_chile_proveedores ? 'bg-emerald-500' : 'border-2 border-gray-300'
+                        )}>
+                          {form.inscrito_chile_proveedores && <Check size={10} className="text-white" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold">Inscrito en ChileProveedores</p>
+                          <p className="text-[10px] text-gray-400">Registro de proveedores del Estado</p>
+                        </div>
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Años de experiencia</label>
-                        <input type="number" min="0" className="input text-sm w-full" placeholder="5"
-                          value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
+
+                    {/* Datos complementarios */}
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Datos complementarios</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Años de experiencia</label>
+                          <input type="number" min="0" className="input text-sm w-full" placeholder="5"
+                            value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Sitio web</label>
+                          <input className="input text-xs w-full" placeholder="www.empresa.cl"
+                            value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
+                        </div>
                       </div>
-                      <div className="flex items-end pb-1">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.inscrito_chile_proveedores}
-                            onChange={e => setForm(f => ({ ...f, inscrito_chile_proveedores: e.target.checked }))}
-                            className="rounded border-gray-300 text-indigo-600 w-4 h-4" />
-                          <span className="text-xs text-gray-700 font-medium">Inscrito en ChileProveedores</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Dirección</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Dirección</label>
                         <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
                           value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Sitio web</label>
-                        <input className="input text-xs w-full" placeholder="www.empresa.cl"
-                          value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
                       </div>
                     </div>
                   </>)}
@@ -908,33 +945,41 @@ export default function PerfilIAPage() {
 
                   {/* ── CONTACTO ── */}
                   {sec.key === 'contacto' && (<>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del firmante <span className="text-red-400">*</span></label>
-                        <input className="input text-xs w-full" placeholder="Juan Pérez"
-                          value={form.nombre_contacto} onChange={e => setForm(f => ({ ...f, nombre_contacto: e.target.value }))} />
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Firmante — aparece en todos los documentos</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nombre completo <span className="text-red-400">*</span></label>
+                          <input className="input text-xs w-full" placeholder="Juan Pérez"
+                            value={form.nombre_contacto} onChange={e => setForm(f => ({ ...f, nombre_contacto: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Cargo</label>
+                          <input className="input text-xs w-full" placeholder="Gerente General"
+                            value={form.cargo_contacto} onChange={e => setForm(f => ({ ...f, cargo_contacto: e.target.value }))} />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Cargo</label>
-                        <input className="input text-xs w-full" placeholder="Gerente General"
-                          value={form.cargo_contacto} onChange={e => setForm(f => ({ ...f, cargo_contacto: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input className="input text-xs w-full" placeholder="+56 9 1234 5678"
-                          value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
-                        <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
-                          value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Teléfono</label>
+                          <input className="input text-xs w-full" placeholder="+56 9 1234 5678"
+                            value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Correo</label>
+                          <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
+                            value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Email para alertas de licitaciones</label>
-                      <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
-                        value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
-                      <p className="text-[10px] text-gray-400 mt-1">Recibirás avisos de nuevas licitaciones que coincidan con tus rubros</p>
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Alertas</p>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Email para alertas de licitaciones</label>
+                        <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
+                          value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
+                        <p className="text-[10px] text-gray-400 mt-1">Te avisamos cuando aparezcan licitaciones que coincidan con tus rubros</p>
+                      </div>
                     </div>
                   </>)}
 
@@ -942,98 +987,90 @@ export default function PerfilIAPage() {
                   {sec.key === 'documentos' && (<>
 
                     {/* ── Auto-rellenar perfil desde PDF ── */}
-                    <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/50 p-4 mb-4">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                          <Sparkles size={16} className="text-indigo-600" />
+                    {!camposSugeridosPDF ? (
+                      <label className={clsx(
+                        'flex items-center gap-3 px-4 py-3 rounded-xl border mb-4 cursor-pointer transition-all',
+                        analizandoPDF
+                          ? 'bg-emerald-50 border-emerald-200 cursor-not-allowed'
+                          : 'bg-emerald-50 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100'
+                      )}>
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                          {analizandoPDF ? <Loader2 size={14} className="text-white animate-spin" /> : <Sparkles size={14} className="text-white" />}
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-indigo-900">Sube tu contenido y te ayudamos</p>
-                          <p className="text-xs text-indigo-600 mt-0.5">Sube un brochure, presentación o carpeta de servicios — la IA extrae automáticamente tu perfil completo.</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-emerald-900">{analizandoPDF ? 'Analizando con IA…' : 'Rellenar perfil desde PDF'}</p>
+                          <p className="text-[10px] text-emerald-600">Sube tu brochure o presentación — la IA completa el formulario</p>
                         </div>
+                        {!analizandoPDF && <Upload size={13} className="text-emerald-500 shrink-0" />}
+                        <input type="file" accept=".pdf" className="hidden" disabled={analizandoPDF}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            if (file.size > 5 * 1024 * 1024) { toast.error('El archivo supera el límite de 5 MB'); return }
+                            setAnalizandoPDF(true)
+                            try {
+                              const fd = new FormData()
+                              fd.append('archivo', file)
+                              const res = await api.post('/modules/licitaciones/analizar-empresa-pdf', fd, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
+                              })
+                              setCamposSugeridosPDF(res.data.campos)
+                              setNombreArchivoPDF(res.data.nombre_archivo)
+                            } catch (err: any) {
+                              toast.error(err.response?.data?.detail || 'Error al analizar el PDF')
+                            } finally {
+                              setAnalizandoPDF(false)
+                              e.target.value = ''
+                            }
+                          }} />
+                      </label>
+                    ) : (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 mb-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 size={13} className="text-emerald-500" />
+                            <p className="text-xs font-semibold text-emerald-900">IA extrajo de {nombreArchivoPDF}</p>
+                          </div>
+                          <button type="button" onClick={() => { setCamposSugeridosPDF(null); setNombreArchivoPDF(null) }}
+                            className="text-[10px] text-gray-400 hover:text-gray-600">descartar</button>
+                        </div>
+                        <div className="space-y-1 max-h-36 overflow-y-auto">
+                          {Object.entries(camposSugeridosPDF).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).map(([key, val]) => (
+                            <div key={key} className="flex items-start gap-2 text-[11px]">
+                              <span className="text-gray-400 shrink-0 w-24 truncate capitalize">{key.replace(/_/g, ' ')}</span>
+                              <span className="text-gray-800 font-medium line-clamp-1">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button"
+                          onClick={() => {
+                            const c = camposSugeridosPDF
+                            setForm(f => ({
+                              ...f,
+                              ...(c.razon_social && { razon_social: c.razon_social }),
+                              ...(c.rut_empresa && { rut_empresa: c.rut_empresa }),
+                              ...(c.descripcion && { descripcion: c.descripcion }),
+                              ...(c.rubros?.length && { rubros: c.rubros }),
+                              ...(c.regiones?.length && { regiones: c.regiones }),
+                              ...(c.experiencia_anos && { experiencia_anos: String(c.experiencia_anos) }),
+                              ...(c.proyectos_anteriores && { proyectos_anteriores: c.proyectos_anteriores }),
+                              ...(c.certificaciones && { certificaciones: c.certificaciones }),
+                              ...(c.diferenciadores && { diferenciadores: c.diferenciadores }),
+                              ...(c.nombre_contacto && { nombre_contacto: c.nombre_contacto }),
+                              ...(c.cargo_contacto && { cargo_contacto: c.cargo_contacto }),
+                              ...(c.correo && { correo: c.correo }),
+                              ...(c.telefono && { telefono: c.telefono }),
+                              ...(c.sitio_web && { sitio_web: c.sitio_web }),
+                              ...(c.direccion && { direccion: c.direccion }),
+                            }))
+                            setCamposSugeridosPDF(null)
+                            toast.success('Perfil pre-rellenado. Revisa y guarda.')
+                          }}
+                          className="w-full py-2 rounded-lg text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                          Aplicar al perfil
+                        </button>
                       </div>
-
-                      {!camposSugeridosPDF ? (
-                        <label className={clsx('flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors',
-                          analizandoPDF
-                            ? 'bg-indigo-200 text-indigo-500 cursor-not-allowed'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700')}>
-                          {analizandoPDF
-                            ? <><Loader2 size={13} className="animate-spin" /> Analizando con IA…</>
-                            : <><Upload size={13} /> Subir PDF de tu empresa</>}
-                          <input type="file" accept=".pdf" className="hidden" disabled={analizandoPDF}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0]
-                              if (!file) return
-                              if (file.size > 5 * 1024 * 1024) { toast.error('El archivo supera el límite de 5 MB'); return }
-                              setAnalizandoPDF(true)
-                              try {
-                                const fd = new FormData()
-                                fd.append('archivo', file)
-                                const res = await api.post('/modules/licitaciones/analizar-empresa-pdf', fd, {
-                                  headers: { 'Content-Type': 'multipart/form-data' }
-                                })
-                                setCamposSugeridosPDF(res.data.campos)
-                                setNombreArchivoPDF(res.data.nombre_archivo)
-                              } catch (err: any) {
-                                toast.error(err.response?.data?.detail || 'Error al analizar el PDF')
-                              } finally {
-                                setAnalizandoPDF(false)
-                                e.target.value = ''
-                              }
-                            }} />
-                        </label>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                            <p className="text-xs font-semibold text-gray-800">La IA encontró esto en <span className="text-indigo-600">{nombreArchivoPDF}</span></p>
-                          </div>
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                            {Object.entries(camposSugeridosPDF).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).map(([key, val]) => (
-                              <div key={key} className="flex items-start gap-2 text-xs">
-                                <span className="text-gray-400 shrink-0 w-28 truncate capitalize">{key.replace(/_/g, ' ')}</span>
-                                <span className="text-gray-800 font-medium line-clamp-2">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex gap-2 pt-1">
-                            <button type="button"
-                              onClick={() => {
-                                const c = camposSugeridosPDF
-                                setForm(f => ({
-                                  ...f,
-                                  ...(c.razon_social && { razon_social: c.razon_social }),
-                                  ...(c.rut_empresa && { rut_empresa: c.rut_empresa }),
-                                  ...(c.descripcion && { descripcion: c.descripcion }),
-                                  ...(c.rubros?.length && { rubros: c.rubros }),
-                                  ...(c.regiones?.length && { regiones: c.regiones }),
-                                  ...(c.experiencia_anos && { experiencia_anos: String(c.experiencia_anos) }),
-                                  ...(c.proyectos_anteriores && { proyectos_anteriores: c.proyectos_anteriores }),
-                                  ...(c.certificaciones && { certificaciones: c.certificaciones }),
-                                  ...(c.diferenciadores && { diferenciadores: c.diferenciadores }),
-                                  ...(c.nombre_contacto && { nombre_contacto: c.nombre_contacto }),
-                                  ...(c.cargo_contacto && { cargo_contacto: c.cargo_contacto }),
-                                  ...(c.correo && { correo: c.correo }),
-                                  ...(c.telefono && { telefono: c.telefono }),
-                                  ...(c.sitio_web && { sitio_web: c.sitio_web }),
-                                  ...(c.direccion && { direccion: c.direccion }),
-                                }))
-                                setCamposSugeridosPDF(null)
-                                toast.success('Perfil pre-rellenado. Revisa y guarda.')
-                              }}
-                              className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
-                              Aprobar y aplicar al perfil
-                            </button>
-                            <button type="button"
-                              onClick={() => { setCamposSugeridosPDF(null); setNombreArchivoPDF(null) }}
-                              className="px-3 py-2 rounded-xl text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">
-                              Descartar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    )}
 
                     <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 mb-4">
                       <strong>¿Para qué sirven?</strong> Se adjuntan al generar propuestas con IA. El CV de empresa es obligatorio en la mayoría de licitaciones públicas.
@@ -1116,7 +1153,7 @@ export default function PerfilIAPage() {
                     </div>
                   </>)}
 
-                </div>
+                </div>}
               </section>
             )
           })}

@@ -1916,72 +1916,89 @@ export default function LicitacionesPage() {
                   {/* ── TAB: Análisis de fit ── */}
                   {analisisTab === 'analisis' && (
                     <div className="space-y-4">
+
+                      {/* Decisión principal — grande y clara */}
                       <div className={clsx(
-                        'rounded-xl p-4 flex items-center gap-4',
-                        analisisData.nivel === 'alto' ? 'bg-emerald-50 border border-emerald-200' :
-                        analisisData.nivel === 'medio' ? 'bg-amber-50 border border-amber-200' :
-                        'bg-red-50 border border-red-200'
+                        'rounded-2xl p-5 text-center border-2',
+                        analisisData.nivel === 'alto' ? 'bg-emerald-50 border-emerald-300' :
+                        analisisData.nivel === 'medio' ? 'bg-amber-50 border-amber-300' :
+                        'bg-red-50 border-red-300'
                       )}>
-                        <div className={clsx('text-3xl font-black',
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">¿Conviene postular?</p>
+                        <p className={clsx('text-2xl font-black mb-2',
                           analisisData.nivel === 'alto' ? 'text-emerald-600' :
                           analisisData.nivel === 'medio' ? 'text-amber-600' : 'text-red-500'
                         )}>
-                          {analisisData.score}<span className="text-sm font-normal">/100</span>
-                        </div>
-                        <div>
-                          <p className={clsx('text-xs font-bold uppercase tracking-wide',
-                            analisisData.nivel === 'alto' ? 'text-emerald-600' :
-                            analisisData.nivel === 'medio' ? 'text-amber-600' : 'text-red-500'
-                          )}>
-                            Fit {analisisData.nivel === 'alto' ? 'Alto ✓' : analisisData.nivel === 'medio' ? 'Medio ⚠' : 'Bajo ✗'}
-                          </p>
-                          <p className="text-xs text-gray-600 mt-0.5">{analisisData.resumen}</p>
-                        </div>
+                          {analisisData.nivel === 'alto' ? '✅ Sí, postula' :
+                           analisisData.nivel === 'medio' ? '⚠️ Puedes intentarlo' : '❌ Difícil de ganar'}
+                        </p>
+                        <p className="text-sm text-gray-600 leading-snug">{analisisData.resumen}</p>
+                        <span className={clsx(
+                          'inline-block mt-3 text-xs font-bold px-3 py-1 rounded-full',
+                          analisisData.nivel === 'alto' ? 'bg-emerald-200 text-emerald-800' :
+                          analisisData.nivel === 'medio' ? 'bg-amber-200 text-amber-800' : 'bg-red-200 text-red-800'
+                        )}>
+                          {analisisData.score}/100 pts de compatibilidad
+                        </span>
                       </div>
 
+                      {/* Fuente */}
                       {analisisData.documentos_analizados?.length > 0 ? (
                         <p className="text-[11px] text-gray-400 flex items-center gap-1">
-                          <FileText size={10} /> Bases analizadas: {analisisData.documentos_analizados.join(' · ')}
+                          <FileText size={10} /> Basado en: {analisisData.documentos_analizados.join(' · ')}
                         </p>
                       ) : (
                         <p className="text-[11px] text-amber-500 flex items-center gap-1">
-                          <AlertTriangle size={10} /> No se encontraron bases técnicas. Análisis basado en rubro.
+                          <AlertTriangle size={10} /> Sin bases técnicas — análisis basado en rubro
                         </p>
                       )}
 
+                      {/* Alertas — qué considerar al postular */}
+                      {analisisData.alertas?.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-gray-700">Considera esto al postular:</p>
+                          {analisisData.alertas.map((a: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                              <span className="text-amber-400 shrink-0 mt-0.5">•</span>
+                              <p className="text-xs text-amber-800">{a}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Detalle técnico — colapsado */}
                       {analisisData.requisitos?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-700 mb-2">Requisitos evaluados</p>
-                          <div className="space-y-1.5">
+                        <details className="group">
+                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 list-none flex items-center gap-1 select-none">
+                            <ChevronDown size={12} className="group-open:rotate-180 transition-transform" />
+                            Ver detalle de requisitos ({analisisData.requisitos.length})
+                          </summary>
+                          <div className="mt-2 space-y-1.5 pl-1">
                             {analisisData.requisitos.map((req: any, i: number) => (
                               <div key={i} className="flex items-start gap-2 text-xs">
-                                {req.cumple === true ? <CheckCircle size={13} className="text-emerald-500 shrink-0 mt-0.5" />
-                                  : req.cumple === false ? <XCircle size={13} className="text-red-400 shrink-0 mt-0.5" />
-                                  : <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />}
+                                {req.cumple === true ? <CheckCircle size={12} className="text-emerald-500 shrink-0 mt-0.5" />
+                                  : req.cumple === false ? <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+                                  : <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />}
                                 <div>
                                   <span className={clsx('font-medium',
-                                    req.cumple === true ? 'text-gray-800' : req.cumple === false ? 'text-red-700' : 'text-amber-700'
+                                    req.cumple === true ? 'text-gray-700' : req.cumple === false ? 'text-red-700' : 'text-amber-700'
                                   )}>{req.item}</span>
                                   {req.observacion && <span className="text-gray-400 ml-1">— {req.observacion}</span>}
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </div>
+                        </details>
                       )}
 
-                      {analisisData.alertas?.length > 0 && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
-                          <p className="text-xs font-semibold text-amber-700 flex items-center gap-1"><AlertTriangle size={12} /> Alertas</p>
-                          {analisisData.alertas.map((a: string, i: number) => (
-                            <p key={i} className="text-xs text-amber-700">• {a}</p>
-                          ))}
-                        </div>
-                      )}
-
+                      {/* CTAs */}
+                      <button onClick={() => setAnalisisTab('docs')}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700">
+                        <FileText size={14} /> Ver documentos necesarios →
+                      </button>
                       <button onClick={() => setAnalisisTab('propuesta')}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
-                        <FileSignature size={14} /> Ver propuesta técnica →
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 text-gray-500 text-xs hover:bg-gray-50">
+                        <FileSignature size={12} /> Ver propuesta técnica generada
                       </button>
                     </div>
                   )}

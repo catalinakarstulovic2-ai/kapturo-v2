@@ -112,7 +112,7 @@ PROSPECTO:
 Responde SOLO en este formato JSON:
 {{"score": <número 0-100>, "razon": "<1-2 oraciones explicando el score>"}}"""
 
-        response = self._call_claude(prompt, model="claude-3-5-haiku-20241022", max_tokens=300)
+        response = self._call_claude(prompt, model="claude-haiku-4-5-20251001", max_tokens=300)
 
         try:
             start = response.find("{")

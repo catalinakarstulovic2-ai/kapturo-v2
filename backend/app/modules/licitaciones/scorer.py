@@ -32,7 +32,7 @@ class LicitacionesScorer:
         # anthropic.create() es síncrono — lo corremos en thread para no bloquear async
         def _llamar_claude():
             return self.client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=300,
                 messages=[{"role": "user", "content": prompt}],
             )

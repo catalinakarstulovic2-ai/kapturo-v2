@@ -452,7 +452,7 @@ Devuelve SOLO el mensaje de WhatsApp, sin explicaciones."""
 
         ai_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         message = ai_client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5-20251001",
             max_tokens=200,
             messages=[{"role": "user", "content": prompt}],
         )
