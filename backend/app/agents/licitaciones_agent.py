@@ -476,7 +476,16 @@ Solo el documento, sin explicaciones.""",
         # 4. Sonnet analiza fit empresa vs licitación con secciones estructuradas
         analisis = await asyncio.to_thread(self._analizar_con_claude, prospect, perfil, secciones, tiene_documentos)
 
-        # 5. Sonnet redacta propuesta calibrada a los criterios reales de evaluación
+        # 5. Persistir score real en el Prospect
+        nuevo_score = analisis.get("score", 0)
+        nuevo_resumen = analisis.get("resumen", "")
+        if nuevo_score and nuevo_score != prospect.score:
+            prospect.score = float(nuevo_score)
+            prospect.score_reason = nuevo_resumen
+            prospect.is_qualified = nuevo_score >= 60
+            self.db.commit()
+
+        # 6. Sonnet redacta propuesta calibrada a los criterios reales de evaluación
         propuesta = await asyncio.to_thread(self._redactar_propuesta, prospect, perfil, secciones)
 
         return {

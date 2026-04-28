@@ -109,11 +109,16 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
             if m.niche_config:
                 mod_dict.update(m.niche_config)
             modules.append(mod_dict)
+    tenant_name: str | None = None
+    if current_user.tenant_id:
+        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+        tenant_name = tenant.name if tenant else None
     return {
         "id": current_user.id,
         "email": current_user.email,
         "full_name": current_user.full_name,
         "role": current_user.role,
         "tenant_id": current_user.tenant_id,
+        "tenant_name": tenant_name,
         "modules": modules,
     }

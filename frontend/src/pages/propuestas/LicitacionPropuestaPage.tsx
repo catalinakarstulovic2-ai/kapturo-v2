@@ -127,6 +127,7 @@ interface PostulacionItem {
   licitacion_organismo?: string
   licitacion_codigo?: string
   licitacion_monto?: number
+  licitacion_fecha_cierre?: string
   postulacion_estado?: string
   score?: number | null
   documentos_ia?: Array<{ tipo: string; label: string; texto: string; created_at: string }>
@@ -176,27 +177,27 @@ const CAMPOS_A_PERFIL: Array<{ patron: RegExp; perfilKey: string; perfilLabel: s
   { patron: /certificaci[oó]n/i,                                       perfilKey: 'certificaciones',      perfilLabel: 'Certificaciones' },
 ]
 
-const STEPS = ['Documento', 'Licitación', 'Generar']
+const STEPS = ['Licitación', 'Documento', 'Generar']
 
 const TAB_ACTIVE: Record<string, string> = {
-  violet: 'border-violet-500 text-violet-700 bg-violet-50',
+  violet: 'border-kap-500 text-kap-700 bg-kap-50',
   emerald: 'border-emerald-500 text-emerald-700 bg-emerald-50',
   blue: 'border-blue-500 text-blue-700 bg-blue-50',
 }
-const TAB_INACTIVE = 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+const TAB_INACTIVE = 'border-transparent text-ink-5 hover:text-ink-7 hover:bg-ink-1'
 
 const CARD_SELECTED: Record<string, string> = {
-  violet: 'border-violet-500 bg-violet-50 shadow-sm',
+  violet: 'border-kap-500 bg-kap-50 shadow-sm',
   emerald: 'border-emerald-500 bg-emerald-50 shadow-sm',
   blue: 'border-blue-500 bg-blue-50 shadow-sm',
 }
 const ICON_SELECTED: Record<string, string> = {
-  violet: 'text-violet-600 bg-violet-100',
+  violet: 'text-kap-600 bg-kap-100',
   emerald: 'text-emerald-600 bg-emerald-100',
   blue: 'text-blue-600 bg-blue-100',
 }
 const CHECK_COLOR: Record<string, string> = {
-  violet: 'text-violet-500',
+  violet: 'text-kap-500',
   emerald: 'text-emerald-500',
   blue: 'text-blue-500',
 }
@@ -331,13 +332,13 @@ export default function LicitacionPropuestaPage() {
   }
 
   const puedeAvanzar = () => {
-    if (step === 0) return !!tipo
-    if (step === 1) {
+    if (step === 0) {
       if (!selectedPostulacion) return false
       const score = selectedPostulacion.score
       if (score == null || score === 0 || score < 50) return false
       return true
     }
+    if (step === 1) return !!tipo
     return true
   }
 
@@ -458,12 +459,12 @@ export default function LicitacionPropuestaPage() {
     else toast.error(`${errores.size} documento${errores.size !== 1 ? 's' : ''} fallaron`)
   }
 
-  // ── Paso 0: Selección con tabs ─────────────────────────────────────────
+  // ── Paso 1 (nuevo): Selección de tipo de documento ────────────────────
   const renderTipo = () => {
     const currentTab = TABS[activeTab]
     return (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">Selecciona el tipo de documento que necesitas generar.</p>
+        <p className="text-sm text-ink-5">Selecciona el tipo de documento que necesitas generar.</p>
         <div className="grid grid-cols-3 gap-2">
           {TABS.map((tab, i) => {
             const doneInTab = tab.items.filter(item => docStatuses[item.id]?.state === 'done').length
@@ -473,31 +474,31 @@ export default function LicitacionPropuestaPage() {
                 className={clsx(
                   'flex flex-col items-center gap-1 p-3.5 rounded-xl border-2 transition-all text-center',
                   activeTab === i
-                    ? tab.color === 'violet' ? 'border-violet-500 bg-violet-50' : tab.color === 'emerald' ? 'border-emerald-500 bg-emerald-50' : 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? tab.color === 'violet' ? 'border-kap-500 bg-kap-50' : tab.color === 'emerald' ? 'border-emerald-500 bg-emerald-50' : 'border-blue-500 bg-blue-50'
+                    : 'border-ink-3 hover:border-ink-4 hover:bg-ink-1'
                 )}
               >
                 <div className={clsx('w-9 h-9 rounded-xl flex items-center justify-center',
                   activeTab === i
-                    ? tab.color === 'violet' ? 'bg-violet-100' : tab.color === 'emerald' ? 'bg-emerald-100' : 'bg-blue-100'
-                    : 'bg-gray-100'
+                    ? tab.color === 'violet' ? 'bg-kap-100' : tab.color === 'emerald' ? 'bg-emerald-100' : 'bg-blue-100'
+                    : 'bg-ink-2'
                 )}>
                   <TabIcon size={16} className={activeTab === i
-                    ? tab.color === 'violet' ? 'text-violet-600' : tab.color === 'emerald' ? 'text-emerald-600' : 'text-blue-600'
-                    : 'text-gray-400'} />
+                    ? tab.color === 'violet' ? 'text-kap-600' : tab.color === 'emerald' ? 'text-emerald-600' : 'text-blue-600'
+                    : 'text-ink-4'} />
                 </div>
                 <div>
                   <p className={clsx('text-sm font-bold leading-tight',
                     activeTab === i
-                      ? tab.color === 'violet' ? 'text-violet-700' : tab.color === 'emerald' ? 'text-emerald-700' : 'text-blue-700'
-                      : 'text-gray-700'
+                      ? tab.color === 'violet' ? 'text-kap-700' : tab.color === 'emerald' ? 'text-emerald-700' : 'text-blue-700'
+                      : 'text-ink-7'
                   )}>{tab.label}</p>
                   <p className={clsx('text-[11px] font-medium',
                     activeTab === i
-                      ? tab.color === 'violet' ? 'text-violet-500' : tab.color === 'emerald' ? 'text-emerald-500' : 'text-blue-500'
-                      : 'text-gray-400'
+                      ? tab.color === 'violet' ? 'text-kap-500' : tab.color === 'emerald' ? 'text-emerald-500' : 'text-blue-500'
+                      : 'text-ink-4'
                   )}>{tab.sublabel}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{tab.items.length} documento{tab.items.length !== 1 ? 's' : ''}</p>
+                  <p className="text-[10px] text-ink-4 mt-0.5">{tab.items.length} documento{tab.items.length !== 1 ? 's' : ''}</p>
                 </div>
                 {doneInTab > 0 && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
@@ -516,21 +517,21 @@ export default function LicitacionPropuestaPage() {
             return (
               <button key={t.id} onClick={() => setTipo(t.id)}
                 className={clsx('w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all',
-                  sel ? CARD_SELECTED[currentTab.color] : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50')}
+                  sel ? CARD_SELECTED[currentTab.color] : 'border-ink-3 hover:border-ink-4 hover:bg-ink-1')}
               >
                 <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors',
-                  sel ? ICON_SELECTED[currentTab.color] : 'bg-gray-100 text-gray-400')}>
+                  sel ? ICON_SELECTED[currentTab.color] : 'bg-ink-2 text-ink-4')}>
                   <Icon size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-semibold text-sm text-gray-900">{t.label}</p>
-                    {t.badge && <span className="text-[10px] bg-violet-600 text-white px-2 py-0.5 rounded-full font-semibold tracking-wide">{t.badge}</span>}
+                    <p className="font-semibold text-sm text-ink-9">{t.label}</p>
+                    {t.badge && <span className="text-[10px] bg-kap-600 text-white px-2 py-0.5 rounded-full font-semibold tracking-wide">{t.badge}</span>}
                     {/* Status badge */}
                     {status?.state === 'done' && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><CheckCircle2 size={9} /> Generado</span>}
                     {status?.state === 'fields' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><AlertTriangle size={9} /> Campos por completar</span>}
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">{t.desc}</p>
+                  <p className="text-xs text-ink-5 leading-relaxed">{t.desc}</p>
                 </div>
                 {sel && <CheckCircle2 size={18} className={clsx('shrink-0 mt-1', CHECK_COLOR[currentTab.color])} />}
               </button>
@@ -538,81 +539,134 @@ export default function LicitacionPropuestaPage() {
           })}
         </div>
         {tipo && (
-          <div className="flex items-center gap-2 text-xs text-gray-500 pt-1 border-t border-gray-100">
+          <div className="flex items-center gap-2 text-xs text-ink-5 pt-1 border-t border-ink-2">
             <CheckCircle2 size={13} className="text-emerald-500" />
-            <span>Seleccionado: <strong className="text-gray-700">{TODOS_TIPOS.find(t => t.id === tipo)?.label}</strong></span>
+            <span>Seleccionado: <strong className="text-ink-7">{TODOS_TIPOS.find(t => t.id === tipo)?.label}</strong></span>
           </div>
         )}
       </div>
     )
   }
 
-  // ── Paso 1: Licitación ─────────────────────────────────────────────────
-  const renderLicitacion = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500">¿Para qué licitación quieres generar el documento?</p>
-      {loadingPostulaciones ? (
-        <div className="flex items-center justify-center py-12 text-gray-400">
-          <Loader2 size={20} className="animate-spin mr-2" /> Cargando postulaciones...
-        </div>
-      ) : postulaciones.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-700">
-          No tienes licitaciones guardadas. Ve a <strong>Licitaciones</strong> y guarda alguna primero.
-        </div>
-      ) : (
-        <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-          {postulaciones.map(p => {
-            const sel = selectedPostulacion?.id === p.id
-            const docsCount = p.documentos_ia?.length ?? 0
-            return (
-              <button key={p.id} onClick={() => setSelectedPostulacion(p)}
-                className={clsx('w-full text-left p-4 rounded-xl border-2 transition-all',
-                  sel ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50')}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-                    sel ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-400')}>
-                    <FileText size={15} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm font-semibold truncate mb-1', sel ? 'text-violet-900' : 'text-gray-900')}>
-                      {p.licitacion_nombre ?? p.licitacion_codigo ?? p.id}
-                    </p>
-                    {p.licitacion_organismo && <p className="text-xs text-gray-500 truncate">{p.licitacion_organismo}</p>}
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      {p.licitacion_codigo && <span className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{p.licitacion_codigo}</span>}
-                      {p.licitacion_monto && <span className="text-[11px] font-semibold text-gray-600">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(p.licitacion_monto)}</span>}
-                      {p.postulacion_estado && <span className="text-[11px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium capitalize">{p.postulacion_estado.replace(/_/g, ' ')}</span>}
-                      {p.score != null && p.score > 0
-                        ? <span className={clsx('text-[11px] px-2 py-0.5 rounded-full font-bold', p.score >= 75 ? 'bg-emerald-100 text-emerald-700' : p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600')}>{p.score} pts</span>
-                        : <span className="text-[11px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Sin analizar</span>}
-                      {docsCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{docsCount} doc{docsCount > 1 ? 's' : ''}</span>}
-                    </div>
-                  </div>
-                  {sel && <CheckCircle2 size={18} className="text-violet-500 shrink-0 mt-1" />}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-      {selectedPostulacion && (selectedPostulacion.score == null || selectedPostulacion.score === 0 || selectedPostulacion.score < 50) && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
-          <span className="text-red-500 shrink-0">⛔</span>
-          <div>
-            <p className="text-xs font-bold text-red-700">
-              {selectedPostulacion.score == null || selectedPostulacion.score === 0
-                ? 'Esta licitación no ha sido analizada con IA'
-                : `Score insuficiente: ${selectedPostulacion.score}/100`}
-            </p>
-            <p className="text-[11px] text-red-600 mt-0.5">
-              Ve a <strong>Mis postulaciones</strong> y haz clic en "Analizar" para obtener un score antes de generar documentos.
-            </p>
+  // ── Paso 0 (nuevo): Selección de licitación ───────────────────────────
+  const renderLicitacion = () => {
+    const hoy = Date.now()
+    const diasAlCierre = (fecha?: string) => {
+      if (!fecha) return null
+      return Math.ceil((new Date(fecha).getTime() - hoy) / 86_400_000)
+    }
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-ink-5">¿Para qué licitación quieres generar documentos?</p>
+        {loadingPostulaciones ? (
+          <div className="flex items-center justify-center py-12 text-ink-4">
+            <Loader2 size={20} className="animate-spin mr-2" /> Cargando postulaciones...
           </div>
-        </div>
-      )}
-    </div>
-  )
+        ) : postulaciones.length === 0 ? (
+          <div className="bg-warn-light border border-warn-border rounded-xl p-5 text-sm text-warn">
+            No tienes licitaciones guardadas. Ve a{' '}
+            <button onClick={() => navigate('/licitaciones')} className="font-bold underline">Buscar licitaciones</button>{' '}
+            y guarda alguna primero.
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+            {[...postulaciones].sort((a, b) => {
+              // Primero las que tienen score >= 50, luego por días al cierre
+              const aOk = (a.score ?? 0) >= 50 ? 0 : 1
+              const bOk = (b.score ?? 0) >= 50 ? 0 : 1
+              if (aOk !== bOk) return aOk - bOk
+              return (diasAlCierre(a.licitacion_fecha_cierre) ?? 999) - (diasAlCierre(b.licitacion_fecha_cierre) ?? 999)
+            }).map(p => {
+              const sel = selectedPostulacion?.id === p.id
+              const scoreOk = p.score != null && p.score >= 50
+              const sinAnalizar = p.score == null || p.score === 0
+              const dias = diasAlCierre(p.licitacion_fecha_cierre)
+              const docsCount = p.documentos_ia?.length ?? 0
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => scoreOk ? setSelectedPostulacion(p) : undefined}
+                  disabled={!scoreOk}
+                  className={clsx(
+                    'w-full text-left p-3.5 rounded-xl border-2 transition-all',
+                    sel
+                      ? 'border-kap-500 bg-kap-50 shadow-sm'
+                      : scoreOk
+                        ? 'border-ink-3 hover:border-kap-300 hover:bg-ink-1 cursor-pointer'
+                        : 'border-ink-2 bg-ink-1 opacity-60 cursor-not-allowed'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+                      sel ? 'bg-kap-100 text-kap-600' : scoreOk ? 'bg-ink-2 text-ink-5' : 'bg-ink-2 text-ink-4')}>
+                      <FileText size={15} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={clsx('text-sm font-semibold truncate', sel ? 'text-kap-900' : 'text-ink-9')}>
+                        {p.licitacion_nombre ?? p.licitacion_codigo ?? p.id}
+                      </p>
+                      {p.licitacion_organismo && (
+                        <p className="text-xs text-ink-5 truncate mt-0.5">{p.licitacion_organismo}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {/* Score */}
+                        {sinAnalizar
+                          ? <span className="text-[10px] bg-ink-2 text-ink-4 px-2 py-0.5 rounded-full">Sin analizar</span>
+                          : <span className={clsx('text-[10px] px-2 py-0.5 rounded-full font-bold',
+                              p.score! >= 75 ? 'bg-ok-light text-ok' : p.score! >= 50 ? 'bg-warn-light text-warn' : 'bg-bad-light text-bad'
+                            )}>{p.score!.toFixed(0)} pts</span>
+                        }
+                        {/* Días al cierre */}
+                        {dias !== null && (
+                          <span className={clsx('text-[10px] px-2 py-0.5 rounded-full font-medium',
+                            dias <= 2 ? 'bg-bad-light text-bad' : dias <= 7 ? 'bg-warn-light text-warn' : 'bg-ink-2 text-ink-5'
+                          )}>
+                            {dias <= 0 ? 'Cerró' : `${dias}d`}
+                          </span>
+                        )}
+                        {/* Monto */}
+                        {p.licitacion_monto != null && (
+                          <span className="text-[10px] font-mono text-ink-5">
+                            {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(p.licitacion_monto)}
+                          </span>
+                        )}
+                        {/* Docs generados */}
+                        {docsCount > 0 && (
+                          <span className="text-[10px] bg-ok-light text-ok px-2 py-0.5 rounded-full font-medium">
+                            {docsCount} doc{docsCount > 1 ? 's' : ''} ✓
+                          </span>
+                        )}
+                        {/* Por qué bloqueada */}
+                        {!scoreOk && !sinAnalizar && (
+                          <span className="text-[10px] text-bad font-medium">Baja probabilidad — analiza primero</span>
+                        )}
+                        {sinAnalizar && (
+                          <span className="text-[10px] text-ink-4 font-medium">Analiza con IA en Mis postulaciones</span>
+                        )}
+                      </div>
+                    </div>
+                    {sel && <CheckCircle2 size={18} className="text-kap-500 shrink-0 mt-1" />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {/* Enlace a Mis postulaciones si hay bloqueadas */}
+        {postulaciones.some(p => !p.score || p.score < 50) && (
+          <p className="text-[11px] text-ink-4 text-center">
+            ¿Licitaciones grises?{' '}
+            <button
+              onClick={() => navigate('/licitaciones/postulaciones')}
+              className="text-kap-600 hover:underline font-medium"
+            >
+              Analízalas en Mis postulaciones →
+            </button>
+          </p>
+        )}
+      </div>
+    )
+  }
 
   // ── Paso 2: Generar ────────────────────────────────────────────────────
   const renderGenerar = () => {
@@ -625,10 +679,10 @@ export default function LicitacionPropuestaPage() {
     return (
       <div className="space-y-4">
         {/* Banner: generar todos vs solo este */}
-        <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-xl px-4 py-2.5">
-          <p className="text-xs font-semibold text-violet-800">✨ ¿Generar todos los documentos de una vez?</p>
+        <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-kap-50 to-kap-100 border border-kap-200 rounded-xl px-4 py-2.5">
+          <p className="text-xs font-semibold text-kap-800">✨ ¿Generar todos los documentos de una vez?</p>
           <button onClick={() => setModoTodos(true)}
-            className="text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+            className="text-xs font-bold text-white bg-kap-600 hover:bg-kap-700 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
             Generar todos →
           </button>
         </div>
@@ -636,14 +690,14 @@ export default function LicitacionPropuestaPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {tipoInfo && currentTab && (
             <span className={clsx('inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full',
-              currentTab.color === 'violet' ? 'bg-violet-100 text-violet-700' :
+              currentTab.color === 'violet' ? 'bg-kap-100 text-kap-700' :
               currentTab.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
             )}>
               <CheckCircle2 size={12} /> {tipoInfo.label}
             </span>
           )}
           {selectedPostulacion?.licitacion_nombre && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 max-w-[260px]">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-ink-2 text-ink-6 max-w-[260px]">
               <FileText size={11} className="shrink-0" />
               <span className="truncate">{selectedPostulacion.licitacion_nombre}</span>
             </span>
@@ -675,18 +729,18 @@ export default function LicitacionPropuestaPage() {
         )}
 
         <div>
-          <label className="text-sm font-medium text-gray-700 mb-2 block">Instrucciones adicionales <span className="text-gray-400 font-normal">(opcional)</span></label>
+          <label className="text-sm font-medium text-ink-7 mb-2 block">Instrucciones adicionales <span className="text-ink-4 font-normal">(opcional)</span></label>
           <textarea className="input resize-none text-sm" rows={4}
             placeholder="Ej: Resaltar experiencia en proyectos municipales, precio máximo $5.000.000, mencionar socio clave..."
             value={instrucciones} onChange={e => setInstrucciones(e.target.value)} />
-          <p className="text-xs text-gray-400 mt-1.5">La IA usará las bases reales de la licitación + el perfil de tu empresa automáticamente.</p>
+          <p className="text-xs text-ink-4 mt-1.5">La IA usará las bases reales de la licitación + el perfil de tu empresa automáticamente.</p>
         </div>
 
-        <div className="bg-violet-50 border border-violet-100 rounded-xl p-3.5 flex items-center gap-3">
-          <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center shrink-0">
-            <Sparkles size={16} className="text-violet-600" />
+        <div className="bg-kap-50 border border-kap-100 rounded-xl p-3.5 flex items-center gap-3">
+          <div className="w-8 h-8 bg-kap-100 rounded-lg flex items-center justify-center shrink-0">
+            <Sparkles size={16} className="text-kap-600" />
           </div>
-          <p className="text-xs text-violet-700"><strong>20–40 seg.</strong> Claude descarga las bases reales y redacta el documento adaptado a tu empresa.</p>
+          <p className="text-xs text-kap-600"><strong>20–40 seg.</strong> Claude descarga las bases reales y redacta el documento adaptado a tu empresa.</p>
         </div>
       </div>
     )
@@ -706,7 +760,7 @@ export default function LicitacionPropuestaPage() {
           </div>
           {tipoInfo && currentTab && (
             <span className={clsx('text-xs px-2.5 py-1 rounded-full font-medium',
-              currentTab.color === 'violet' ? 'bg-violet-100 text-violet-700' :
+              currentTab.color === 'violet' ? 'bg-kap-100 text-kap-700' :
               currentTab.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
             )}>{tipoInfo.label}</span>
           )}
@@ -741,7 +795,7 @@ export default function LicitacionPropuestaPage() {
                     <p className="text-xs font-semibold text-amber-800">📋 Datos de tu empresa — {hayVaciosEnPerfil ? 'completa el perfil para auto-rellenar' : 'ya están en el perfil ✓'}</p>
                     {hayVaciosEnPerfil && (
                       <button onClick={() => navigate('/licitaciones/perfil')}
-                        className="text-[10px] font-bold text-violet-600 bg-violet-100 hover:bg-violet-200 px-2 py-1 rounded-lg whitespace-nowrap transition-colors">
+                        className="text-[10px] font-bold text-kap-600 bg-kap-100 hover:bg-kap-100 px-2 py-1 rounded-lg whitespace-nowrap transition-colors">
                         Completar perfil →
                       </button>
                     )}
@@ -787,12 +841,12 @@ export default function LicitacionPropuestaPage() {
             </div>
           )
         })()}
-        <div className="relative bg-gray-50 border border-gray-200 rounded-xl p-5 max-h-[280px] overflow-y-auto">
+        <div className="relative bg-ink-1 border border-ink-3 rounded-xl p-5 max-h-[280px] overflow-y-auto">
           {/* Marca de agua en preview */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl">
-            <span className="text-5xl font-black text-indigo-200 opacity-20 rotate-[-35deg] select-none whitespace-nowrap">KAPTURO</span>
+            <span className="text-5xl font-black text-kap-300 opacity-20 rotate-[-35deg] select-none whitespace-nowrap">KAPTURO</span>
           </div>
-          <div className="relative prose prose-sm max-w-none text-gray-700 text-xs leading-relaxed">
+          <div className="relative prose prose-sm max-w-none text-ink-7 text-xs leading-relaxed">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{resultadoConCampos}</ReactMarkdown>
           </div>
         </div>
@@ -801,33 +855,33 @@ export default function LicitacionPropuestaPage() {
             const tipoInfo = TODOS_TIPOS.find(t => t.id === tipo)
             setDocViewer({ texto: resultadoConCampos, titulo: tipoInfo?.label ?? 'Documento' })
           }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-kap-600 text-white hover:bg-kap-700 transition-colors"
         >
           <FileText size={15} /> Ver documento completo
         </button>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={copiar}
             className={clsx('flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
-              copiado ? 'bg-emerald-500 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white')}>
+              copiado ? 'bg-emerald-500 text-white' : 'bg-kap-600 hover:bg-kap-700 text-white')}>
             {copiado ? <><CheckCircle2 size={15} /> Copiado</> : <><Copy size={15} /> Copiar</>}
           </button>
           <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending || guardado}
             className={clsx('flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors',
-              guardado ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700')}>
+              guardado ? 'bg-emerald-100 text-emerald-700' : 'bg-ink-2 hover:bg-ink-2 text-ink-7')}>
             {guardarMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : guardado ? <CheckCircle2 size={15} /> : <Save size={15} />}
             {guardado ? 'Guardado' : 'Guardar documento'}
           </button>
           <button onClick={descargar}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-ink-7 bg-ink-2 hover:bg-ink-2 transition-colors">
             <Download size={15} /> Descargar PDF
           </button>
           <button onClick={reiniciar}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-ink-7 bg-ink-2 hover:bg-ink-2 transition-colors">
             <RotateCcw size={15} /> Nuevo documento
           </button>
         </div>
         <button onClick={() => navigate('/licitaciones?tab=postulaciones')}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-400 hover:text-violet-600 transition-colors">
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-ink-4 hover:text-kap-600 transition-colors">
           <ArrowLeft size={14} /> Volver a Mis postulaciones
         </button>
       </div>
@@ -844,15 +898,15 @@ export default function LicitacionPropuestaPage() {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-800">¿Para cuál licitación?</p>
-            <button onClick={() => setModoTodos(false)} className="text-xs text-gray-400 hover:text-gray-600">← Volver</button>
+            <p className="text-sm font-semibold text-ink-8">¿Para cuál licitación?</p>
+            <button onClick={() => setModoTodos(false)} className="text-xs text-ink-4 hover:text-ink-6">← Volver</button>
           </div>
-          <div className="rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 flex items-center gap-3">
-            <Sparkles size={16} className="text-violet-600 shrink-0" />
-            <p className="text-xs text-violet-800">Selecciona la licitación para la que quieres generar <strong>todos los documentos de una vez</strong>.</p>
+          <div className="rounded-xl bg-kap-50 border border-kap-200 px-4 py-3 flex items-center gap-3">
+            <Sparkles size={16} className="text-kap-600 shrink-0" />
+            <p className="text-xs text-kap-800">Selecciona la licitación para la que quieres generar <strong>todos los documentos de una vez</strong>.</p>
           </div>
           {loadingPostulaciones ? (
-            <div className="flex items-center justify-center py-10 text-gray-400">
+            <div className="flex items-center justify-center py-10 text-ink-4">
               <Loader2 size={20} className="animate-spin mr-2" /> Cargando postulaciones…
             </div>
           ) : postulaciones.length === 0 ? (
@@ -865,22 +919,22 @@ export default function LicitacionPropuestaPage() {
                 const docsCount = p.documentos_ia?.length ?? 0
                 return (
                   <button key={p.id} onClick={() => setSelectedPostulacion(p)}
-                    className="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-violet-400 hover:bg-violet-50 transition-all">
+                    className="w-full text-left p-4 rounded-xl border-2 border-ink-3 hover:border-kap-400 hover:bg-kap-50 transition-all">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0 mt-0.5">
-                        <FileText size={14} className="text-violet-600" />
+                      <div className="w-8 h-8 rounded-lg bg-kap-100 flex items-center justify-center shrink-0 mt-0.5">
+                        <FileText size={14} className="text-kap-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+                        <p className="text-sm font-semibold text-ink-9 line-clamp-2">
                           {p.licitacion_nombre ?? p.licitacion_codigo ?? p.id}
                         </p>
-                        {p.licitacion_organismo && <p className="text-xs text-gray-500 truncate mt-0.5">{p.licitacion_organismo}</p>}
+                        {p.licitacion_organismo && <p className="text-xs text-ink-5 truncate mt-0.5">{p.licitacion_organismo}</p>}
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          {p.licitacion_codigo && <span className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{p.licitacion_codigo}</span>}
+                          {p.licitacion_codigo && <span className="text-[11px] bg-ink-2 text-ink-5 px-2 py-0.5 rounded font-mono">{p.licitacion_codigo}</span>}
                           {docsCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{docsCount} doc{docsCount > 1 ? 's' : ''} generados</span>}
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-gray-300 shrink-0 mt-1" />
+                      <ChevronRight size={16} className="text-ink-4 shrink-0 mt-1" />
                     </div>
                   </button>
                 )
@@ -899,7 +953,7 @@ export default function LicitacionPropuestaPage() {
             <p className="font-bold text-sm">{Object.keys(resultados).length} documentos generados</p>
           </div>
           <button onClick={() => { setModoTodos(false); setTodosProgreso(p => ({ ...p, resultados: {}, errores: new Set() })) }}
-            className="text-xs text-gray-400 hover:text-gray-600">Generar otro →</button>
+            className="text-xs text-ink-4 hover:text-ink-6">Generar otro →</button>
         </div>
         <div className="space-y-2">
           {(Object.entries(resultados) as [TipoDoc, string][]).map(([tipoDoc, texto]) => {
@@ -914,20 +968,20 @@ export default function LicitacionPropuestaPage() {
               return !(perfilEmpresa?.[match.perfilKey] && (!Array.isArray(perfilEmpresa[match.perfilKey]) || perfilEmpresa[match.perfilKey].length > 0))
             })
             return (
-              <div key={tipoDoc} className="border border-gray-200 rounded-xl p-3.5 space-y-2">
+              <div key={tipoDoc} className="border border-ink-3 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                    <p className="text-sm font-semibold text-gray-900">{tipoInfo?.label}</p>
+                    <p className="text-sm font-semibold text-ink-9">{tipoInfo?.label}</p>
                     {campos.length > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">⚠️ {campos.length} campos</span>}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setDocViewer({ texto, titulo: tipoInfo?.label ?? tipoDoc })}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 font-medium">Ver</button>
+                      className="text-xs px-2.5 py-1 rounded-lg bg-kap-50 text-kap-700 hover:bg-kap-100 font-medium">Ver</button>
                     <button onClick={() => descargarPDF(texto, tipoInfo?.label ?? tipoDoc, selectedPostulacion?.licitacion_nombre ?? 'licitacion')}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium"><Download size={11} className="inline -mt-0.5" /> PDF</button>
+                      className="text-xs px-2.5 py-1 rounded-lg bg-ink-2 text-ink-6 hover:bg-ink-2 font-medium"><Download size={11} className="inline -mt-0.5" /> PDF</button>
                     <button onClick={() => { navigator.clipboard.writeText(texto); toast.success('Copiado') }}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium">Copiar</button>
+                      className="text-xs px-2.5 py-1 rounded-lg bg-ink-2 text-ink-6 hover:bg-ink-2 font-medium">Copiar</button>
                   </div>
                 </div>
                 {campos.length > 0 && (
@@ -935,16 +989,16 @@ export default function LicitacionPropuestaPage() {
                     {camposDelPerfil.length > 0 && (
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-semibold text-violet-700">📋 Datos de tu empresa — completa en Perfil IA</p>
+                          <p className="text-[10px] font-semibold text-kap-600">📋 Datos de tu empresa — completa en Perfil IA</p>
                           {hayVaciosEnPerfil && (
                             <button onClick={() => navigate('/licitaciones/perfil')}
-                              className="text-[10px] font-bold text-violet-600 bg-violet-100 hover:bg-violet-200 px-2 py-0.5 rounded-lg whitespace-nowrap transition-colors">
+                              className="text-[10px] font-bold text-kap-600 bg-kap-100 hover:bg-kap-100 px-2 py-0.5 rounded-lg whitespace-nowrap transition-colors">
                               Ir a completar →
                             </button>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {camposDelPerfil.map(c => <span key={c} className="text-[10px] font-mono bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{c.replace(/[\[\]\\]/g, '')}</span>)}
+                          {camposDelPerfil.map(c => <span key={c} className="text-[10px] font-mono bg-kap-50 text-kap-700 px-1.5 py-0.5 rounded border border-kap-200">{c.replace(/[\[\]\\]/g, '')}</span>)}
                         </div>
                       </div>
                     )}
@@ -968,7 +1022,7 @@ export default function LicitacionPropuestaPage() {
           )}
         </div>
         <button onClick={() => navigate('/licitaciones?tab=postulaciones')}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-400 hover:text-violet-600 transition-colors">
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-ink-4 hover:text-kap-600 transition-colors">
           <ArrowLeft size={14} /> Volver a Mis postulaciones
         </button>
       </div>
@@ -979,18 +1033,18 @@ export default function LicitacionPropuestaPage() {
       return (
         <div className="space-y-5 py-3">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto">
-              <Loader2 size={24} className="animate-spin text-violet-600" />
+            <div className="w-12 h-12 bg-kap-100 rounded-2xl flex items-center justify-center mx-auto">
+              <Loader2 size={24} className="animate-spin text-kap-600" />
             </div>
-            <p className="text-sm font-bold text-gray-900">Generando {actual + 1} de {total}</p>
-            <p className="text-xs text-gray-500">{labelActual}</p>
+            <p className="text-sm font-bold text-ink-9">Generando {actual + 1} de {total}</p>
+            <p className="text-xs text-ink-5">{labelActual}</p>
           </div>
           <div>
-            <div className="flex justify-between text-[11px] text-gray-400 mb-1.5">
+            <div className="flex justify-between text-[11px] text-ink-4 mb-1.5">
               <span>{actual} completados</span><span>{pct}%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div className="bg-violet-500 h-2 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+            <div className="w-full bg-ink-2 rounded-full h-2">
+              <div className="bg-kap-100 h-2 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -999,19 +1053,19 @@ export default function LicitacionPropuestaPage() {
               const isDone = !!resultados[tipoDoc]; const isError = errores.has(tipoDoc); const isCurrent = idx === actual
               return (
                 <div key={tipoDoc} className={clsx('flex items-center gap-2 px-3 py-2 rounded-lg text-xs',
-                  isDone ? 'bg-emerald-50' : isError ? 'bg-red-50' : isCurrent ? 'bg-violet-50' : 'bg-gray-50')}>
+                  isDone ? 'bg-emerald-50' : isError ? 'bg-red-50' : isCurrent ? 'bg-kap-100' : 'bg-ink-1')}>
                   {isDone ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                    : isError ? <XCircle size={13} className="text-red-400 shrink-0" />
-                   : isCurrent ? <Loader2 size={13} className="animate-spin text-violet-500 shrink-0" />
-                   : <Circle size={13} className="text-gray-300 shrink-0" />}
-                  <span className={isDone ? 'text-emerald-700' : isError ? 'text-red-600' : isCurrent ? 'text-violet-700 font-semibold' : 'text-gray-400'}>
+                   : isCurrent ? <Loader2 size={13} className="animate-spin text-kap-500 shrink-0" />
+                   : <Circle size={13} className="text-ink-4 shrink-0" />}
+                  <span className={isDone ? 'text-emerald-700' : isError ? 'text-red-600' : isCurrent ? 'text-kap-600 font-semibold' : 'text-ink-4'}>
                     {tipoInfo?.label}
                   </span>
                 </div>
               )
             })}
           </div>
-          <p className="text-[11px] text-center text-gray-400">Cada documento tarda ~30 seg. No cierres esta página.</p>
+          <p className="text-[11px] text-center text-ink-4">Cada documento tarda ~30 seg. No cierres esta página.</p>
           <button
             onClick={() => {
               canceladoRef.current = true
@@ -1052,19 +1106,19 @@ export default function LicitacionPropuestaPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-800">¿Qué documentos generar?</p>
-          <button onClick={() => setModoTodos(false)} className="text-xs text-gray-400 hover:text-gray-600">← Volver</button>
+          <p className="text-sm font-semibold text-ink-8">¿Qué documentos generar?</p>
+          <button onClick={() => setModoTodos(false)} className="text-xs text-ink-4 hover:text-ink-6">← Volver</button>
         </div>
 
         {/* Licitación seleccionada — con opción de cambiar */}
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-violet-50 border border-violet-200 rounded-xl">
-          <FileText size={14} className="text-violet-500 shrink-0" />
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-kap-50 border border-kap-200 rounded-xl">
+          <FileText size={14} className="text-kap-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-wide">Licitación</p>
-            <p className="text-xs font-semibold text-violet-900 truncate">{selectedPostulacion?.licitacion_nombre ?? selectedPostulacion?.licitacion_codigo}</p>
+            <p className="text-[10px] text-kap-600 font-semibold uppercase tracking-wide">Licitación</p>
+            <p className="text-xs font-semibold text-kap-900 truncate">{selectedPostulacion?.licitacion_nombre ?? selectedPostulacion?.licitacion_codigo}</p>
           </div>
           <button type="button" onClick={() => setSelectedPostulacion(null)}
-            className="text-[10px] font-semibold text-violet-500 hover:text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
+            className="text-[10px] font-semibold text-kap-600 hover:text-kap-800 border border-kap-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
             Cambiar
           </button>
         </div>
@@ -1124,9 +1178,9 @@ export default function LicitacionPropuestaPage() {
               {selectedPostulacion
                 ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                 : <XCircle size={13} className="text-red-400 shrink-0" />}
-              <span className={clsx('text-xs', selectedPostulacion ? 'text-gray-600' : 'text-red-600 font-medium')}>
+              <span className={clsx('text-xs', selectedPostulacion ? 'text-ink-6' : 'text-red-600 font-medium')}>
                 Licitación seleccionada
-                {selectedPostulacion && <span className="text-gray-400 font-normal"> — {selectedPostulacion.licitacion_nombre?.slice(0, 35) ?? selectedPostulacion.licitacion_codigo}</span>}
+                {selectedPostulacion && <span className="text-ink-4 font-normal"> — {selectedPostulacion.licitacion_nombre?.slice(0, 35) ?? selectedPostulacion.licitacion_codigo}</span>}
               </span>
             </div>
             {/* Campos del perfil */}
@@ -1136,11 +1190,11 @@ export default function LicitacionPropuestaPage() {
                   ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                   : c.critical
                   ? <XCircle size={13} className="text-red-400 shrink-0" />
-                  : <Circle size={13} className="text-gray-300 shrink-0" />}
+                  : <Circle size={13} className="text-ink-4 shrink-0" />}
                 <span className={clsx('text-xs',
-                  c.filled ? 'text-gray-500 line-through decoration-gray-300'
+                  c.filled ? 'text-ink-5 line-through decoration-ink-4'
                   : c.critical ? 'text-red-600 font-medium'
-                  : 'text-gray-400')}>
+                  : 'text-ink-4')}>
                   {c.label}
                   {!c.filled && c.critical && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded">requerido</span>}
                 </span>
@@ -1175,30 +1229,30 @@ export default function LicitacionPropuestaPage() {
                 title={docBloqueado ? `Falta: ${faltantes.join(', ')}` : undefined}
                 className={clsx('w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 text-left transition-all',
                   docBloqueado
-                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                    ? 'border-ink-3 bg-ink-1 opacity-60 cursor-not-allowed'
                     : sel
-                      ? (tab?.color === 'violet' ? 'border-violet-400 bg-violet-50' : tab?.color === 'emerald' ? 'border-emerald-400 bg-emerald-50' : 'border-blue-400 bg-blue-50')
-                      : 'border-gray-200 hover:border-gray-300')}>
+                      ? (tab?.color === 'violet' ? 'border-kap-200 bg-kap-100' : tab?.color === 'emerald' ? 'border-emerald-400 bg-emerald-50' : 'border-blue-400 bg-blue-50')
+                      : 'border-ink-3 hover:border-ink-4')}>
                 <div className={clsx('w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all',
                   docBloqueado
-                    ? 'border-gray-300 bg-gray-100'
+                    ? 'border-ink-3 bg-ink-2'
                     : sel
-                      ? (tab?.color === 'violet' ? 'border-violet-500 bg-violet-500' : tab?.color === 'emerald' ? 'border-emerald-500 bg-emerald-500' : 'border-blue-500 bg-blue-500')
-                      : 'border-gray-300')}>
+                      ? (tab?.color === 'violet' ? 'border-kap-200 bg-kap-100' : tab?.color === 'emerald' ? 'border-emerald-500 bg-emerald-500' : 'border-blue-500 bg-blue-500')
+                      : 'border-ink-3')}>
                   {docBloqueado ? <span className="text-[9px]">🔒</span> : sel && <CheckCircle2 size={11} className="text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={clsx('text-sm font-medium', docBloqueado ? 'text-gray-400' : 'text-gray-900')}>{t.label}</p>
+                  <p className={clsx('text-sm font-medium', docBloqueado ? 'text-ink-4' : 'text-ink-9')}>{t.label}</p>
                   {docBloqueado
                     ? <p className="text-[10px] text-red-400 truncate">Falta: {faltantes.slice(0, 2).join(', ')}{faltantes.length > 2 ? ` +${faltantes.length - 2}` : ''}</p>
-                    : <p className="text-[11px] text-gray-500 truncate">{t.desc}</p>}
+                    : <p className="text-[11px] text-ink-5 truncate">{t.desc}</p>}
                 </div>
                 {docStatuses[t.id]?.state === 'done' && !docBloqueado && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0">✓</span>
                 )}
                 {docBloqueado && (
                   <button type="button" onClick={e => { e.stopPropagation(); navigate('/licitaciones/perfil') }}
-                    className="text-[10px] text-indigo-500 hover:underline shrink-0 whitespace-nowrap">
+                    className="text-[10px] text-kap-500 hover:underline shrink-0 whitespace-nowrap">
                     Completar →
                   </button>
                 )}
@@ -1218,7 +1272,7 @@ export default function LicitacionPropuestaPage() {
                   {' · '}<button type="button" onClick={() => navigate('/licitaciones/perfil')} className="underline font-semibold">Completar perfil</button>
                 </p>
               )}
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-ink-4 text-center">
                 {desbloqueados.length} documento{desbloqueados.length !== 1 ? 's' : ''} listos · ~{desbloqueados.length * 30} seg estimados
               </p>
             </>)
@@ -1229,8 +1283,8 @@ export default function LicitacionPropuestaPage() {
             className={clsx(
               'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors shadow-sm',
               bloqueado
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-violet-600 text-white hover:bg-violet-700'
+                ? 'bg-ink-2 text-ink-4 cursor-not-allowed'
+                : 'bg-kap-600 text-white hover:bg-kap-100'
             )}
           >
             {bloqueado
@@ -1268,7 +1322,7 @@ export default function LicitacionPropuestaPage() {
             <button
               onClick={() => {
                 if (panelScoreBajo) {
-                  toast.error('Analiza primero esta licitación en "Mis postulaciones"')
+                  navigate('/licitaciones?tab=postulaciones')
                   return
                 }
                 setModoTodos(true)
@@ -1278,16 +1332,16 @@ export default function LicitacionPropuestaPage() {
               className={clsx(
                 'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-colors shadow-sm',
                 todosProgreso.corriendo
-                  ? 'bg-violet-400 text-white cursor-not-allowed'
+                  ? 'bg-kap-100 text-white cursor-not-allowed'
                   : panelScoreBajo
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-violet-600 text-white hover:bg-violet-700'
+                    ? 'bg-amber-500 text-white hover:bg-amber-600'
+                    : 'bg-kap-600 text-white hover:bg-kap-100'
               )}
             >
               {todosProgreso.corriendo
                 ? <><Loader2 size={15} className="animate-spin" /> Generando…</>
                 : panelScoreBajo
-                  ? <>⛔ Analiza la licitación primero</>
+                  ? <>⚠ Analizar en Mis postulaciones →</>
                   : <><Sparkles size={15} /> Generar todos los documentos</>
               }
             </button>
@@ -1295,10 +1349,10 @@ export default function LicitacionPropuestaPage() {
         })()}
         {/* Licitación activa */}
         {selectedPostulacion ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-xl">
-            <CheckCircle2 size={13} className="text-violet-500 shrink-0" />
-            <p className="text-[11px] text-violet-800 font-medium flex-1 truncate">{selectedPostulacion.licitacion_nombre ?? selectedPostulacion.licitacion_codigo}</p>
-            <button type="button" onClick={() => setSelectedPostulacion(null)} className="text-[10px] text-violet-400 hover:text-violet-700">cambiar</button>
+          <div className="flex items-center gap-2 px-3 py-2 bg-kap-50 border border-kap-200 rounded-xl">
+            <CheckCircle2 size={13} className="text-kap-500 shrink-0" />
+            <p className="text-[11px] text-kap-800 font-medium flex-1 truncate">{selectedPostulacion.licitacion_nombre ?? selectedPostulacion.licitacion_codigo}</p>
+            <button type="button" onClick={() => setSelectedPostulacion(null)} className="text-[10px] text-kap-600 hover:text-kap-600">cambiar</button>
           </div>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
@@ -1309,15 +1363,15 @@ export default function LicitacionPropuestaPage() {
         {/* Perfil de empresa */}
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Perfil de empresa</p>
+            <p className="text-xs font-bold text-ink-7 uppercase tracking-wide">Perfil de empresa</p>
             <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full',
               perfilCompleto === perfilTotal ? 'bg-emerald-100 text-emerald-700' :
               perfilCompleto >= 3 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}>
               {perfilCompleto}/{perfilTotal}
             </span>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-1.5">
-            <div className="bg-violet-500 h-1.5 rounded-full transition-all"
+          <div className="w-full bg-ink-2 rounded-full h-1.5">
+            <div className="bg-kap-100 h-1.5 rounded-full transition-all"
               style={{ width: `${(perfilCompleto / perfilTotal) * 100}%` }} />
           </div>
           <div className="space-y-1.5">
@@ -1327,8 +1381,8 @@ export default function LicitacionPropuestaPage() {
                   ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                   : c.critical
                   ? <XCircle size={13} className="text-red-400 shrink-0" />
-                  : <Circle size={13} className="text-gray-300 shrink-0" />}
-                <span className={clsx('text-xs', c.filled ? 'text-gray-600' : c.critical ? 'text-red-600 font-medium' : 'text-gray-400')}>
+                  : <Circle size={13} className="text-ink-4 shrink-0" />}
+                <span className={clsx('text-xs', c.filled ? 'text-ink-6' : c.critical ? 'text-red-600 font-medium' : 'text-ink-4')}>
                   {c.label}
                 </span>
               </div>
@@ -1336,7 +1390,7 @@ export default function LicitacionPropuestaPage() {
           </div>
           {perfilCompleto < perfilTotal && (
             <button onClick={() => navigate('/licitaciones/perfil')}
-              className="w-full text-xs text-violet-600 font-semibold py-1.5 rounded-lg border border-violet-200 hover:bg-violet-50 transition-colors">
+              className="w-full text-xs text-kap-600 font-semibold py-1.5 rounded-lg border border-kap-200 hover:bg-kap-100 transition-colors">
               Completar perfil →
             </button>
           )}
@@ -1345,7 +1399,7 @@ export default function LicitacionPropuestaPage() {
         {/* Tracker de documentos */}
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Documentos</p>
+            <p className="text-xs font-bold text-ink-7 uppercase tracking-wide">Documentos</p>
             <div className="flex items-center gap-1.5">
               {doneCount > 0 && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{doneCount} ✓</span>}
               {fieldsCount > 0 && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{fieldsCount} ⚠</span>}
@@ -1354,7 +1408,7 @@ export default function LicitacionPropuestaPage() {
           {TABS.map(tab => (
             <div key={tab.key}>
               <p className={clsx('text-[10px] font-semibold uppercase tracking-wide mb-1.5',
-                tab.color === 'violet' ? 'text-violet-500' :
+                tab.color === 'violet' ? 'text-kap-500' :
                 tab.color === 'emerald' ? 'text-emerald-600' : 'text-blue-500')}>
                 {tab.label} — {tab.sublabel}
               </p>
@@ -1367,17 +1421,17 @@ export default function LicitacionPropuestaPage() {
                       onClick={() => { setTipo(item.id as TipoDoc); setStep(0); setGuardado(false); setResultado('') }}
                       className={clsx(
                         'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-xs',
-                        isSelected ? 'bg-violet-50 border border-violet-200' : 'hover:bg-gray-50 border border-transparent'
+                        isSelected ? 'bg-kap-50 border border-kap-200' : 'hover:bg-ink-1 border border-transparent'
                       )}>
                       {st?.state === 'done'
                         ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                         : st?.state === 'fields'
                         ? <AlertTriangle size={13} className="text-amber-500 shrink-0" />
-                        : <Circle size={13} className="text-gray-300 shrink-0" />}
+                        : <Circle size={13} className="text-ink-4 shrink-0" />}
                       <span className={clsx('flex-1 truncate',
-                        st?.state === 'done' ? 'text-gray-600' :
+                        st?.state === 'done' ? 'text-ink-6' :
                         st?.state === 'fields' ? 'text-amber-700 font-medium' :
-                        isSelected ? 'text-violet-700 font-semibold' : 'text-gray-500')}>
+                        isSelected ? 'text-kap-600 font-semibold' : 'text-ink-5')}>
                         {item.label}
                       </span>
                       {st?.state === 'fields' && <span className="text-[9px] text-amber-500 shrink-0">campos</span>}
@@ -1388,14 +1442,14 @@ export default function LicitacionPropuestaPage() {
             </div>
           ))}
           {doneCount === 0 && fieldsCount === 0 && (
-            <p className="text-[11px] text-gray-400 text-center py-1">Genera tu primer documento para ver el progreso aquí</p>
+            <p className="text-[11px] text-ink-4 text-center py-1">Genera tu primer documento para ver el progreso aquí</p>
           )}
         </div>
       </div>
     )
   }
 
-  const stepContent = [renderTipo, renderLicitacion, renderGenerar]
+  const stepContent = [renderLicitacion, renderTipo, renderGenerar]
 
   // ── Pre-flight: checklist antes de empezar ──────────────────────────────
   const perfilCriticos = PERFIL_CAMPOS_CHECK.filter(c => c.critical)
@@ -1412,12 +1466,12 @@ export default function LicitacionPropuestaPage() {
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-violet-600 rounded-xl flex items-center justify-center shadow-sm">
+        <div className="w-11 h-11 bg-kap-100 rounded-xl flex items-center justify-center shadow-sm">
           <Sparkles size={21} className="text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Quiero generar documentos</h1>
-          <p className="text-sm text-gray-500">Kapturo verifica que tienes todo para empezar</p>
+          <h1 className="text-lg font-bold text-ink-9">Quiero generar documentos</h1>
+          <p className="text-sm text-ink-5">Kapturo verifica que tienes todo para empezar</p>
         </div>
       </div>
 
@@ -1435,7 +1489,7 @@ export default function LicitacionPropuestaPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="font-bold text-gray-900 text-sm">
+                <p className="font-bold text-ink-9 text-sm">
                   {perfilListoParaGenerar ? '✅ Perfil IA completo' : '⚠️ Perfil IA incompleto'}
                 </p>
                 <span className={clsx('text-[11px] font-bold px-2 py-0.5 rounded-full',
@@ -1469,27 +1523,27 @@ export default function LicitacionPropuestaPage() {
 
         {/* Card licitaciones */}
         <div className={clsx('border-2 rounded-2xl p-5 transition-all',
-          tienePostulaciones ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50')}>
+          tienePostulaciones ? 'border-emerald-200 bg-emerald-50' : 'border-ink-3 bg-ink-1')}>
           <div className="flex items-start gap-4">
             <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center shrink-0',
-              tienePostulaciones ? 'bg-emerald-100' : 'bg-gray-100')}>
+              tienePostulaciones ? 'bg-emerald-100' : 'bg-ink-2')}>
               {tienePostulaciones
                 ? <CheckCircle2 size={22} className="text-emerald-600" />
-                : <Circle size={22} className="text-gray-400" />}
+                : <Circle size={22} className="text-ink-4" />}
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="font-bold text-gray-900 text-sm">
+                <p className="font-bold text-ink-9 text-sm">
                   {tienePostulaciones ? `✅ ${postulaciones.length} licitación${postulaciones.length > 1 ? 'es' : ''} guardada${postulaciones.length > 1 ? 's' : ''}` : 'Sin licitaciones guardadas'}
                 </p>
               </div>
               {!tienePostulaciones ? (
                 <>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="text-xs text-ink-6 mb-3">
                     Primero busca y guarda las licitaciones a las que quieres postular. Desde allí podrás generar los documentos.
                   </p>
                   <button onClick={() => navigate('/licitaciones')}
-                    className="flex items-center gap-2 text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl transition-colors">
+                    className="flex items-center gap-2 text-sm font-semibold bg-kap-600 hover:bg-kap-700 text-white px-4 py-2 rounded-xl transition-colors">
                     <ExternalLink size={14} /> Buscar licitaciones
                   </button>
                 </>
@@ -1501,12 +1555,12 @@ export default function LicitacionPropuestaPage() {
         </div>
 
         {/* Explicación del proceso de bases */}
-        <div className="border border-indigo-100 bg-indigo-50 rounded-2xl p-4">
+        <div className="border border-kap-100 bg-kap-50 rounded-2xl p-4">
           <div className="flex items-start gap-3">
-            <Info size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+            <Info size={16} className="text-kap-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-indigo-800 mb-1">¿Cómo lee la IA las bases de la licitación?</p>
-              <p className="text-xs text-indigo-700 leading-relaxed">
+              <p className="text-xs font-semibold text-kap-700 mb-1">¿Cómo lee la IA las bases de la licitación?</p>
+              <p className="text-xs text-kap-700 leading-relaxed">
                 Cuando analizas una licitación (<strong>Analizar bases</strong>), Kapturo extrae y procesa los PDF oficiales de Mercado Público. 
                 Al generar un documento, Claude lee automáticamente esas bases reales y las combina con tu perfil de empresa para 
                 redactar una propuesta técnica específica para esa licitación.
@@ -1519,12 +1573,12 @@ export default function LicitacionPropuestaPage() {
       {/* Botón continuar */}
       <div className="flex items-center justify-between">
         <button onClick={() => setPreflightDismissed(true)}
-          className="text-sm text-gray-400 hover:text-gray-600">
+          className="text-sm text-ink-4 hover:text-ink-6">
           Continuar de todos modos →
         </button>
         {todoListo && (
           <button onClick={() => setPreflightDismissed(true)}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl">
+            className="flex items-center gap-2 bg-kap-600 hover:bg-kap-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl">
             <Sparkles size={15} /> Empezar a generar documentos
           </button>
         )}
@@ -1538,12 +1592,12 @@ export default function LicitacionPropuestaPage() {
     <div className="p-6 max-w-5xl mx-auto space-y-5">
       {/* Header — sin botón volver arriba */}
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-violet-600 rounded-xl flex items-center justify-center shadow-sm">
+        <div className="w-11 h-11 bg-kap-100 rounded-xl flex items-center justify-center shadow-sm">
           <FileSignature size={21} className="text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Propuestas para Licitaciones</h1>
-          <p className="text-sm text-gray-500">Genera los documentos de tu oferta con IA</p>
+          <h1 className="text-lg font-bold text-ink-9">Propuestas para Licitaciones</h1>
+          <p className="text-sm text-ink-5">Genera los documentos de tu oferta con IA</p>
         </div>
       </div>
 
@@ -1559,14 +1613,14 @@ export default function LicitacionPropuestaPage() {
                   <div className="flex items-center gap-1.5">
                     <div className={clsx(
                       'flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all shrink-0',
-                      i < step ? 'bg-violet-600 text-white' : i === step ? 'bg-violet-100 text-violet-700 ring-2 ring-violet-400' : 'bg-gray-100 text-gray-400'
+                      i < step ? 'bg-kap-600 text-white' : i === step ? 'bg-kap-100 text-kap-700 ring-2 ring-kap-300' : 'bg-ink-2 text-ink-4'
                     )}>
                       {i < step ? <CheckCircle2 size={13} /> : i + 1}
                     </div>
                     <span className={clsx('text-xs font-medium hidden sm:block whitespace-nowrap',
-                      i === step ? 'text-violet-700' : i < step ? 'text-gray-500' : 'text-gray-300')}>{s}</span>
+                      i === step ? 'text-kap-600' : i < step ? 'text-ink-5' : 'text-ink-4')}>{s}</span>
                   </div>
-                  {i < STEPS.length - 1 && <div className={clsx('flex-1 h-px mx-2', i < step ? 'bg-violet-300' : 'bg-gray-200')} />}
+                  {i < STEPS.length - 1 && <div className={clsx('flex-1 h-px mx-2', i < step ? 'bg-kap-300' : 'bg-ink-2')} />}
                 </div>
               ))}
             </div>
@@ -1576,9 +1630,9 @@ export default function LicitacionPropuestaPage() {
           <div className="card p-6">
             {modoTodos ? renderGenerarTodos() : step < 3 ? stepContent[step]() : renderResultado()}
             {!modoTodos && step < 3 && (
-              <div className="flex items-center justify-between mt-6 pt-5 border-t border-gray-100">
+              <div className="flex items-center justify-between mt-6 pt-5 border-t border-ink-2">
                 <button onClick={() => setStep(s => s - 1)} disabled={step === 0}
-                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 disabled:opacity-0 transition-colors">
+                  className="flex items-center gap-1.5 text-sm text-ink-5 hover:text-ink-8 disabled:opacity-0 transition-colors">
                   <ChevronLeft size={16} /> Atrás
                 </button>
                 {step < 2 ? (
@@ -1601,20 +1655,20 @@ export default function LicitacionPropuestaPage() {
           {/* Sección externa colapsable — oculta en modo generar todos */}
           {!modoTodos && <div className="card overflow-hidden">
             <button onClick={() => setExternosOpen(o => !o)}
-              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors">
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-ink-1 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
                   <AlertCircle size={15} className="text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">Gestión fuera de Kapturo</p>
-                  <p className="text-xs text-gray-500">Pasos administrativos que debes completar tú</p>
+                  <p className="text-sm font-semibold text-ink-8">Gestión fuera de Kapturo</p>
+                  <p className="text-xs text-ink-5">Pasos administrativos que debes completar tú</p>
                 </div>
               </div>
-              <ChevronDown size={16} className={clsx('text-gray-400 transition-transform shrink-0', externosOpen && 'rotate-180')} />
+              <ChevronDown size={16} className={clsx('text-ink-4 transition-transform shrink-0', externosOpen && 'rotate-180')} />
             </button>
             {externosOpen && (
-              <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-2.5">
+              <div className="px-5 pb-5 border-t border-ink-2 pt-4 space-y-2.5">
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <Info size={13} className="text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700">
@@ -1622,20 +1676,20 @@ export default function LicitacionPropuestaPage() {
                   </p>
                 </div>
                 {PASOS_EXTERNOS.map(paso => (
-                  <div key={paso.num} className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-200 bg-white">
+                  <div key={paso.num} className="flex items-start gap-3 p-3.5 rounded-xl border border-ink-3 bg-white">
                     <div className={clsx('w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5',
-                      paso.obligatorio ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500')}>
+                      paso.obligatorio ? 'bg-rose-100 text-rose-700' : 'bg-ink-2 text-ink-5')}>
                       {paso.num}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <p className="text-xs font-semibold text-gray-800">{paso.titulo}</p>
+                        <p className="text-xs font-semibold text-ink-8">{paso.titulo}</p>
                         {paso.obligatorio && <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full font-medium">Obligatorio</span>}
                       </div>
-                      <p className="text-[11px] text-gray-500 leading-relaxed">{paso.desc}</p>
+                      <p className="text-[11px] text-ink-5 leading-relaxed">{paso.desc}</p>
                     </div>
                     <a href={paso.url} target="_blank" rel="noopener noreferrer"
-                      className="shrink-0 flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 font-medium whitespace-nowrap mt-0.5">
+                      className="shrink-0 flex items-center gap-1 text-[11px] text-kap-600 hover:text-kap-800 font-medium whitespace-nowrap mt-0.5">
                       {paso.urlLabel} <ExternalLink size={10} />
                     </a>
                   </div>
@@ -1645,7 +1699,7 @@ export default function LicitacionPropuestaPage() {
           </div>}
 
           {step < 3 && (
-            <p className="text-xs text-gray-400 text-center pb-2">
+            <p className="text-xs text-ink-4 text-center pb-2">
               Los documentos se generan con IA. Revísalos antes de adjuntarlos en Mercado Público.
             </p>
           )}
@@ -1662,15 +1716,15 @@ export default function LicitacionPropuestaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ink-2 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center">
-                  <FileText size={17} className="text-violet-600" />
+                <div className="w-9 h-9 bg-kap-100 rounded-xl flex items-center justify-center">
+                  <FileText size={17} className="text-kap-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{docViewer.titulo}</p>
-                  <p className="text-xs text-gray-400 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-indigo-500 rounded-full inline-block" />
+                  <p className="text-sm font-bold text-ink-9">{docViewer.titulo}</p>
+                  <p className="text-xs text-ink-4 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-kap-500 rounded-full inline-block" />
                     Generado por Kapturo IA — solo para uso interno
                   </p>
                 </div>
@@ -1681,7 +1735,7 @@ export default function LicitacionPropuestaPage() {
                     navigator.clipboard.writeText(docViewer.texto)
                     toast.success('Copiado al portapapeles')
                   }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium"
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-ink-2 hover:bg-ink-2 text-ink-7 font-medium"
                 >
                   <Copy size={13} /> Copiar
                 </button>
@@ -1691,13 +1745,13 @@ export default function LicitacionPropuestaPage() {
                     descargar()
                     toast.success('Descargando PDF con marca de agua…')
                   }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-medium"
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-kap-600 hover:bg-kap-700 text-white font-medium"
                 >
                   <Download size={13} /> Descargar PDF
                 </button>
                 <button
                   onClick={() => setDocViewer(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-ink-2 text-ink-4"
                 >
                   <XCircle size={18} />
                 </button>
@@ -1709,20 +1763,20 @@ export default function LicitacionPropuestaPage() {
               <div className="pointer-events-none fixed inset-0 flex items-center justify-center z-10 overflow-hidden" style={{ maxWidth: '3xl' }}>
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-28 opacity-[0.055] select-none rotate-[-35deg]">
                   {[...Array(6)].map((_, i) => (
-                    <span key={i} className="text-6xl font-black text-indigo-700 whitespace-nowrap tracking-widest">
+                    <span key={i} className="text-6xl font-black text-kap-700 whitespace-nowrap tracking-widest">
                       KAPTURO &nbsp;&nbsp;&nbsp; KAPTURO
                     </span>
                   ))}
                 </div>
               </div>
               {/* Contenido del documento */}
-              <div className="relative z-20 prose prose-sm max-w-none text-gray-800 leading-relaxed">
+              <div className="relative z-20 prose prose-sm max-w-none text-ink-8 leading-relaxed">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{docViewer.texto}</ReactMarkdown>
               </div>
             </div>
             {/* Footer */}
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl shrink-0">
-              <p className="text-[11px] text-gray-400 text-center">
+            <div className="px-6 py-3 border-t border-ink-2 bg-ink-1 rounded-b-2xl shrink-0">
+              <p className="text-[11px] text-ink-4 text-center">
                 📌 Este documento es un borrador generado con IA. Revísalo antes de adjuntarlo en Mercado Público.
                 Marca de agua presente en versión descargada.
               </p>

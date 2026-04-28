@@ -855,3 +855,79 @@ def get_bug_reports(
         ],
     }
 
+
+# ── Test de email ─────────────────────────────────────────────────────────────
+
+class TestEmailRequest(BaseModel):
+    to: str
+    tipo: str = "basico"  # basico | licitaciones | alarma
+
+
+@router.post("/test-email")
+async def test_email(
+    data: TestEmailRequest,
+    current_user: User = Depends(require_super_admin),
+):
+    """
+    Envía un email de prueba para verificar que Resend está configurado correctamente.
+    Solo accesible por super admin.
+    """
+    from app.services.email_service import EmailService
+    svc = EmailService()
+
+    try:
+        if data.tipo == "licitaciones":
+            result = await svc.send_licitaciones_alert(
+                to=data.to,
+                razon_social="Empresa de Prueba SpA",
+                licitaciones=[
+                    {
+                        "nombre": "Servicio de aseo y mantención Hospital Regional",
+                        "codigo": "1234567-89-LE26",
+                        "organismo": "Hospital Regional de Biobío",
+                        "monto_estimado": 45000000,
+                        "fecha_cierre": "2026-05-15",
+                        "score": 82,
+                    },
+                    {
+                        "nombre": "Suministro de insumos de limpieza Municipalidad",
+                        "codigo": "9876543-21-LE26",
+                        "organismo": "Municipalidad de Santiago",
+                        "monto_estimado": 12500000,
+                        "fecha_cierre": "2026-05-20",
+                        "score": 65,
+                    },
+                ],
+            )
+        elif data.tipo == "alarma":
+            result = await svc.send_alarm_notification(
+                to=data.to,
+                prospect_name="Empresa ABC Ltda.",
+                alarm_reason="Llamar para seguimiento de propuesta enviada",
+                prospect_id="test-prospect-id-123",
+            )
+        else:
+            result = await svc.send(
+                to=data.to,
+                subject="✅ Test de email — Kapturo",
+                html="""
+                <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+                  <div style="background: #4f46e5; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                    <h1 style="color: white; margin: 0; font-size: 22px;">✅ Email funcionando</h1>
+                  </div>
+                  <p style="color: #374151; font-size: 15px;">
+                    Este es un email de prueba enviado desde <strong>Kapturo</strong>.
+                  </p>
+                  <p style="color: #374151; font-size: 15px;">
+                    Si ves este mensaje, significa que <strong>Resend está configurado correctamente</strong>
+                    y los emails salen desde <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">alertas@kapturo.cl</code>.
+                  </p>
+                  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+                  <p style="color: #9ca3af; font-size: 12px; text-align: center;">Kapturo · app.kapturo.cl</p>
+                </div>
+                """,
+            )
+        return {"ok": True, "resend_id": result.get("id"), "enviado_a": data.to, "tipo": data.tipo}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar email: {str(e)}")
+

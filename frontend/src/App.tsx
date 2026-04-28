@@ -21,6 +21,7 @@ import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import LicitacionPropuestaPage from './pages/propuestas/LicitacionPropuestaPage'
 import PerfilIAPage from './pages/modules/PerfilIAPage'
+import LicitacionDetailPage from './pages/modules/LicitacionDetailPage'
 import PrivacyPage from './pages/PrivacyPage'
 
 function SuperAdminRoute({ children }: { children: React.ReactNode }) {
@@ -65,7 +66,9 @@ export default function App() {
           <Route path="prospectos" element={<ProspectsPage />} />
           <Route path="pipeline" element={<PipelinePage />} />
           <Route path="licitaciones" element={<LicitacionesPage />} />
+          <Route path="licitaciones/postulaciones" element={<LicitacionesPage />} />
           <Route path="licitaciones/perfil" element={<PerfilIAPage />} />
+          <Route path="licitaciones/postulaciones/:id" element={<LicitacionDetailPage />} />
           <Route path="licitaciones/generar" element={<Navigate to="/propuestas/licitaciones" replace />} />
           <Route path="adjudicadas" element={<AdjudicadasPage />} />
           <Route path="prospeccion" element={<ProspeccionPage />} />

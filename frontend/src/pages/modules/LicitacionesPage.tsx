@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useSearchParams, NavLink } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation, NavLink } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import api from '../../api/client'
@@ -19,8 +19,60 @@ import {
   Trophy, Flag, Clock, ListChecks, Settings,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function descargarDocx(texto: string, nombreArchivo: string) {
+  const lineas = texto.split('\n')
+  const children: Paragraph[] = []
+
+  for (const linea of lineas) {
+    const trim = linea.trim()
+    if (!trim) {
+      children.push(new Paragraph({ text: '' }))
+      continue
+    }
+    // Detectar encabezado H1: línea con # al inicio o toda en mayúsculas corta
+    if (trim.startsWith('# ')) {
+      children.push(new Paragraph({
+        text: trim.replace(/^# /, ''),
+        heading: HeadingLevel.HEADING_1,
+      }))
+    } else if (trim.startsWith('## ')) {
+      children.push(new Paragraph({
+        text: trim.replace(/^## /, ''),
+        heading: HeadingLevel.HEADING_2,
+      }))
+    } else if (trim.startsWith('### ')) {
+      children.push(new Paragraph({
+        text: trim.replace(/^### /, ''),
+        heading: HeadingLevel.HEADING_3,
+      }))
+    } else if (/^[IVX]+\.\s|^\d+\.\s/.test(trim) && trim.length < 80) {
+      // Líneas tipo "I. Descripción" o "1. Alcance" → H2
+      children.push(new Paragraph({
+        text: trim,
+        heading: HeadingLevel.HEADING_2,
+      }))
+    } else {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: trim, size: 24 })],
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 120 },
+      }))
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] })
+  const blob = await Packer.toBlob(doc)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombreArchivo
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 /** Extrae un string legible de cualquier forma de error de la API */
 function apiError(err: any, fallback = 'Error inesperado'): string {
@@ -95,9 +147,9 @@ const CATEGORIA_COLORS: Record<string, { bg: string; text: string; border: strin
   'Tecnología':             { bg: 'bg-blue-50',    text: 'text-blue-700',   border: 'border-blue-200' },
   'Construcción & Obras':   { bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200' },
   'Salud':                  { bg: 'bg-red-50',     text: 'text-red-700',    border: 'border-red-200' },
-  'Servicios Generales':    { bg: 'bg-gray-100',   text: 'text-gray-700',   border: 'border-gray-200' },
+  'Servicios Generales':    { bg: 'bg-ink-2',   text: 'text-ink-7',   border: 'border-ink-3' },
   'Logística & Transporte': { bg: 'bg-orange-50',  text: 'text-orange-700', border: 'border-orange-200' },
-  'Consultoría & Negocios': { bg: 'bg-violet-50',  text: 'text-violet-700', border: 'border-violet-200' },
+  'Consultoría & Negocios': { bg: 'bg-kap-100',  text: 'text-kap-600', border: 'border-kap-300' },
   'Educación':              { bg: 'bg-green-50',   text: 'text-green-700',  border: 'border-green-200' },
   'Industria & Producción': { bg: 'bg-yellow-50',  text: 'text-yellow-700', border: 'border-yellow-200' },
   'Equipamiento':           { bg: 'bg-pink-50',    text: 'text-pink-700',   border: 'border-pink-200' },
@@ -126,14 +178,14 @@ function detectarCategoria(categoria: string | undefined): { label: string; emoj
 const RubroBadge = ({ categoria, rubrosSeleccionados }: { categoria?: string; rubrosSeleccionados: string[] }) => {
   const cat = detectarCategoria(categoria)
   if (!cat) {
-    return <span className="text-xs text-gray-400">—</span>
+    return <span className="text-xs text-ink-4">—</span>
   }
   // Verificar si esta categoría hace match con algún rubro seleccionado por el usuario
   const catData = RUBRO_CATEGORIAS.find(c => c.label === cat.label)
   const isMatched = rubrosSeleccionados.length > 0 && catData
     ? catData.rubros.some(r => rubrosSeleccionados.map(x => x.toLowerCase()).includes(r.toLowerCase()))
     : false
-  const colors = CATEGORIA_COLORS[cat.label] ?? { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' }
+  const colors = CATEGORIA_COLORS[cat.label] ?? { bg: 'bg-ink-2', text: 'text-ink-6', border: 'border-ink-3' }
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${colors.bg} ${colors.text} ${colors.border} ${isMatched ? 'ring-1 ring-offset-0' : ''}`}
       title={categoria}>
@@ -155,10 +207,10 @@ const SourceBadge = ({ source }: { source?: string | null }) => {
     SII: 'bg-blue-100 text-blue-700',
     'Google Maps': 'bg-orange-100 text-orange-700',
     Google: 'bg-orange-100 text-orange-700',
-    manual: 'bg-gray-100 text-gray-600',
+    manual: 'bg-ink-2 text-ink-6',
   }
   return (
-    <span className={clsx('text-[10px] font-medium px-1.5 py-0.5 rounded-full', colors[source] ?? 'bg-gray-100 text-gray-500')}>
+    <span className={clsx('text-[10px] font-medium px-1.5 py-0.5 rounded-full', colors[source] ?? 'bg-ink-2 text-ink-5')}>
       {source}
     </span>
   )
@@ -166,40 +218,33 @@ const SourceBadge = ({ source }: { source?: string | null }) => {
 
 const ContactRow = ({ icon: Icon, label, value, source }: { icon: any; label: string; value?: string | null; source?: string | null }) => (
   <div className="flex items-center gap-2 text-xs">
-    <Icon size={11} className="text-gray-300 shrink-0" />
-    <span className="text-gray-400 w-12 shrink-0">{label}</span>
+    <Icon size={11} className="text-ink-4 shrink-0" />
+    <span className="text-ink-4 w-12 shrink-0">{label}</span>
     {value ? (
-      <span className="text-gray-800 flex items-center gap-1 truncate">
+      <span className="text-ink-8 flex items-center gap-1 truncate">
         {value} <SourceBadge source={source} />
       </span>
     ) : (
-      <span className="text-gray-300">sin dato</span>
+      <span className="text-ink-4">sin dato</span>
     )}
   </div>
 )
 
-const ScoreBadge = ({ score }: { score?: number | null }) => {
-  if (score == null || score === 0) return <span className="text-[10px] text-gray-400 px-1.5 py-0.5 rounded-full bg-gray-100">Sin analizar</span>
-  const color = score >= 75 ? 'bg-emerald-100 text-emerald-700' : score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-  return <span className={clsx('text-xs font-bold px-2 py-0.5 rounded-full', color)}>{score.toFixed(0)} pts</span>
-}
 
-const FitBadge = ({ score, motivo }: { score?: number; motivo?: string }) => {
-  if (score == null) return <span className="text-[10px] text-gray-300">—</span>
-  if (score >= 70) return (
-    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-      Fit {score}%
-    </span>
-  )
-  if (score >= 40) return (
-    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-      Fit {score}%
-    </span>
-  )
+const ScoreCell = ({ score, fitScore }: { score?: number | null; fitScore?: number | null }) => {
+  const n = score != null && score > 0 ? score : fitScore != null ? fitScore : null
+  if (n == null) return <span className="text-[10px] text-ink-4">—</span>
+  const pct = Math.min(100, Math.max(0, n))
+  const barColor = n >= 70 ? 'bg-ok' : n >= 50 ? 'bg-warn' : 'bg-bad'
+  const label = n >= 70 ? 'Alta' : n >= 50 ? 'Media' : 'Baja'
+  const textColor = n >= 70 ? 'text-ok' : n >= 50 ? 'text-warn' : 'text-bad'
   return (
-    <span title={motivo} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">
-      Fit {score}%
-    </span>
+    <div className="flex flex-col items-center gap-1 min-w-[52px]">
+      <div className="w-full bg-ink-2 rounded-full h-1.5 overflow-hidden">
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={`text-[10px] font-bold ${textColor} whitespace-nowrap`}>{Math.round(n)} · {label}</span>
+    </div>
   )
 }
 
@@ -259,7 +304,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
       ctaFn: () => navigate('/licitaciones/perfil'),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-amber-100 text-amber-700',
-      colorPending: 'bg-gray-100 text-gray-400',
+      colorPending: 'bg-ink-2 text-ink-4',
     },
     {
       num: 2,
@@ -272,8 +317,8 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
       cta: tieneGuardadas ? 'Buscar más →' : 'Buscar ahora →',
       ctaFn: () => onIrABuscar?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
-      colorActive: 'bg-indigo-100 text-indigo-600',
-      colorPending: 'bg-gray-100 text-gray-400',
+      colorActive: 'bg-kap-100 text-kap-600',
+      colorPending: 'bg-ink-2 text-ink-4',
     },
     {
       num: 3,
@@ -286,8 +331,8 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
       cta: tieneGuardadas ? 'Ver mis postulaciones →' : null,
       ctaFn: () => onIrAPostulaciones?.(),
       colorDone: 'bg-emerald-100 text-emerald-600',
-      colorActive: 'bg-violet-100 text-violet-600',
-      colorPending: 'bg-gray-100 text-gray-400',
+      colorActive: 'bg-kap-100 text-kap-600',
+      colorPending: 'bg-ink-2 text-ink-4',
     },
     {
       num: 4,
@@ -309,7 +354,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
       ctaFn: () => navigate('/propuestas/licitaciones'),
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-blue-100 text-blue-600',
-      colorPending: 'bg-gray-100 text-gray-400',
+      colorPending: 'bg-ink-2 text-ink-4',
     },
   ]
 
@@ -317,7 +362,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
     return (
       <button
         onClick={() => { setCerrada(false); localStorage.removeItem('guia_licit_cerrada') }}
-        className="flex items-center gap-2 text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
+        className="flex items-center gap-2 text-xs text-kap-500 hover:text-kap-700 transition-colors"
       >
         <Sparkles size={12} /> Ver guía de inicio →
       </button>
@@ -325,11 +370,11 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
   }
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 via-white to-violet-50 border border-indigo-100 rounded-2xl p-5 relative">
+    <div className="bg-gradient-to-br from-kap-50 via-white to-kap-50 border border-kap-100 rounded-2xl p-5 relative">
       {/* Cerrar */}
       <button
         onClick={() => { setCerrada(true); localStorage.setItem('guia_licit_cerrada', '1') }}
-        className="absolute top-3 right-3 text-gray-300 hover:text-gray-500 transition-colors"
+        className="absolute top-3 right-3 text-ink-4 hover:text-ink-5 transition-colors"
         title="Cerrar guía"
       >
         <X size={14} />
@@ -337,8 +382,8 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
 
       {/* Título */}
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles size={15} className="text-indigo-500" />
-        <span className="text-sm font-bold text-indigo-800">¿Por dónde empezar?</span>
+        <Sparkles size={15} className="text-kap-500" />
+        <span className="text-sm font-bold text-kap-700">¿Por dónde empezar?</span>
         {!perfilListo && (
           <span className="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold animate-pulse">
             Acción requerida
@@ -358,15 +403,15 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
             <div key={paso.num} className="flex sm:flex-col flex-1 items-start sm:items-center gap-3 sm:gap-2 relative">
               {/* Línea conectora */}
               {idx < pasos.length - 1 && (
-                <div className="hidden sm:block absolute top-5 left-[calc(50%+20px)] right-[-20px] h-px bg-gradient-to-r from-indigo-200 to-indigo-100 z-0" />
+                <div className="hidden sm:block absolute top-5 left-[calc(50%+20px)] right-[-20px] h-px bg-gradient-to-r from-kap-50 to-kap-100 z-0" />
               )}
 
               <div
                 className={clsx(
                   'flex sm:flex-col items-center sm:items-center gap-3 sm:gap-2 w-full rounded-xl px-3 py-3 border transition-all relative z-10',
-                  isActive && 'bg-white border-indigo-200 shadow-md shadow-indigo-100/60',
+                  isActive && 'bg-white border-kap-100 shadow-md shadow-kap-100/60',
                   isDone && 'bg-emerald-50/60 border-emerald-100',
-                  isPending && 'bg-white/40 border-gray-100',
+                  isPending && 'bg-white/40 border-ink-2',
                 )}
               >
                 {/* Número + ícono */}
@@ -382,7 +427,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
                   </div>
                   <span className={clsx(
                     'absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center',
-                    isDone ? 'bg-emerald-500 text-white' : isActive ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500',
+                    isDone ? 'bg-emerald-500 text-white' : isActive ? 'bg-kap-600 text-white' : 'bg-ink-8 text-ink-5',
                   )}>
                     {paso.num}
                   </span>
@@ -392,13 +437,13 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
                 <div className="sm:text-center">
                   <p className={clsx(
                     'text-[11px] font-bold leading-tight',
-                    isDone ? 'text-emerald-700' : isActive ? 'text-gray-900' : 'text-gray-400',
+                    isDone ? 'text-emerald-700' : isActive ? 'text-ink-9' : 'text-ink-4',
                   )}>
                     {paso.titulo}
                   </p>
                   <p className={clsx(
                     'text-[10px] mt-0.5 leading-relaxed',
-                    isDone ? 'text-emerald-600' : isActive ? 'text-gray-600' : 'text-gray-400',
+                    isDone ? 'text-emerald-600' : isActive ? 'text-ink-6' : 'text-ink-4',
                   )}>
                     {paso.desc}
                   </p>
@@ -410,8 +455,8 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
                         isDone
                           ? 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200'
                           : isActive
-                          ? 'text-white bg-indigo-600 hover:bg-indigo-700'
-                          : 'text-gray-400 bg-gray-100 cursor-not-allowed pointer-events-none'
+                          ? 'text-white bg-kap-600 hover:bg-kap-700'
+                          : 'text-ink-4 bg-ink-2 cursor-not-allowed pointer-events-none'
                       )}
                     >
                       {paso.cta}
@@ -426,19 +471,19 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
 
       {/* Barra de progreso perfil */}
       {!perfilListo && (
-        <div className="mt-4 pt-3 border-t border-indigo-100">
+        <div className="mt-4 pt-3 border-t border-kap-100">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-gray-500 font-medium">Perfil IA: {completados}/{totalCriticos} campos</span>
+            <span className="text-[10px] text-ink-5 font-medium">Perfil IA: {completados}/{totalCriticos} campos</span>
             <button
               onClick={() => navigate('/licitaciones/perfil')}
-              className="text-[10px] text-indigo-600 hover:underline font-semibold"
+              className="text-[10px] text-kap-600 hover:underline font-semibold"
             >
               Completar →
             </button>
           </div>
-          <div className="w-full bg-indigo-100 rounded-full h-1.5">
+          <div className="w-full bg-kap-100 rounded-full h-1.5">
             <div
-              className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
+              className="bg-kap-500 h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${(completados / totalCriticos) * 100}%` }}
             />
           </div>
@@ -450,7 +495,7 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
                   key={c.key}
                   className={clsx(
                     'text-[9px] px-1.5 py-0.5 rounded-full font-medium',
-                    ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400',
+                    ok ? 'bg-emerald-100 text-emerald-700' : 'bg-ink-2 text-ink-4',
                   )}
                 >
                   {ok ? '✓' : '○'} {c.label}
@@ -480,14 +525,14 @@ function RubroCategoria({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-ink-1 transition-colors text-left"
       >
         <span className="text-sm">{cat.emoji}</span>
-        <span className="text-xs font-medium text-gray-700 flex-1 capitalize">{cat.label}</span>
+        <span className="text-xs font-medium text-ink-7 flex-1 capitalize">{cat.label}</span>
         {selEnCat.length > 0 && (
-          <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-semibold">{selEnCat.length}</span>
+          <span className="text-[10px] bg-kap-600 text-white px-1.5 py-0.5 rounded-full font-semibold">{selEnCat.length}</span>
         )}
-        <ChevronDown size={13} className={clsx('text-gray-400 transition-transform shrink-0', open && 'rotate-180')} />
+        <ChevronDown size={13} className={clsx('text-ink-4 transition-transform shrink-0', open && 'rotate-180')} />
       </button>
       {open && (
         <div className="flex flex-wrap gap-1.5 px-3 pb-3">
@@ -495,8 +540,8 @@ function RubroCategoria({
             <button key={r} type="button" onClick={() => toggleRubro(r)}
               className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors capitalize',
                 formRubros.includes(r)
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                  ? 'bg-kap-600 text-white border-kap-600'
+                  : 'bg-white text-ink-6 border-ink-3 hover:border-kap-300 hover:bg-kap-50'
               )}>
               {r}
             </button>
@@ -556,11 +601,17 @@ export default function LicitacionesPage() {
   const [archivosContexto, setArchivosContexto] = useState<{nombre: string; tamaño_chars: number; fecha: string}[]>([])
   const [archivoCargando, setArchivoCargando] = useState(false)
 
-  // ── Tab principal (persistido en URL para sobrevivir F5) ─────────────────
-  const [searchParams, setSearchParams] = useSearchParams()
-  const mainTab = (searchParams.get('tab') as 'buscar' | 'postulaciones') ?? 'buscar'
-  const setMainTab = (tab: 'buscar' | 'postulaciones') =>
-    setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
+  // ── Tab principal: soporta ruta propia + ?tab= legacy ───────────────────
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const isPostulacionesRoute = location.pathname === '/licitaciones/postulaciones'
+  const mainTab: 'buscar' | 'postulaciones' = isPostulacionesRoute
+    ? 'postulaciones'
+    : ((searchParams.get('tab') as 'buscar' | 'postulaciones') ?? 'buscar')
+  const setMainTab = (tab: 'buscar' | 'postulaciones') => {
+    if (tab === 'postulaciones') navigate('/licitaciones/postulaciones')
+    else navigate('/licitaciones')
+  }
 
   const queryClient = useQueryClient()
 
@@ -658,6 +709,8 @@ export default function LicitacionesPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const autoSearchTriggeredRef = useRef(false)
+
   useEffect(() => {
     if (!perfilEmpresa) return
     try {
@@ -678,8 +731,30 @@ export default function LicitacionesPage() {
         })
       }
       if (perfilEmpresa.regiones?.length === 1) setFiltros(f => ({ ...f, region: perfilEmpresa.regiones[0] }))
+
+      // Auto-búsqueda: si hay perfil con rubros y no hay caché ni búsqueda activa, buscar automáticamente
+      const hasCache = !!localStorage.getItem('kapturo_licitaciones_cache')
+      if (
+        !autoSearchTriggeredRef.current &&
+        perfilEmpresa.rubros?.length > 0 &&
+        !hasCache &&
+        !searchStore.isSearching &&
+        mainTab === 'buscar'
+      ) {
+        autoSearchTriggeredRef.current = true
+        const rubros = perfilEmpresa.rubros
+        const region = perfilEmpresa.regiones?.length === 1 ? perfilEmpresa.regiones[0] : ''
+        setTimeout(() => {
+          searchStore.iniciarBusqueda(
+            { tab, filtros: { ...filtros, region: region || filtros.region }, rubrosSeleccionados: rubros, pagina: 1 },
+            getToken()
+          )
+          setPaginaActual(1)
+        }, 300)
+      }
     } catch {}
-  }, [perfilEmpresa])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfilEmpresa, mainTab])
 
   // ── Limpiar resultados cuando cambian los filtros activos ────────────────
   // Evita mostrar resultados de una búsqueda anterior con otros filtros
@@ -1029,11 +1104,11 @@ export default function LicitacionesPage() {
         setShowFeedbackGuardar(true)
       }
       if (prospectId) {
-        navigate('/licitaciones?tab=postulaciones')
+        navigate('/licitaciones/postulaciones')
         // Esperar a que el panel cargue los nuevos datos antes de hacer scroll
         setTimeout(() => setExpandedId(prospectId), 500)
       } else if (isDuplicate) {
-        navigate('/licitaciones?tab=postulaciones')
+        navigate('/licitaciones/postulaciones')
       }
     },
     onError: (err: any) => {
@@ -1061,7 +1136,7 @@ export default function LicitacionesPage() {
               <span className="text-sm">No se encontraron datos de contacto para esta empresa.</span>
               <button
                 onClick={() => { toast.dismiss(t.id); navigate('/prospectos') }}
-                className="shrink-0 text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                className="shrink-0 text-xs font-semibold text-kap-600 hover:text-kap-700 flex items-center gap-1"
               >
                 Ver prospecto <ArrowRight size={12} />
               </button>
@@ -1150,14 +1225,14 @@ export default function LicitacionesPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-          <FileText size={20} className="text-indigo-600" />
+        <div className="w-10 h-10 bg-kap-100 rounded-xl flex items-center justify-center shrink-0">
+          <FileText size={20} className="text-kap-600" />
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-ink-9">
             {mainTab === 'postulaciones' ? 'Mis postulaciones' : 'Licitaciones'}
           </h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-ink-5 text-sm">
             {mainTab === 'postulaciones'
               ? 'Licitaciones guardadas · seguimiento y documentos'
               : 'Mercado Público Chile · Licitaciones abiertas y próximas a cerrar'}
@@ -1169,7 +1244,7 @@ export default function LicitacionesPage() {
             className={clsx(
               'flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-colors whitespace-nowrap',
               perfilEmpresa?.descripcion
-                ? 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-indigo-300'
+                ? 'border-ink-3 text-ink-6 hover:bg-ink-1 hover:border-kap-300'
                 : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
             )}
           >
@@ -1179,13 +1254,15 @@ export default function LicitacionesPage() {
         )}
       </div>
 
-      {/* Guía rápida — siempre visible en ambos tabs */}
-      <GuiaRapida
-        perfil={perfilEmpresa}
-        prospectos={postulacionesData?.items ?? []}
-        onIrABuscar={() => setMainTab('buscar')}
-        onIrAPostulaciones={() => setMainTab('postulaciones')}
-      />
+      {/* Guía rápida — solo en tab buscar */}
+      {mainTab === 'buscar' && (
+        <GuiaRapida
+          perfil={perfilEmpresa}
+          prospectos={postulacionesData?.items ?? []}
+          onIrABuscar={() => setMainTab('buscar')}
+          onIrAPostulaciones={() => setMainTab('postulaciones')}
+        />
+      )}
 
       {/* ─────────── PANEL MIS POSTULACIONES ─────────── */}
       {mainTab === 'postulaciones' && (
@@ -1217,18 +1294,18 @@ export default function LicitacionesPage() {
       {/* Gate: perfil no configurado */}
       {!perfilEmpresa?.descripcion ? (
         <div className="flex flex-col items-center justify-center py-16 gap-5 text-center">
-          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center">
-            <Settings size={28} className="text-indigo-500" />
+          <div className="w-16 h-16 bg-kap-100 rounded-2xl flex items-center justify-center">
+            <Settings size={28} className="text-kap-500" />
           </div>
           <div className="max-w-sm">
-            <p className="font-semibold text-gray-900 text-base mb-1">Configura tu perfil antes de buscar</p>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <p className="font-semibold text-ink-9 text-base mb-1">Configura tu perfil antes de buscar</p>
+            <p className="text-sm text-ink-5 leading-relaxed">
               La IA usa tu perfil para pre-filtrar licitaciones relevantes y generar propuestas personalizadas. Sin esto, los resultados no tienen valor real.
             </p>
           </div>
           <button
             onClick={() => navigate('/licitaciones/perfil')}
-            className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 bg-kap-600 text-white rounded-xl hover:bg-kap-700 transition-colors"
           >
             <Sparkles size={15} /> Configurar perfil — 2 minutos
           </button>
@@ -1244,25 +1321,25 @@ export default function LicitacionesPage() {
 
           {/* Rubros */}
           <div className="sm:col-span-1">
-            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rubros</label>
+            <label className="block text-[11px] font-semibold text-ink-5 uppercase tracking-wide mb-1">Rubros</label>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => { setShowRubrosDropdown(v => !v); setBuscarRubroQuery('') }}
                 className="input text-sm w-full flex items-center justify-between text-left"
             >
-              <span className="truncate text-gray-600">
+              <span className="truncate text-ink-6">
                 {rubrosSeleccionados.length === 0
                   ? 'Todos los rubros'
                   : `${rubrosSeleccionados.length} rubro${rubrosSeleccionados.length > 1 ? 's' : ''} seleccionado${rubrosSeleccionados.length > 1 ? 's' : ''}`}
               </span>
-              <ChevronDown size={13} className={clsx('text-gray-400 shrink-0 transition-transform', showRubrosDropdown && 'rotate-180')} />
+              <ChevronDown size={13} className={clsx('text-ink-4 shrink-0 transition-transform', showRubrosDropdown && 'rotate-180')} />
             </button>
 
             {showRubrosDropdown && (
-              <div className="absolute z-30 mt-1 w-[min(480px,90vw)] bg-white border border-gray-200 rounded-xl shadow-xl left-0">
+              <div className="absolute z-30 mt-1 w-[min(480px,90vw)] bg-white border border-ink-3 rounded-xl shadow-xl left-0">
                 {/* Buscador + limpiar */}
-                <div className="flex items-center gap-2 p-2 border-b border-gray-100">
+                <div className="flex items-center gap-2 p-2 border-b border-ink-2">
                   <div className="relative flex-1">
                     <input
                       autoFocus
@@ -1270,10 +1347,10 @@ export default function LicitacionesPage() {
                       placeholder="Buscar rubro…"
                       value={buscarRubroQuery}
                       onChange={e => setBuscarRubroQuery(e.target.value)}
-                      className="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-gray-200 outline-none focus:border-indigo-300 bg-gray-50"
+                      className="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-ink-3 outline-none focus:border-kap-300 bg-ink-1"
                       onClick={e => e.stopPropagation()}
                     />
-                    <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
                   </div>
                   {rubrosSeleccionados.length > 0 && (
                     <button onClick={() => setRubrosSeleccionados([])} className="text-[11px] text-red-400 hover:text-red-600 whitespace-nowrap px-2">Limpiar</button>
@@ -1284,12 +1361,12 @@ export default function LicitacionesPage() {
                 <div className="overflow-y-auto max-h-72 p-2 space-y-1">
                   {/* Banner de perfil si hay rubros configurados */}
                   {!buscarRubroQuery && perfilEmpresa?.rubros?.length > 0 && (
-                    <div className="flex items-center gap-2 px-2 py-1.5 mb-1 bg-indigo-50 rounded-lg border border-indigo-100">
-                      <Sparkles size={11} className="text-indigo-500 shrink-0" />
-                      <span className="text-[10px] text-indigo-600 flex-1">Rubros de tu perfil</span>
+                    <div className="flex items-center gap-2 px-2 py-1.5 mb-1 bg-kap-50 rounded-lg border border-kap-100">
+                      <Sparkles size={11} className="text-kap-500 shrink-0" />
+                      <span className="text-[10px] text-kap-600 flex-1">Rubros de tu perfil</span>
                       <button
                         onClick={() => setRubrosSeleccionados(perfilEmpresa.rubros)}
-                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+                        className="text-[10px] font-semibold text-kap-600 hover:text-kap-700"
                       >
                         Restaurar
                       </button>
@@ -1307,14 +1384,14 @@ export default function LicitacionesPage() {
                           return (
                             <label key={r} className={clsx(
                               'flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer text-xs capitalize transition-colors',
-                              sel ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700'
+                              sel ? 'bg-kap-50 text-kap-700' : 'hover:bg-ink-1 text-ink-7'
                             )}>
-                              <input type="checkbox" className="rounded border-gray-300 text-indigo-600 shrink-0 w-3.5 h-3.5"
+                              <input type="checkbox" className="rounded border-ink-3 text-kap-600 shrink-0 w-3.5 h-3.5"
                                 checked={sel}
                                 onChange={e => setRubrosSeleccionados(prev => e.target.checked ? [...prev, r] : prev.filter(x => x !== r))} />
                               <span className="flex-1">{r}</span>
-                              {enPerfil && <span className="text-[9px] text-indigo-400">perfil</span>}
-                              {count > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 rounded-full">{count}</span>}
+                              {enPerfil && <span className="text-[9px] text-kap-500">perfil</span>}
+                              {count > 0 && <span className="text-[10px] bg-ink-2 text-ink-5 px-1.5 rounded-full">{count}</span>}
                             </label>
                           )
                         })}
@@ -1335,9 +1412,9 @@ export default function LicitacionesPage() {
                           {/* Encabezado categoría */}
                           <div className="flex items-center gap-1.5 px-1 py-1 mb-0.5">
                             <span className="text-sm">{cat.emoji}</span>
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-1">{cat.label}</span>
+                            <span className="text-[10px] font-semibold text-ink-4 uppercase tracking-wide flex-1">{cat.label}</span>
                             {selEnCat.length > 0 && (
-                              <span className="text-[10px] text-indigo-600 font-bold">{selEnCat.length} ✓</span>
+                              <span className="text-[10px] text-kap-600 font-bold">{selEnCat.length} ✓</span>
                             )}
                           </div>
                           {/* Rubros en grid 3 cols */}
@@ -1350,12 +1427,12 @@ export default function LicitacionesPage() {
                                   className={clsx(
                                     'flex flex-col items-center justify-center px-1 py-2 rounded-lg border text-[11px] font-medium capitalize transition-colors leading-tight text-center',
                                     sel
-                                      ? 'bg-indigo-600 text-white border-indigo-600'
-                                      : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                                      ? 'bg-kap-600 text-white border-kap-600'
+                                      : 'bg-white text-ink-6 border-ink-3 hover:border-kap-300 hover:bg-kap-50'
                                   )}>
                                   <span>{r}</span>
                                   {count > 0 && (
-                                    <span className={clsx('text-[10px] mt-0.5', sel ? 'text-indigo-200' : 'text-gray-400')}>{count}</span>
+                                    <span className={clsx('text-[10px] mt-0.5', sel ? 'text-kap-300' : 'text-ink-4')}>{count}</span>
                                   )}
                                 </button>
                               )
@@ -1368,9 +1445,9 @@ export default function LicitacionesPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-2 border-t border-gray-100 flex justify-end">
+                <div className="p-2 border-t border-ink-2 flex justify-end">
                   <button onClick={() => setShowRubrosDropdown(false)}
-                    className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg">
+                    className="text-xs font-medium text-white bg-kap-600 hover:bg-kap-700 px-4 py-1.5 rounded-lg">
                     Listo
                   </button>
                 </div>
@@ -1382,9 +1459,9 @@ export default function LicitacionesPage() {
           {rubrosSeleccionados.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {rubrosSeleccionados.map(r => (
-                <span key={r} className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                <span key={r} className="inline-flex items-center gap-1 text-xs bg-kap-100 text-kap-700 px-2 py-0.5 rounded-full">
                   {r}
-                  {rubrosConConteo[r] > 0 && <span className="text-indigo-400">{rubrosConConteo[r]}</span>}
+                  {rubrosConConteo[r] > 0 && <span className="text-kap-500">{rubrosConConteo[r]}</span>}
                   <button onClick={() => setRubrosSeleccionados(prev => prev.filter(x => x !== r))}><X size={10} /></button>
                 </span>
               ))}
@@ -1394,7 +1471,7 @@ export default function LicitacionesPage() {
 
           {/* Región */}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Región</label>
+            <label className="block text-[11px] font-semibold text-ink-5 uppercase tracking-wide mb-1">Región</label>
             <select className="input text-sm w-full" value={filtros.region} onChange={setF('region')}>
               <option value="">Todas</option>
               {catalogo?.regiones.map(r => (
@@ -1405,7 +1482,7 @@ export default function LicitacionesPage() {
 
           {/* Período */}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Período</label>
+            <label className="block text-[11px] font-semibold text-ink-5 uppercase tracking-wide mb-1">Período</label>
             <select className="input text-sm w-full" value={filtros.periodo} onChange={setF('periodo')}>
               <option value="7">Últimos 7 días</option>
               <option value="30">Último mes</option>
@@ -1420,16 +1497,16 @@ export default function LicitacionesPage() {
           <button
             type="button"
             onClick={() => setShowAvanzados(v => !v)}
-            className="text-[11px] text-gray-400 flex items-center gap-1 hover:text-gray-600"
+            className="text-[11px] text-ink-4 flex items-center gap-1 hover:text-ink-6"
           >
             <ChevronDown size={11} className={clsx('transition-transform', showAvanzados && 'rotate-180')} />
             {showAvanzados ? 'Ocultar opciones' : 'Más opciones — tipo de licitación, organismo'}
           </button>
 
           {showAvanzados && (
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 pt-2 border-t border-gray-100">
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 pt-2 border-t border-ink-2">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Tipo de licitación</label>
+                <label className="block text-[11px] font-semibold text-ink-5 uppercase tracking-wide mb-1">Tipo de licitación</label>
                 <select className="input text-sm w-full" value={filtros.tipo_licitacion} onChange={setF('tipo_licitacion')}>
                   <option value="">Todos los tipos</option>
                   {catalogo?.tipos.map(t => (
@@ -1438,7 +1515,7 @@ export default function LicitacionesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Organismo comprador</label>
+                <label className="block text-[11px] font-semibold text-ink-5 uppercase tracking-wide mb-1">Organismo comprador</label>
                 <input
                   className="input text-sm w-full"
                   placeholder="Ej: Hospital, Municipalidad…"
@@ -1452,7 +1529,7 @@ export default function LicitacionesPage() {
 
         {/* ── Botón buscar ── */}
         {isAdmin && (
-          <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
+          <div className="flex items-center gap-3 pt-1 border-t border-ink-2">
             <button
               className="btn-primary flex items-center gap-2 py-2.5 px-5"
               onClick={() => { setPaginaActual(1); buscarMutation.mutate(1) }}
@@ -1467,27 +1544,27 @@ export default function LicitacionesPage() {
                 : <><Search size={14} /> Buscar</>}
             </button>
             {resultados.length > 0 && (
-              <button onClick={limpiarBusqueda} className="text-xs text-gray-400 hover:text-red-400 flex items-center gap-1">
+              <button onClick={limpiarBusqueda} className="text-xs text-ink-4 hover:text-red-400 flex items-center gap-1">
                 <X size={12} /> Limpiar
               </button>
             )}
             {cacheInfo && !buscarMutation.isPending && (
-              <span className="text-xs text-gray-400 ml-auto">{cacheInfo}</span>
+              <span className="text-xs text-ink-4 ml-auto">{cacheInfo}</span>
             )}
           </div>
         )}
         {isAdmin && buscarMutation.isPending && (
-          <div className="mt-2 text-xs text-gray-500 space-y-1">
+          <div className="mt-2 text-xs text-ink-5 space-y-1">
             <div className="flex items-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-kap-100 animate-pulse" />
               {searchSeconds < 5 && 'Obteniendo lista de licitaciones…'}
               {searchSeconds >= 5 && searchSeconds < 15 && 'Descargando páginas de resultados…'}
               {searchSeconds >= 15 && searchSeconds < 40 && `Descargando detalle de cada licitación (puede tardar ~30s)… ${searchSeconds}s`}
               {searchSeconds >= 40 && `⏳ Casi listo, procesando… ${searchSeconds}s`}
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1">
+            <div className="w-full bg-ink-2 rounded-full h-1">
               <div
-                className="bg-indigo-400 h-1 rounded-full transition-all duration-1000"
+                className="bg-kap-100 h-1 rounded-full transition-all duration-1000"
                 style={{ width: `${Math.min((searchSeconds / 45) * 100, 95)}%` }}
               />
             </div>
@@ -1501,40 +1578,40 @@ export default function LicitacionesPage() {
           {/* Overlay de carga sobre resultados existentes */}
           {buscarMutation.isPending && (
             <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-              <Loader2 size={28} className="animate-spin text-indigo-500" />
-              <p className="text-sm font-semibold text-gray-700">
+              <Loader2 size={28} className="animate-spin text-kap-500" />
+              <p className="text-sm font-semibold text-ink-7">
                 {searchSeconds < 5 && 'Buscando licitaciones…'}
                 {searchSeconds >= 5 && searchSeconds < 15 && 'Descargando resultados…'}
                 {searchSeconds >= 15 && searchSeconds < 40 && 'Procesando bases técnicas…'}
                 {searchSeconds >= 40 && '⏳ Casi listo…'}
               </p>
-              <div className="w-48 bg-gray-100 rounded-full h-1.5">
+              <div className="w-48 bg-ink-2 rounded-full h-1.5">
                 <div
-                  className="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000"
+                  className="bg-kap-500 h-1.5 rounded-full transition-all duration-1000"
                   style={{ width: `${Math.min((searchSeconds / 45) * 100, 92)}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-400">{searchSeconds}s — puede tardar hasta 45s</p>
+              <p className="text-xs text-ink-4">{searchSeconds}s — puede tardar hasta 45s</p>
             </div>
           )}
           {/* Header tabla */}
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
-            <span className="text-sm font-semibold text-gray-700 flex items-center gap-2 flex-wrap">
+          <div className="px-5 py-3 border-b border-ink-2 flex items-center justify-between bg-ink-1 flex-wrap gap-2">
+            <span className="text-sm font-semibold text-ink-7 flex items-center gap-2 flex-wrap">
               {totalResultados} licitaciones encontradas
               {totalDisponible !== null && totalDisponible !== totalResultados && (
-                <span className="text-xs text-gray-400 font-normal">de {totalDisponible} disponibles</span>
+                <span className="text-xs text-ink-4 font-normal">de {totalDisponible} disponibles</span>
               )}
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-normal">
+              <span className="text-xs text-ink-4 bg-ink-2 px-2 py-0.5 rounded-full font-normal">
                 Período: últimos {filtros.periodo} días
               </span>
               {cacheInfo && (
-                <span className="text-xs text-gray-400 font-normal">· guardado hoy {cacheInfo}</span>
+                <span className="text-xs text-ink-4 font-normal">· guardado hoy {cacheInfo}</span>
               )}
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={descargarCSV}
-                className="text-xs text-gray-600 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                className="text-xs text-ink-6 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-ink-3 hover:bg-ink-2 transition-colors"
               >
                 <Download size={11} /> Descargar CSV
               </button>
@@ -1547,7 +1624,7 @@ export default function LicitacionesPage() {
               <button
                 onClick={() => buscarMutation.mutate(paginaActual)}
                 disabled={buscarMutation.isPending}
-                className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40"
+                className="text-xs text-ink-5 flex items-center gap-1 hover:text-ink-7 disabled:opacity-40"
               >
                 <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
               </button>
@@ -1558,7 +1635,7 @@ export default function LicitacionesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                <tr className="text-left text-xs text-ink-5 border-b border-ink-2">
                   <th className="px-4 py-3 font-medium">Licitación</th>
                   <th className="px-4 py-3 font-medium">Monto est.</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Rubro</th>
@@ -1568,23 +1645,23 @@ export default function LicitacionesPage() {
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-ink-2">
                 {resultados.map((item) => (
                   <>
                     {/* Fila principal */}
                     <tr
                       key={item.codigo}
                       className={clsx(
-                        'hover:bg-gray-50 cursor-pointer transition-colors',
-                        expandedId === item.codigo && 'bg-indigo-50/30'
+                        'hover:bg-ink-1 cursor-pointer transition-colors',
+                        expandedId === item.codigo && 'bg-kap-50/30'
                       )}
                       onClick={() => toggleExpand(item.codigo, item)}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900 line-clamp-1">{item.nombre}</div>
+                        <div className="font-medium text-ink-9 line-clamp-1">{item.nombre}</div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {item.tipo && (
-                            <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{item.tipo}</span>
+                            <span className="text-[10px] font-mono bg-ink-2 text-ink-5 px-1.5 py-0.5 rounded">{item.tipo}</span>
                           )}
                           {(() => {
                             if (!item.fecha_cierre) return null
@@ -1595,65 +1672,61 @@ export default function LicitacionesPage() {
                             if (!fecha) return null
                             const today = new Date(); today.setHours(0,0,0,0)
                             const dias = Math.ceil((fecha.getTime() - today.getTime()) / 86400000)
-                            if (dias < 0) return <span className="text-[10px] text-gray-400">cerrada</span>
-                            const cls = dias <= 2 ? 'bg-red-100 text-red-700' : dias <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                            if (dias < 0) return <span className="text-[10px] text-ink-4">cerrada</span>
+                            const cls = dias <= 2 ? 'bg-red-100 text-red-700' : dias <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-ink-2 text-ink-5'
                             return <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${cls}`}>{dias}d al cierre</span>
                           })()}
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-ink-9">
                         {formatMonto(item.monto)}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <RubroBadge categoria={item.categoria} rubrosSeleccionados={rubrosSeleccionados} />
                       </td>
-                      <td className="px-4 py-3 text-gray-600 hidden md:table-cell text-xs">{item.region || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs line-clamp-1">
+                      <td className="px-4 py-3 text-ink-6 hidden md:table-cell text-xs">{item.region || '—'}</td>
+                      <td className="px-4 py-3 text-ink-6 hidden lg:table-cell text-xs line-clamp-1">
                         {item.fecha_cierre}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {item.prospect_id
-                          ? <ScoreBadge score={item.score} />
-                          : item.fit_score != null
-                            ? <FitBadge score={item.fit_score} motivo={item.fit_motivo} />
-                            : <span className="text-[10px] text-gray-300" title="Guarda para analizar con IA">—</span>}
+                        <ScoreCell score={item.prospect_id ? item.score : null} fitScore={item.fit_score} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         {expandedId === item.codigo
-                          ? <ChevronUp size={15} className="text-gray-400 ml-auto" />
-                          : <ChevronDown size={15} className="text-gray-400 ml-auto" />}
+                          ? <ChevronUp size={15} className="text-ink-4 ml-auto" />
+                          : <ChevronDown size={15} className="text-ink-4 ml-auto" />}
                       </td>
                     </tr>
 
                     {/* Panel expandido inline */}
                     {expandedId === item.codigo && (
                       <tr key={`${item.codigo}-detail`}>
-                        <td colSpan={7} className="bg-gray-50/60 px-4 py-3 border-b border-gray-100">
+                        <td colSpan={7} className="bg-ink-1/60 px-4 py-3 border-b border-ink-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                             {/* Columna izquierda: info licitación */}
                             <div className="space-y-2 text-xs">
-                              <p className="font-mono text-gray-400">{item.codigo}</p>
-                              <p className="text-gray-800 font-medium leading-snug">{item.nombre}</p>
+                              <p className="font-mono text-ink-4">{item.codigo}</p>
+                              <p className="text-ink-8 font-medium leading-snug">{item.nombre}</p>
                               {item.descripcion && (
-                                <p className="text-gray-400 leading-relaxed line-clamp-3">{item.descripcion}</p>
+                                <p className="text-ink-4 leading-relaxed line-clamp-3">{item.descripcion}</p>
                               )}
-                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-600">
-                                <span><span className="text-gray-400">Organismo:</span> {item.organismo}</span>
-                                <span><span className="text-gray-400">Estado:</span> {item.estado}</span>
-                                <span><span className="text-gray-400">Tipo:</span> {item.tipo || '—'}</span>
-                                <span><span className="text-gray-400">Región:</span> {item.region}</span>
-                                {item.fecha_adjudicacion && <span><span className="text-gray-400">Adjudicada:</span> {item.fecha_adjudicacion}</span>}
-                                {item.fecha_cierre && <span><span className="text-gray-400">Cierre:</span> {item.fecha_cierre}</span>}
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-ink-6">
+                                <span><span className="text-ink-4">Organismo:</span> {item.organismo}</span>
+                                <span><span className="text-ink-4">Estado:</span> {item.estado}</span>
+                                <span><span className="text-ink-4">Tipo:</span> {item.tipo || '—'}</span>
+                                <span><span className="text-ink-4">Región:</span> {item.region}</span>
+                                {item.fecha_adjudicacion && <span><span className="text-ink-4">Adjudicada:</span> {item.fecha_adjudicacion}</span>}
+                                {item.fecha_cierre && <span><span className="text-ink-4">Cierre:</span> {item.fecha_cierre}</span>}
                               </div>
-                              <div className="flex items-baseline gap-3 pt-1 border-t border-gray-200">
+                              <div className="flex items-baseline gap-3 pt-1 border-t border-ink-3">
                                 <div>
-                                  <span className="text-gray-400">Monto est. </span>
-                                  <span className="font-bold text-gray-900 text-sm">{formatMonto(item.monto)}</span>
+                                  <span className="text-ink-4">Monto est. </span>
+                                  <span className="font-bold text-ink-9 text-sm">{formatMonto(item.monto)}</span>
                                 </div>
                                 {item.monto_adjudicado && item.monto_adjudicado !== item.monto && (
                                   <div>
-                                    <span className="text-gray-400">Adj. </span>
+                                    <span className="text-ink-4">Adj. </span>
                                     <span className="font-bold text-emerald-700 text-sm">{formatMonto(item.monto_adjudicado)}</span>
                                   </div>
                                 )}
@@ -1663,11 +1736,11 @@ export default function LicitacionesPage() {
                             {/* Columna derecha: acciones */}
                             <div className="flex flex-col justify-between gap-3">
                               {/* Organismo comprador (solo nombre) */}
-                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5 flex items-center gap-2 text-xs">
-                                <Building2 size={13} className="text-gray-400 shrink-0" />
+                              <div className="bg-white rounded-lg border border-ink-2 px-3 py-2.5 flex items-center gap-2 text-xs">
+                                <Building2 size={13} className="text-ink-4 shrink-0" />
                                 <div>
-                                  <span className="text-gray-400">Organismo comprador · </span>
-                                  <span className="font-medium text-gray-700">{item.organismo}</span>
+                                  <span className="text-ink-4">Organismo comprador · </span>
+                                  <span className="font-medium text-ink-7">{item.organismo}</span>
                                 </div>
                               </div>
 
@@ -1679,7 +1752,7 @@ export default function LicitacionesPage() {
                                       <CheckCircle2 size={13} /> Agregada a tus postulaciones
                                     </div>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); navigate('/licitaciones?tab=postulaciones') }}
+                                      onClick={(e) => { e.stopPropagation(); navigate('/licitaciones/postulaciones') }}
                                       className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 w-full font-medium"
                                     >
                                       <ListChecks size={12} /> Ir a mis postulaciones
@@ -1692,34 +1765,66 @@ export default function LicitacionesPage() {
                                         setPropuestaModal({ prospectId: item.prospect_id!, nombre: item.nombre })
                                         analizarMutation.mutate({ prospectId: item.prospect_id! })
                                       }}
-                                      className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 w-full"
+                                      className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-kap-600 text-white hover:bg-kap-700 w-full"
                                     >
                                       <ClipboardList size={12} /> Analizar bases con IA
                                     </button>
                                   </>
                                 ) : (
                                   <>
+                                    {/* Score badge prominente antes de guardar */}
+                                    {item.fit_score != null && (() => {
+                                      const s = item.fit_score
+                                      if (s >= 60) return (
+                                        <div className="flex items-start gap-2 px-3 py-2.5 bg-ok-light border border-ok-border rounded-lg">
+                                          <span className="text-ok text-sm shrink-0">✓</span>
+                                          <div>
+                                            <p className="text-xs font-bold text-ok">Alta compatibilidad · {s}/100</p>
+                                            <p className="text-[11px] text-ok/80 mt-0.5">{item.fit_motivo ?? 'Tu perfil encaja bien con esta licitación'}</p>
+                                          </div>
+                                        </div>
+                                      )
+                                      if (s >= 40) return (
+                                        <div className="flex items-start gap-2 px-3 py-2.5 bg-warn-light border border-warn-border rounded-lg">
+                                          <span className="text-warn text-sm shrink-0">→</span>
+                                          <div>
+                                            <p className="text-xs font-bold text-warn">Compatibilidad media · {s}/100</p>
+                                            <p className="text-[11px] text-warn/80 mt-0.5">{item.fit_motivo ?? 'Evalúa si conviene antes de postular'}</p>
+                                          </div>
+                                        </div>
+                                      )
+                                      return null
+                                    })()}
+
                                     {item.fit_score != null && item.fit_score < 40 ? (
                                       <div className="space-y-2">
-                                        <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
-                                          <span className="text-red-500 text-sm shrink-0">🔒</span>
+                                        <div className="flex items-start gap-2 px-3 py-2.5 bg-bad-light border border-bad-border rounded-lg">
+                                          <span className="text-bad text-sm shrink-0">🔒</span>
                                           <div>
-                                            <p className="text-xs font-bold text-red-700">Tu empresa no califica para esta licitación</p>
-                                            <p className="text-[11px] text-red-600 mt-0.5">{item.fit_motivo ?? 'Sin coincidencia de rubros con tu perfil'}</p>
+                                            <p className="text-xs font-bold text-bad">Baja compatibilidad · {item.fit_score}/100</p>
+                                            <p className="text-[11px] text-bad/80 mt-0.5">{item.fit_motivo ?? 'Sin coincidencia de rubros con tu perfil'}</p>
                                           </div>
                                         </div>
                                         <button
                                           onClick={() => navigate('/licitaciones/perfil')}
-                                          className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 w-full"
+                                          className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-kap-100 text-kap-600 hover:bg-kap-50 w-full"
                                         >
                                           Revisar Perfil IA →
+                                        </button>
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); guardarMutation.mutate(item) }}
+                                          disabled={savingCodigo === item.codigo}
+                                          className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-ink-3 text-ink-5 hover:bg-ink-1 w-full"
+                                        >
+                                          {savingCodigo === item.codigo ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
+                                          Guardar de todas formas
                                         </button>
                                       </div>
                                     ) : (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); guardarMutation.mutate(item) }}
                                         disabled={savingCodigo === item.codigo}
-                                        className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 w-full"
+                                        className="btn-primary flex items-center gap-1.5 text-xs self-start"
                                       >
                                         {savingCodigo === item.codigo ? <Loader2 size={12} className="animate-spin" /> : <BookmarkPlus size={12} />}
                                         Agregar a mis postulaciones
@@ -1731,7 +1836,7 @@ export default function LicitacionesPage() {
                                   href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                   target="_blank" rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 w-full"
+                                  className="flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 w-full"
                                 >
                                   <ExternalLink size={12} /> Ver ficha completa en Mercado Público
                                 </a>
@@ -1749,16 +1854,16 @@ export default function LicitacionesPage() {
 
           {/* Paginación */}
           {totalPaginas > 1 && (
-            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
-              <span className="text-xs text-gray-500">
+            <div className="px-5 py-3 border-t border-ink-2 flex items-center justify-between bg-ink-1 flex-wrap gap-2">
+              <span className="text-xs text-ink-5">
                 Página <strong>{paginaActual}</strong> de <strong>{totalPaginas}</strong>
-                <span className="ml-1 text-gray-400">· {totalResultados.toLocaleString('es-CL')} licitaciones</span>
+                <span className="ml-1 text-ink-4">· {totalResultados.toLocaleString('es-CL')} licitaciones</span>
               </span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => buscarMutation.mutate(paginaActual - 1)}
                   disabled={paginaActual <= 1 || buscarMutation.isPending}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   ← Anterior
                 </button>
@@ -1774,8 +1879,8 @@ export default function LicitacionesPage() {
                       className={clsx(
                         'text-xs w-8 h-8 rounded-lg border transition-colors disabled:opacity-40',
                         page === paginaActual
-                          ? 'bg-brand-500 text-white border-brand-500 font-semibold'
-                          : 'border-gray-200 text-gray-600 hover:bg-gray-100'
+                          ? 'bg-kap-500 text-white border-kap-300 font-semibold'
+                          : 'border-ink-3 text-ink-6 hover:bg-ink-2'
                       )}
                     >
                       {page}
@@ -1785,7 +1890,7 @@ export default function LicitacionesPage() {
                 <button
                   onClick={() => buscarMutation.mutate(paginaActual + 1)}
                   disabled={paginaActual >= totalPaginas || buscarMutation.isPending}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Siguiente →
                 </button>
@@ -1799,41 +1904,41 @@ export default function LicitacionesPage() {
       {resultados.length === 0 && buscarMutation.isPending && (
         <div className="card p-12 flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-14 h-14 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin" />
-            <Search size={16} className="absolute inset-0 m-auto text-indigo-400" />
+            <div className="w-14 h-14 rounded-full border-4 border-kap-100 border-t-kap-500 animate-spin" />
+            <Search size={16} className="absolute inset-0 m-auto text-kap-500" />
           </div>
           <div className="text-center space-y-1">
-            <p className="text-sm font-semibold text-gray-700">
+            <p className="text-sm font-semibold text-ink-7">
               {searchSeconds < 5 && 'Conectando con Mercado Público…'}
               {searchSeconds >= 5 && searchSeconds < 15 && 'Descargando licitaciones del período…'}
               {searchSeconds >= 15 && searchSeconds < 35 && 'Obteniendo detalle de cada licitación…'}
               {searchSeconds >= 35 && '⏳ Procesando resultados, ya casi…'}
             </p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-ink-4">
               {searchSeconds < 5 ? 'Iniciando búsqueda' : `${searchSeconds}s — este proceso puede tomar hasta 45 segundos`}
             </p>
           </div>
-          <div className="w-64 bg-gray-100 rounded-full h-2">
+          <div className="w-64 bg-ink-2 rounded-full h-2">
             <div
-              className="bg-indigo-500 h-2 rounded-full transition-all duration-1000"
+              className="bg-kap-500 h-2 rounded-full transition-all duration-1000"
               style={{ width: `${Math.min((searchSeconds / 45) * 100, 92)}%` }}
             />
           </div>
-          <div className="flex items-center gap-4 text-[11px] text-gray-400 mt-1">
-            <span className={searchSeconds >= 0 ? 'text-indigo-500 font-medium' : ''}>① Conectar</span>
-            <span className="text-gray-200">──</span>
-            <span className={searchSeconds >= 5 ? 'text-indigo-500 font-medium' : ''}>② Descargar</span>
-            <span className="text-gray-200">──</span>
-            <span className={searchSeconds >= 15 ? 'text-indigo-500 font-medium' : ''}>③ Procesar</span>
-            <span className="text-gray-200">──</span>
-            <span className={searchSeconds >= 35 ? 'text-indigo-500 font-medium' : ''}>④ Listo</span>
+          <div className="flex items-center gap-4 text-[11px] text-ink-4 mt-1">
+            <span className={searchSeconds >= 0 ? 'text-kap-500 font-medium' : ''}>① Conectar</span>
+            <span className="text-ink-3">──</span>
+            <span className={searchSeconds >= 5 ? 'text-kap-500 font-medium' : ''}>② Descargar</span>
+            <span className="text-ink-3">──</span>
+            <span className={searchSeconds >= 15 ? 'text-kap-500 font-medium' : ''}>③ Procesar</span>
+            <span className="text-ink-3">──</span>
+            <span className={searchSeconds >= 35 ? 'text-kap-500 font-medium' : ''}>④ Listo</span>
           </div>
         </div>
       )}
 
       {/* Estado vacío */}
       {resultados.length === 0 && !buscarMutation.isPending && (
-        <div className="card p-10 text-center text-gray-400">
+        <div className="card p-10 text-center text-ink-4">
           <FileText size={36} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">Configura los filtros y lanza la búsqueda para ver licitaciones.</p>
         </div>
@@ -1847,32 +1952,32 @@ export default function LicitacionesPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-ink-2 shrink-0">
               <div className="flex items-center gap-2">
-                <ClipboardList size={18} className="text-indigo-600" />
+                <ClipboardList size={18} className="text-kap-600" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Análisis IA · Postulación</p>
-                  <p className="text-xs text-gray-400 line-clamp-1">{propuestaModal.nombre}</p>
+                  <p className="text-sm font-semibold text-ink-9">Análisis IA · Postulación</p>
+                  <p className="text-xs text-ink-4 line-clamp-1">{propuestaModal.nombre}</p>
                 </div>
               </div>
               <button onClick={() => { setPropuestaModal(null); setAnalisisData(null); setPropuestaTexto(null) }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-ink-2 text-ink-4">
                 <X size={16} />
               </button>
             </div>
 
             {/* Tabs */}
             {!isAnalyzing && (
-              <div className="flex border-b border-gray-100 shrink-0">
+              <div className="flex border-b border-ink-2 shrink-0">
                 {[
-                  { key: 'analisis', label: 'Análisis de fit', icon: BarChart3 },
-                  { key: 'propuesta', label: 'Propuesta técnica', icon: FileSignature },
-                  { key: 'docs', label: 'Documentos', icon: FileText },
+                  { key: 'analisis',  label: '¿Conviene postular?', icon: BarChart3 },
+                  { key: 'docs',      label: 'Documentos',           icon: FileText },
+                  { key: 'propuesta', label: 'Propuesta generada',   icon: FileSignature },
                 ].map(tab => (
                   <button key={tab.key}
                     onClick={() => setAnalisisTab(tab.key as any)}
                     className={clsx('flex-1 text-xs font-medium py-2.5 flex items-center justify-center gap-1.5 transition-colors',
-                      analisisTab === tab.key ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600')}
+                      analisisTab === tab.key ? 'text-kap-600 border-b-2 border-kap-600' : 'text-ink-4 hover:text-ink-6')}
                   >
                     <tab.icon size={12} /> {tab.label}
                   </button>
@@ -1885,30 +1990,30 @@ export default function LicitacionesPage() {
               {isAnalyzing ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-4">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin" />
-                    <ClipboardList size={18} className="absolute inset-0 m-auto text-indigo-400" />
+                    <div className="w-16 h-16 rounded-full border-4 border-kap-100 border-t-kap-500 animate-spin" />
+                    <ClipboardList size={18} className="absolute inset-0 m-auto text-kap-500" />
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-sm font-semibold text-gray-700">
+                    <p className="text-sm font-semibold text-ink-7">
                       {analysisSeconds < 5 && 'Conectando con Mercado Público…'}
                       {analysisSeconds >= 5 && analysisSeconds < 20 && 'Descargando bases técnicas y PDFs…'}
                       {analysisSeconds >= 20 && analysisSeconds < 45 && 'Claude analizando requisitos vs tu perfil…'}
                       {analysisSeconds >= 45 && '⏳ Casi listo, generando propuesta…'}
                     </p>
-                    <p className="text-xs text-gray-400">{analysisSeconds}s — puede tomar hasta 60s</p>
+                    <p className="text-xs text-ink-4">{analysisSeconds}s — puede tomar hasta 60s</p>
                   </div>
-                  <div className="w-56 bg-gray-100 rounded-full h-1.5">
-                    <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000"
+                  <div className="w-56 bg-ink-2 rounded-full h-1.5">
+                    <div className="bg-kap-500 h-1.5 rounded-full transition-all duration-1000"
                       style={{ width: `${Math.min((analysisSeconds / 60) * 100, 90)}%` }} />
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                    <span className={analysisSeconds >= 0 ? 'text-indigo-500 font-medium' : ''}>① Conectar</span>
-                    <span className="text-gray-200">──</span>
-                    <span className={analysisSeconds >= 5 ? 'text-indigo-500 font-medium' : ''}>② Descargar</span>
-                    <span className="text-gray-200">──</span>
-                    <span className={analysisSeconds >= 20 ? 'text-indigo-500 font-medium' : ''}>③ Analizar</span>
-                    <span className="text-gray-200">──</span>
-                    <span className={analysisSeconds >= 45 ? 'text-indigo-500 font-medium' : ''}>④ Propuesta</span>
+                  <div className="flex items-center gap-3 text-[11px] text-ink-4">
+                    <span className={analysisSeconds >= 0 ? 'text-kap-500 font-medium' : ''}>① Conectar</span>
+                    <span className="text-ink-3">──</span>
+                    <span className={analysisSeconds >= 5 ? 'text-kap-500 font-medium' : ''}>② Descargar</span>
+                    <span className="text-ink-3">──</span>
+                    <span className={analysisSeconds >= 20 ? 'text-kap-500 font-medium' : ''}>③ Analizar</span>
+                    <span className="text-ink-3">──</span>
+                    <span className={analysisSeconds >= 45 ? 'text-kap-500 font-medium' : ''}>④ Propuesta</span>
                   </div>
                 </div>
               ) : analisisData ? (
@@ -1924,7 +2029,7 @@ export default function LicitacionesPage() {
                         analisisData.nivel === 'medio' ? 'bg-amber-50 border-amber-300' :
                         'bg-red-50 border-red-300'
                       )}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">¿Conviene postular?</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-ink-4 mb-1">¿Conviene postular?</p>
                         <p className={clsx('text-2xl font-black mb-2',
                           analisisData.nivel === 'alto' ? 'text-emerald-600' :
                           analisisData.nivel === 'medio' ? 'text-amber-600' : 'text-red-500'
@@ -1932,7 +2037,7 @@ export default function LicitacionesPage() {
                           {analisisData.nivel === 'alto' ? '✅ Sí, postula' :
                            analisisData.nivel === 'medio' ? '⚠️ Puedes intentarlo' : '❌ Difícil de ganar'}
                         </p>
-                        <p className="text-sm text-gray-600 leading-snug">{analisisData.resumen}</p>
+                        <p className="text-sm text-ink-6 leading-snug">{analisisData.resumen}</p>
                         <span className={clsx(
                           'inline-block mt-3 text-xs font-bold px-3 py-1 rounded-full',
                           analisisData.nivel === 'alto' ? 'bg-emerald-200 text-emerald-800' :
@@ -1944,7 +2049,7 @@ export default function LicitacionesPage() {
 
                       {/* Fuente */}
                       {analisisData.documentos_analizados?.length > 0 ? (
-                        <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                        <p className="text-[11px] text-ink-4 flex items-center gap-1">
                           <FileText size={10} /> Basado en: {analisisData.documentos_analizados.join(' · ')}
                         </p>
                       ) : (
@@ -1956,7 +2061,7 @@ export default function LicitacionesPage() {
                       {/* Alertas — qué considerar al postular */}
                       {analisisData.alertas?.length > 0 && (
                         <div className="space-y-1.5">
-                          <p className="text-xs font-semibold text-gray-700">Considera esto al postular:</p>
+                          <p className="text-xs font-semibold text-ink-7">Considera esto al postular:</p>
                           {analisisData.alertas.map((a: string, i: number) => (
                             <div key={i} className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                               <span className="text-amber-400 shrink-0 mt-0.5">•</span>
@@ -1969,7 +2074,7 @@ export default function LicitacionesPage() {
                       {/* Detalle técnico — colapsado */}
                       {analisisData.requisitos?.length > 0 && (
                         <details className="group">
-                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 list-none flex items-center gap-1 select-none">
+                          <summary className="text-xs text-ink-4 cursor-pointer hover:text-ink-6 list-none flex items-center gap-1 select-none">
                             <ChevronDown size={12} className="group-open:rotate-180 transition-transform" />
                             Ver detalle de requisitos ({analisisData.requisitos.length})
                           </summary>
@@ -1981,9 +2086,9 @@ export default function LicitacionesPage() {
                                   : <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />}
                                 <div>
                                   <span className={clsx('font-medium',
-                                    req.cumple === true ? 'text-gray-700' : req.cumple === false ? 'text-red-700' : 'text-amber-700'
+                                    req.cumple === true ? 'text-ink-7' : req.cumple === false ? 'text-red-700' : 'text-amber-700'
                                   )}>{req.item}</span>
-                                  {req.observacion && <span className="text-gray-400 ml-1">— {req.observacion}</span>}
+                                  {req.observacion && <span className="text-ink-4 ml-1">— {req.observacion}</span>}
                                 </div>
                               </div>
                             ))}
@@ -1993,11 +2098,11 @@ export default function LicitacionesPage() {
 
                       {/* CTAs */}
                       <button onClick={() => setAnalisisTab('docs')}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700">
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-kap-600 text-white text-sm font-bold hover:bg-kap-700">
                         <FileText size={14} /> Ver documentos necesarios →
                       </button>
                       <button onClick={() => setAnalisisTab('propuesta')}
-                        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-gray-200 text-gray-500 text-xs hover:bg-gray-50">
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-ink-3 text-ink-5 text-xs hover:bg-ink-1">
                         <FileSignature size={12} /> Ver propuesta técnica generada
                       </button>
                     </div>
@@ -2006,7 +2111,7 @@ export default function LicitacionesPage() {
                   {/* ── TAB: Propuesta técnica ── */}
                   {analisisTab === 'propuesta' && (
                     <div
-                      className="prose prose-sm max-w-none text-gray-800 leading-relaxed"
+                      className="prose prose-sm max-w-none text-ink-8 leading-relaxed"
                       style={{ fontSize: '13px' }}
                     >
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{propuestaTexto || 'No se generó propuesta.'}</ReactMarkdown>
@@ -2041,12 +2146,12 @@ export default function LicitacionesPage() {
                                     </p>
                                   </div>
                                   {req.observacion && (
-                                    <p className="text-gray-500 pl-4">{req.observacion}</p>
+                                    <p className="text-ink-5 pl-4">{req.observacion}</p>
                                   )}
                                   <div className="pl-4 flex gap-2 flex-wrap">
                                     <button
                                       onClick={() => { setPropuestaModal(null); setAnalisisData(null); navigate('/licitaciones/perfil') }}
-                                      className="text-[10px] text-indigo-500 hover:underline flex items-center gap-0.5"
+                                      className="text-[10px] text-kap-500 hover:underline flex items-center gap-0.5"
                                     >
                                       <Settings size={9} /> Completar en perfil →
                                     </button>
@@ -2059,14 +2164,14 @@ export default function LicitacionesPage() {
                       })()}
 
                       {/* ── 2. DOCUMENTOS GENERABLES CON IA ── */}
-                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
+                      <div className="rounded-xl border border-kap-300 bg-kap-100 p-4 space-y-3">
                         <div className="flex items-start gap-2.5">
-                          <div className="p-2 bg-violet-100 rounded-lg shrink-0">
-                            <Sparkles size={14} className="text-violet-600" />
+                          <div className="p-2 bg-kap-100 rounded-lg shrink-0">
+                            <Sparkles size={14} className="text-kap-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-violet-800">Genera todos tus documentos con IA</p>
-                            <p className="text-[11px] text-violet-600 mt-0.5">
+                            <p className="font-semibold text-kap-600">Genera todos tus documentos con IA</p>
+                            <p className="text-[11px] text-kap-600 mt-0.5">
                               Metodología, carta de presentación, currículum empresa, CV del equipo y más — personalizados para esta licitación.
                             </p>
                           </div>
@@ -2078,7 +2183,7 @@ export default function LicitacionesPage() {
                             setAnalisisData(null)
                             navigate(`/propuestas/licitaciones?prospect_id=${pid}`)
                           }}
-                          className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                          className="w-full flex items-center justify-center gap-2 bg-kap-100 hover:bg-kap-100 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
                         >
                           <Sparkles size={14} /> Generar todos los documentos →
                         </button>
@@ -2086,7 +2191,7 @@ export default function LicitacionesPage() {
 
                       {/* ── 3. DOCUMENTOS LEGALES (descarga directa) ── */}
                       <div>
-                        <p className="font-semibold text-gray-700 mb-2">🏛️ Habilitación legal</p>
+                        <p className="font-semibold text-ink-7 mb-2">🏛️ Habilitación legal</p>
                         <div className="space-y-1.5 pl-1">
                           {[
                             { label: 'Certificado estado hábil ChileProveedores', url: 'https://www.chileproveedores.cl' },
@@ -2094,10 +2199,10 @@ export default function LicitacionesPage() {
                             { label: 'Formulario oferta económica (Mercado Público)', url: 'https://www.mercadopublico.cl' },
                           ].map((item, i) => (
                             <div key={i} className="flex items-center gap-2">
-                              <span className="text-gray-300 shrink-0">☐</span>
-                              <span className="flex-1 text-gray-700">{item.label}</span>
+                              <span className="text-ink-4 shrink-0">☐</span>
+                              <span className="flex-1 text-ink-7">{item.label}</span>
                               <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-indigo-500 hover:underline shrink-0 flex items-center gap-0.5">
+                                className="text-[10px] text-kap-500 hover:underline shrink-0 flex items-center gap-0.5">
                                 Descargar <ExternalLink size={8} />
                               </a>
                             </div>
@@ -2106,14 +2211,14 @@ export default function LicitacionesPage() {
                       </div>
 
                       {/* ── 4. SUBIR ARCHIVOS DE CONTEXTO ── */}
-                      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 space-y-2.5">
+                      <div className="rounded-xl border border-dashed border-ink-3 bg-ink-1 p-3 space-y-2.5">
                         <div className="flex items-start gap-2">
-                          <div className="p-1.5 bg-indigo-100 rounded-lg shrink-0">
-                            <FileText size={13} className="text-indigo-600" />
+                          <div className="p-1.5 bg-kap-100 rounded-lg shrink-0">
+                            <FileText size={13} className="text-kap-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-700">Archivos de contexto para la IA</p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
+                            <p className="font-semibold text-ink-7">Archivos de contexto para la IA</p>
+                            <p className="text-[11px] text-ink-5 mt-0.5">
                               Sube trabajos pasados, certificados, fichas técnicas o cualquier documento.
                               La IA los usará para generar propuestas más precisas y personalizadas.
                             </p>
@@ -2124,15 +2229,15 @@ export default function LicitacionesPage() {
                         {archivosContexto.length > 0 && (
                           <div className="space-y-1">
                             {archivosContexto.map(a => (
-                              <div key={a.nombre} className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-2.5 py-1.5">
-                                <FileText size={11} className="text-indigo-400 shrink-0" />
-                                <span className="flex-1 text-gray-700 truncate">{a.nombre}</span>
-                                <span className="text-[10px] text-gray-400 shrink-0">
+                              <div key={a.nombre} className="flex items-center gap-2 bg-white rounded-lg border border-ink-3 px-2.5 py-1.5">
+                                <FileText size={11} className="text-kap-500 shrink-0" />
+                                <span className="flex-1 text-ink-7 truncate">{a.nombre}</span>
+                                <span className="text-[10px] text-ink-4 shrink-0">
                                   {(a.tamaño_chars / 1000).toFixed(1)}k chars
                                 </span>
                                 <button
                                   onClick={() => eliminarArchivoContexto(a.nombre)}
-                                  className="text-gray-300 hover:text-red-400 shrink-0"
+                                  className="text-ink-4 hover:text-red-400 shrink-0"
                                 ><X size={12} /></button>
                               </div>
                             ))}
@@ -2142,17 +2247,17 @@ export default function LicitacionesPage() {
                         <label className={clsx(
                           'flex items-center justify-center gap-2 py-2 rounded-lg border-2 border-dashed cursor-pointer transition-colors',
                           archivoCargando
-                            ? 'border-indigo-200 bg-indigo-50 opacity-60 pointer-events-none'
-                            : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                            ? 'border-kap-100 bg-kap-50 opacity-60 pointer-events-none'
+                            : 'border-ink-3 hover:border-kap-300 hover:bg-kap-50'
                         )}>
                           {archivoCargando
-                            ? <><Loader2 size={13} className="animate-spin text-indigo-500" /><span className="text-[11px] text-indigo-500">Procesando…</span></>
-                            : <><BookmarkPlus size={13} className="text-gray-400" /><span className="text-[11px] text-gray-500">Subir PDF, TXT o MD</span></>}
+                            ? <><Loader2 size={13} className="animate-spin text-kap-500" /><span className="text-[11px] text-kap-500">Procesando…</span></>
+                            : <><BookmarkPlus size={13} className="text-ink-4" /><span className="text-[11px] text-ink-5">Subir PDF, TXT o MD</span></>}
                           <input type="file" className="hidden" accept=".pdf,.txt,.md,.doc,.docx" onChange={handleArchivoContexto} disabled={archivoCargando} />
                         </label>
 
                         {archivosContexto.length === 0 && (
-                          <p className="text-[10px] text-gray-400 text-center">
+                          <p className="text-[10px] text-ink-4 text-center">
                             Sin archivos aún — sube algo para mejorar la calidad de las propuestas
                           </p>
                         )}
@@ -2162,13 +2267,13 @@ export default function LicitacionesPage() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-10 text-gray-400 text-sm">No se pudo generar el análisis.</div>
+                <div className="text-center py-10 text-ink-4 text-sm">No se pudo generar el análisis.</div>
               )}
             </div>
 
             {/* Footer */}
             {!isAnalyzing && analisisData && (
-              <div className="px-5 py-3 border-t border-gray-100 flex items-center gap-2 shrink-0 flex-wrap">
+              <div className="px-5 py-3 border-t border-ink-2 flex items-center gap-2 shrink-0 flex-wrap">
                 {analisisTab === 'propuesta' && propuestaTexto && (
                   <>
                     {/* Copiar */}
@@ -2178,34 +2283,20 @@ export default function LicitacionesPage() {
                         setPropuestaCopied(true)
                         setTimeout(() => setPropuestaCopied(false), 2000)
                       }}
-                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-ink-3 text-ink-6 hover:bg-ink-1"
                     >
                       {propuestaCopied ? <><Check size={12} className="text-green-500" /> Copiado</> : <><Copy size={12} /> Copiar</>}
                     </button>
-                    {/* Descargar .txt */}
+                    {/* Descargar .docx */}
                     <button
                       onClick={() => {
-                        const blob = new Blob([propuestaTexto], { type: 'text/plain' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url
-                        a.download = `propuesta_${propuestaModal.nombre?.slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_') || 'licitacion'}.txt`
-                        a.click()
-                        URL.revokeObjectURL(url)
+                        const nombre = `propuesta_${propuestaModal.nombre?.slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_') || 'licitacion'}.docx`
+                        descargarDocx(propuestaTexto, nombre)
                       }}
-                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-ink-3 text-ink-6 hover:bg-ink-1"
                     >
-                      <Download size={12} /> Descargar
+                      <Download size={12} /> Descargar .docx
                     </button>
-                    {/* Enviar WhatsApp */}
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(`📋 *Propuesta técnica: ${propuestaModal.nombre}*\n\n${propuestaTexto.slice(0, 1000)}...\n\n_Generada con Kapturo_`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600"
-                    >
-                      <span className="text-sm leading-none">💬</span> WhatsApp
-                    </a>
                   </>
                 )}
                 <div className="ml-auto flex items-center gap-2">
@@ -2215,7 +2306,7 @@ export default function LicitacionesPage() {
                       setPropuestaTexto(null)
                       analizarMutation.mutate({ prospectId: propuestaModal.prospectId })
                     }}
-                    className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-kap-600 text-white hover:bg-kap-700"
                   >
                     <Wand2 size={12} /> Regenerar
                   </button>
@@ -2248,7 +2339,7 @@ export default function LicitacionesPage() {
 
 const ESTADOS_CONFIG: Record<string, { label: string; color: string; icon: any; next?: string }> = {
   en_preparacion: { label: 'En preparación', color: 'bg-blue-100 text-blue-700 border-blue-200',   icon: Clock,        next: 'postulada' },
-  postulada:      { label: 'Postulada',       color: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: Flag,      next: 'evaluando' },
+  postulada:      { label: 'Postulada',       color: 'bg-kap-100 text-kap-700 border-kap-100', icon: Flag,      next: 'evaluando' },
   evaluando:      { label: 'Evaluando',        color: 'bg-amber-100 text-amber-700 border-amber-200',  icon: Loader2,    next: 'ganada' },
   ganada:         { label: '🎉 Ganada',        color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Trophy, next: undefined },
   perdida:        { label: 'Perdida',          color: 'bg-red-100 text-red-600 border-red-200',      icon: XCircle,    next: undefined },
@@ -2256,7 +2347,7 @@ const ESTADOS_CONFIG: Record<string, { label: string; color: string; icon: any; 
 
 const KANBAN_COLS = [
   { key: 'en_preparacion', label: 'En preparación', icon: Clock,   bg: 'bg-blue-50',    border: 'border-blue-200' },
-  { key: 'postulada',      label: 'Postulada',       icon: Flag,    bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+  { key: 'postulada',      label: 'Postulada',       icon: Flag,    bg: 'bg-kap-50',  border: 'border-kap-100' },
   { key: 'evaluando',      label: 'Evaluando',       icon: Loader2, bg: 'bg-amber-50',   border: 'border-amber-200' },
   { key: 'ganada',         label: 'Ganadas 🎉',       icon: Trophy,  bg: 'bg-emerald-50', border: 'border-emerald-200' },
   { key: 'perdida',        label: 'Perdidas',        icon: XCircle, bg: 'bg-red-50',     border: 'border-red-200' },
@@ -2274,6 +2365,7 @@ interface ProspectoLicit {
   licitacion_region?: string
   company_name?: string
   score?: number
+  score_reason?: string
   postulacion_estado?: string
   notes?: string
   created_at?: string
@@ -2380,25 +2472,31 @@ function PostulacionesPanel({
     const d = diasAlCierre(p.licitacion_fecha_cierre)
     return d !== null && d >= 4 && d <= 7
   })
-  const sinDocumentos = prospectos.filter(p =>
-    (p.score != null && p.score > 0) && (p.documentos_ia?.length ?? 0) === 0 &&
+  // listoParaDocs: analizadas con score suficiente, sin documentos aún
+  const listoParaDocs = prospectos.filter(p =>
+    (p.score != null && p.score >= 50) && (p.documentos_ia?.length ?? 0) === 0 &&
+    (!p.postulacion_estado || p.postulacion_estado === 'en_preparacion')
+  )
+  // bajaProbabilidad: analizadas con score bajo, sin documentos
+  const bajaProbabilidad = prospectos.filter(p =>
+    (p.score != null && p.score > 0 && p.score < 50) && (p.documentos_ia?.length ?? 0) === 0 &&
     (!p.postulacion_estado || p.postulacion_estado === 'en_preparacion')
   )
 
   if (loading) return (
-    <div className="card p-10 text-center text-gray-400">
-      <Loader2 size={28} className="animate-spin mx-auto mb-2 text-indigo-400" />
+    <div className="card p-10 text-center text-ink-4">
+      <Loader2 size={28} className="animate-spin mx-auto mb-2 text-kap-500" />
       <p className="text-sm">Cargando postulaciones…</p>
     </div>
   )
 
   if (prospectos.length === 0) return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-5 py-4 flex gap-4 items-start">
+      <div className="rounded-xl bg-kap-50 border border-kap-100 px-5 py-4 flex gap-4 items-start">
         <div className="text-2xl mt-0.5">📋</div>
         <div>
-          <p className="text-sm font-semibold text-indigo-800 mb-0.5">¿Para qué sirve este panel?</p>
-          <p className="text-xs text-indigo-600 leading-relaxed">
+          <p className="text-sm font-semibold text-kap-700 mb-0.5">¿Para qué sirve este panel?</p>
+          <p className="text-xs text-kap-600 leading-relaxed">
             Haz seguimiento de las licitaciones en las que tu empresa está participando.
             Guarda oportunidades desde la búsqueda, analiza las bases con IA, genera propuestas
             y avanza su estado:{' '}
@@ -2406,30 +2504,26 @@ function PostulacionesPanel({
           </p>
         </div>
       </div>
-      <div className="card p-10 text-center text-gray-400">
+      <div className="card p-10 text-center text-ink-4">
         <ListChecks size={36} className="mx-auto mb-3 opacity-30" />
         <p className="text-sm font-medium mb-1">Sin postulaciones aún</p>
-        <p className="text-xs text-gray-400">Ve a <button onClick={() => onIrABuscar?.()} className="font-medium text-indigo-500 hover:underline">Buscar licitaciones</button>, encuentra una oportunidad y haz clic en <span className="font-medium text-indigo-500">Agregar a mis postulaciones</span>.</p>
+        <p className="text-xs text-ink-4">Ve a <button onClick={() => onIrABuscar?.()} className="font-medium text-kap-500 hover:underline">Buscar licitaciones</button>, encuentra una oportunidad y haz clic en <span className="font-medium text-kap-500">Agregar a mis postulaciones</span>.</p>
       </div>
     </div>
   )
 
   return (
     <div className="space-y-4">
-      {/* Intro banner */}
-      <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-5 py-4 flex gap-4 items-start">
-        <div className="text-2xl mt-0.5">📋</div>
+      {/* Header compacto */}
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-indigo-800 mb-0.5">Seguimiento de postulaciones</p>
-          <p className="text-xs text-indigo-600 leading-relaxed">
-            Analiza las bases técnicas con IA, genera propuestas y avanza el estado de cada licitación:{' '}
-            <span className="font-medium">En preparación → Postulada → Evaluando → Ganada</span>.
-          </p>
+          <p className="text-sm font-semibold text-ink-8">Mis postulaciones</p>
+          <p className="text-xs text-ink-4">Licitaciones guardadas · seguimiento y documentos</p>
         </div>
       </div>
 
       {/* ─── Alertas de acción ─── */}
-      {(alertasUrgentes.length > 0 || alertasProximas.length > 0 || sinDocumentos.length > 0) && (
+      {(alertasUrgentes.length > 0 || alertasProximas.length > 0 || listoParaDocs.length > 0 || bajaProbabilidad.length > 0) && (
         <div className="space-y-2">
           {alertasUrgentes.map(p => {
             const d = diasAlCierre(p.licitacion_fecha_cierre)!
@@ -2467,14 +2561,25 @@ function PostulacionesPanel({
               </div>
             </div>
           )}
-          {sinDocumentos.length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+          {listoParaDocs.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-kap-300 bg-kap-50 px-4 py-3">
               <span className="text-base mt-0.5">📄</span>
               <div className="flex-1">
-                <p className="text-xs font-bold text-violet-800">
-                  {sinDocumentos.length} licitación{sinDocumentos.length !== 1 ? 'es analizadas' : ' analizada'} sin documentos
+                <p className="text-xs font-bold text-kap-700">
+                  {listoParaDocs.length} licitación{listoParaDocs.length !== 1 ? 'es listas' : ' lista'} para generar propuesta
                 </p>
-                <p className="text-[11px] text-violet-600 mt-0.5">Tienes el análisis listo — genera tu propuesta antes de que cierren.</p>
+                <p className="text-[11px] text-kap-600 mt-0.5">Tienes el análisis listo — genera tu propuesta antes de que cierren.</p>
+              </div>
+            </div>
+          )}
+          {bajaProbabilidad.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-ink-3 bg-ink-1 px-4 py-3">
+              <span className="text-base mt-0.5">⚠️</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-ink-7">
+                  {bajaProbabilidad.length} licitación{bajaProbabilidad.length !== 1 ? 'es' : ''} con baja probabilidad
+                </p>
+                <p className="text-[11px] text-ink-5 mt-0.5">Score insuficiente — considera descartarlas o analizar más en profundidad antes de invertir tiempo en propuestas.</p>
               </div>
             </div>
           )}
@@ -2492,34 +2597,34 @@ function PostulacionesPanel({
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="card p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{prospectos.length}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Total guardadas</p>
+              <p className="text-2xl font-bold text-ink-9">{prospectos.length}</p>
+              <p className="text-xs text-ink-5 mt-0.5">Total guardadas</p>
             </div>
             <div className="card p-3 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{enCurso}</p>
-              <p className="text-xs text-gray-500 mt-0.5">En proceso</p>
+              <p className="text-2xl font-bold text-kap-600">{enCurso}</p>
+              <p className="text-xs text-ink-5 mt-0.5">En proceso</p>
             </div>
             <div className="card p-3 text-center">
-              <p className={clsx('text-2xl font-bold', winRate != null ? (winRate >= 50 ? 'text-emerald-600' : 'text-amber-600') : 'text-gray-300')}>
+              <p className={clsx('text-2xl font-bold', winRate != null ? (winRate >= 50 ? 'text-emerald-600' : 'text-amber-600') : 'text-ink-4')}>
                 {winRate != null ? `${winRate}%` : '—'}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">Win rate</p>
-              {terminadas > 0 && <p className="text-[10px] text-gray-400">{ganadas}/{terminadas} resueltas</p>}
+              <p className="text-xs text-ink-5 mt-0.5">Win rate</p>
+              {terminadas > 0 && <p className="text-[10px] text-ink-4">{ganadas}/{terminadas} resueltas</p>}
             </div>
             <div className="card p-3 text-center">
-              <p className="text-lg font-bold text-gray-900 leading-tight">
+              <p className="text-lg font-bold text-ink-9 leading-tight">
                 {montoTotal > 0
                   ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', notation: 'compact' as const, maximumFractionDigits: 1 }).format(montoTotal)
                   : '—'}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">Monto total</p>
+              <p className="text-xs text-ink-5 mt-0.5">Monto total</p>
             </div>
           </div>
         )
       })()}
 
       {/* Sub-tabs urgencia */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex items-center gap-1 bg-ink-2 rounded-xl p-1 w-fit">
         {([
           { key: 'todas',       label: '🏆 Todas',            tooltip: 'Ver todas tus licitaciones guardadas' },
           { key: 'proximas',    label: '⏰ Próximas a cerrar', tooltip: 'Solo licitaciones que cierran en los próximos 7 días — actúa rápido' },
@@ -2531,7 +2636,7 @@ function PostulacionesPanel({
               title={t.tooltip}
               className={clsx(
                 'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
-                subTab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                subTab === t.key ? 'bg-white text-ink-9 shadow-sm' : 'text-ink-5 hover:text-ink-7'
               )}
             >
               {t.label}
@@ -2542,10 +2647,10 @@ function PostulacionesPanel({
             </button>
             {/* Tooltip custom */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-              <div className="bg-gray-900 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap max-w-[200px] text-center leading-snug shadow-lg">
+              <div className="bg-ink-8 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap max-w-[200px] text-center leading-snug shadow-lg">
                 {t.tooltip}
               </div>
-              <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
+              <div className="w-2 h-2 bg-ink-8 rotate-45 mx-auto -mt-1" />
             </div>
           </div>
         ))}
@@ -2554,25 +2659,25 @@ function PostulacionesPanel({
       {/* Header del panel */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <p className="text-sm font-semibold text-gray-700">{prospectos.length} licitaciones guardadas</p>
-          <p className="text-xs text-gray-400">{prospectosFiltrados.length !== prospectos.length ? `${prospectosFiltrados.length} visibles · ` : ''}{conEstado.length + sinEstado.length > 0 ? `${prospectos.filter(p=>!!p.postulacion_estado).length} con estado · ${prospectos.filter(p=>!p.postulacion_estado).length} sin estado` : ''}</p>
+          <p className="text-sm font-semibold text-ink-7">{prospectos.length} licitaciones guardadas</p>
+          <p className="text-xs text-ink-4">{prospectosFiltrados.length !== prospectos.length ? `${prospectosFiltrados.length} visibles · ` : ''}{conEstado.length + sinEstado.length > 0 ? `${prospectos.filter(p=>!!p.postulacion_estado).length} con estado · ${prospectos.filter(p=>!p.postulacion_estado).length} sin estado` : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Buscador */}
           <div className="relative">
-            <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-4 pointer-events-none" />
             <input
               value={busquedaLocal}
               onChange={e => setBusquedaLocal(e.target.value)}
               placeholder="Buscar…"
-              className="pl-6 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-300 w-36"
+              className="pl-6 pr-2 py-1.5 text-xs border border-ink-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-kap-300 w-36"
             />
           </div>
           {/* Filtro estado */}
           <select
             value={filtroEstado}
             onChange={e => setFiltroEstado(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 bg-white"
+            className="text-xs border border-ink-3 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-kap-300 bg-white"
           >
             <option value="todos">Todos los estados</option>
             <option value="sin_estado">Sin estado</option>
@@ -2586,20 +2691,20 @@ function PostulacionesPanel({
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value as any)}
-            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 bg-white"
+            className="text-xs border border-ink-3 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-kap-300 bg-white"
           >
             <option value="cierre">Ordenar: Cierre más próximo</option>
             <option value="guardada">Ordenar: Más reciente</option>
             <option value="score">Ordenar: Mayor score IA</option>
             <option value="monto">Ordenar: Mayor monto</option>
           </select>
-          <button onClick={onRefresh} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+          <button onClick={onRefresh} className="text-xs text-ink-4 hover:text-ink-6 flex items-center gap-1">
             <RefreshCw size={11} /> Actualizar
           </button>
           <button
             onClick={() => setVistaKanban(v => !v)}
             className={clsx('flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
-              vistaKanban ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              vistaKanban ? 'bg-kap-50 border-kap-100 text-kap-700' : 'border-ink-3 text-ink-6 hover:bg-ink-1'
             )}
           >
             <SlidersHorizontal size={11} /> {vistaKanban ? 'Lista' : 'Kanban'}
@@ -2609,20 +2714,20 @@ function PostulacionesPanel({
 
       {/* Sin resultados del filtro */}
       {prospectosFiltrados.length === 0 && (
-        <div className="card p-8 text-center text-gray-400">
+        <div className="card p-8 text-center text-ink-4">
           <p className="text-sm">No hay licitaciones con ese filtro.</p>
-          <button onClick={() => { setFiltroEstado('todos'); setBusquedaLocal('') }} className="text-xs text-indigo-500 mt-1 hover:underline">Limpiar filtros</button>
+          <button onClick={() => { setFiltroEstado('todos'); setBusquedaLocal('') }} className="text-xs text-kap-500 mt-1 hover:underline">Limpiar filtros</button>
         </div>
       )}
 
       {/* Sin estado asignado */}
       {sinEstado.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-            <Clock size={13} className="text-gray-400" />
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sin estado ({sinEstado.length})</span>
+          <div className="px-4 py-2.5 bg-ink-1 border-b border-ink-2 flex items-center gap-2">
+            <Clock size={13} className="text-ink-4" />
+            <span className="text-xs font-semibold text-ink-5 uppercase tracking-wide">Sin estado ({sinEstado.length})</span>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-ink-2">
             {sinEstado.map(p => (
               <PostulacionCard
                 key={p.id}
@@ -2650,35 +2755,35 @@ function PostulacionesPanel({
             return (
               <div key={col.key} className={clsx('rounded-xl border p-3 space-y-2', col.bg, col.border)}>
                 <div className="flex items-center gap-1.5">
-                  <col.icon size={12} className="text-gray-500" />
-                  <span className="text-xs font-semibold text-gray-600">{col.label}</span>
-                  <span className="ml-auto text-xs text-gray-400 font-bold">{items.length}</span>
+                  <col.icon size={12} className="text-ink-5" />
+                  <span className="text-xs font-semibold text-ink-6">{col.label}</span>
+                  <span className="ml-auto text-xs text-ink-4 font-bold">{items.length}</span>
                 </div>
                 {items.length === 0 && (
-                  <p className="text-[11px] text-gray-400 text-center py-2">vacío</p>
+                  <p className="text-[11px] text-ink-4 text-center py-2">vacío</p>
                 )}
                 {items.map(p => (
-                  <div key={p.id} className="bg-white rounded-lg p-2.5 border border-gray-100 shadow-sm space-y-1.5">
-                    <p className="text-xs font-medium text-gray-800 line-clamp-2 leading-snug">
+                  <div key={p.id} className="bg-white rounded-lg p-2.5 border border-ink-2 shadow-sm space-y-1.5">
+                    <p className="text-xs font-medium text-ink-8 line-clamp-2 leading-snug">
                       {p.licitacion_nombre || p.company_name}
                     </p>
-                    <p className="text-[10px] text-gray-400 truncate">{p.licitacion_organismo}</p>
+                    <p className="text-[10px] text-ink-4 truncate">{p.licitacion_organismo}</p>
                     {p.licitacion_monto && (
-                      <p className="text-[10px] font-semibold text-gray-700">
+                      <p className="text-[10px] font-semibold text-ink-7">
                         {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(p.licitacion_monto)}
                       </p>
                     )}
                     <div className="flex gap-1 pt-0.5">
                       <button
                         onClick={() => onAnalizar(p)}
-                        className="flex-1 text-[10px] py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 text-center"
+                        className="flex-1 text-[10px] py-1 rounded-md bg-kap-600 text-white hover:bg-kap-700 text-center"
                       >
                         Analizar
                       </button>
                       <div className="relative">
                         <button
                           onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
-                          className="text-[10px] px-1.5 py-1 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50"
+                          className="text-[10px] px-1.5 py-1 rounded-md border border-ink-3 text-ink-5 hover:bg-ink-1"
                         >
                           ···
                         </button>
@@ -2702,11 +2807,11 @@ function PostulacionesPanel({
           const items = prospectos.filter(p => p.postulacion_estado === col.key)
           return (
             <div key={col.key} className="card overflow-hidden">
-              <div className={clsx('px-4 py-2.5 border-b border-gray-100 flex items-center gap-2', col.bg)}>
-                <col.icon size={13} className="text-gray-500" />
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{col.label} ({items.length})</span>
+              <div className={clsx('px-4 py-2.5 border-b border-ink-2 flex items-center gap-2', col.bg)}>
+                <col.icon size={13} className="text-ink-5" />
+                <span className="text-xs font-semibold text-ink-6 uppercase tracking-wide">{col.label} ({items.length})</span>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-ink-2">
                 {items.map(p => (
                   <PostulacionCard
                     key={p.id}
@@ -2748,21 +2853,21 @@ function EstadoMenuPortal({ anchorRef, onSelect, onClose }: { anchorRef: React.R
   return ReactDOM.createPortal(
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-2xl py-1 w-[180px]" style={{ top: pos.top, left: pos.left }}>
+      <div className="fixed z-50 bg-white border border-ink-3 rounded-xl shadow-2xl py-1 w-[180px]" style={{ top: pos.top, left: pos.left }}>
         {Object.entries(ESTADOS_CONFIG).map(([key, cfg]) => (
           <button
             key={key}
             onClick={() => onSelect(key)}
-            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-ink-7 hover:bg-ink-1 font-medium"
           >
             <cfg.icon size={13} className="shrink-0" />
             {cfg.label}
           </button>
         ))}
-        <div className="border-t border-gray-100 mt-1 pt-1">
+        <div className="border-t border-ink-2 mt-1 pt-1">
           <button
             onClick={() => onSelect('')}
-            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-50"
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-ink-4 hover:bg-ink-1"
           >
             <X size={13} /> Quitar estado
           </button>
@@ -2777,21 +2882,21 @@ function EstadoMenu({ onSelect, onClose }: { onSelect: (e: string) => void; onCl
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl py-1 min-w-[180px]">
+      <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-ink-3 rounded-xl shadow-2xl py-1 min-w-[180px]">
         {Object.entries(ESTADOS_CONFIG).map(([key, cfg]) => (
           <button
             key={key}
             onClick={() => onSelect(key)}
-            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-ink-7 hover:bg-ink-1 font-medium"
           >
             <cfg.icon size={13} className="shrink-0" />
             {cfg.label}
           </button>
         ))}
-        <div className="border-t border-gray-100 mt-1 pt-1">
+        <div className="border-t border-ink-2 mt-1 pt-1">
           <button
             onClick={() => onSelect('')}
-            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-50"
+            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-ink-4 hover:bg-ink-1"
           >
             <X size={13} /> Quitar estado
           </button>
@@ -2849,15 +2954,18 @@ function PostulacionCard({
     : null
 
   return (
-    <div ref={highlightRef} className={clsx('border-b border-gray-100 last:border-0 transition-colors', highlight && 'bg-indigo-50/60 ring-1 ring-inset ring-indigo-200')}>
+    <div ref={highlightRef} className={clsx('border-b border-ink-2 last:border-0 transition-colors', highlight && 'bg-kap-50/60 ring-1 ring-inset ring-kap-300')}>
       {/* Fila principal */}
-      <div className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
+      <div className="px-4 py-3 hover:bg-ink-1/60 transition-colors">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 flex-wrap">
-              <p className="text-sm font-medium text-gray-900 line-clamp-1 flex-1">
+              <NavLink
+                to={`/licitaciones/postulaciones/${p.id}`}
+                className="text-sm font-medium text-ink-9 line-clamp-1 flex-1 hover:text-kap-600 hover:underline transition-colors"
+              >
                 {p.licitacion_nombre || p.company_name}
-              </p>
+              </NavLink>
               {cierreColor && diasCierre != null && (
                 <span className={clsx('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0', cierreColor)}>
                   ⏰ {diasCierre === 0 ? 'Cierra hoy' : diasCierre === 1 ? 'Cierra mañana' : `Cierra en ${diasCierre}d`}
@@ -2888,7 +2996,7 @@ function PostulacionCard({
                     ref={estadoBtnRef}
                     onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
                     disabled={updatingId === p.id}
-                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 border-gray-200 text-gray-400 hover:bg-gray-50 cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 border-ink-3 text-ink-4 hover:bg-ink-1 cursor-pointer"
                   >
                     <Flag size={9} /> Estado ▾
                   </button>
@@ -2902,23 +3010,29 @@ function PostulacionCard({
                 </>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center gap-3 mt-0.5 text-xs text-ink-4 flex-wrap">
               {p.licitacion_organismo && <span>{p.licitacion_organismo}</span>}
-              {monto && <span className="font-semibold text-gray-700">{monto}</span>}
+              {monto && <span className="font-semibold text-ink-7">{monto}</span>}
               {p.licitacion_fecha_cierre && <span>Cierre: {p.licitacion_fecha_cierre}</span>}
               {p.licitacion_codigo && <span className="font-mono">{p.licitacion_codigo}</span>}
-              {p.score != null && p.score > 0 && (
-                <span
-                  title="Score de análisis IA — basado en las bases técnicas de esta licitación"
-                  className={clsx(
-                    'font-bold px-1.5 py-0.5 rounded-full text-xs cursor-help',
-                    p.score >= 75 ? 'bg-emerald-100 text-emerald-700' :
-                    p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                  )}>
-                  {p.score.toFixed(0)} pts IA
-                </span>
-              )}
             </div>
+            {/* Recomendación IA — semáforo + razón */}
+            {p.score != null && p.score > 0 && (
+              <div className="mt-1.5 flex items-start gap-1.5">
+                <span className={clsx(
+                  'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap',
+                  p.score >= 75 ? 'bg-emerald-100 text-emerald-700' :
+                  p.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                )}>
+                  {p.score >= 75 ? '🟢 Alta probabilidad' : p.score >= 50 ? '🟡 Media probabilidad' : '🔴 Baja probabilidad'}
+                </span>
+                {p.score_reason && (
+                  <span className="text-[11px] text-ink-4 leading-tight line-clamp-1">
+                    {p.score_reason.split('.')[0]}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Si hay docs generados → mostrar contador */}
@@ -2929,8 +3043,8 @@ function PostulacionCard({
                   className={clsx(
                     'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-semibold transition-colors',
                     showDocs
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'bg-violet-50 border-violet-300 text-violet-700 hover:bg-violet-100'
+                      ? 'bg-kap-100 text-white border-kap-300'
+                      : 'bg-kap-100 border-kap-300 text-kap-600 hover:bg-kap-100'
                   )}
                 >
                   <FileSignature size={12} />
@@ -2938,43 +3052,52 @@ function PostulacionCard({
                 </button>
                 <button
                   onClick={() => onAnalizar(p)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-kap-100 text-kap-600 hover:bg-kap-50"
                   title="Re-analizar con IA"
                 >
                   <ClipboardList size={11} /> Re-analizar
                 </button>
               </>
-            ) : (p.score != null && p.score > 0) ? (
-              /* Tiene análisis pero aún no generó docs */
+            ) : (p.score != null && p.score >= 50) ? (
+              /* Tiene análisis suficiente → habilitar docs */
               <>
                 <NavLink
                   to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold"
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-kap-600 text-white hover:bg-kap-700 font-semibold"
                 >
                   <FileSignature size={12} /> Generar docs
                 </NavLink>
                 <button
                   onClick={() => onAnalizar(p)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                  title="Re-analizar con IA"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-kap-100 text-kap-600 hover:bg-kap-50"
+                  title="Actualizar análisis"
                 >
                   <ClipboardList size={11} /> Re-analizar
                 </button>
               </>
             ) : (
-              /* Sin análisis → solo mostrar Analizar */
+              /* Sin análisis o score bajo → bloquear docs, mostrar Analizar */
               <>
-                <span
-                  title="Primero analiza con IA para desbloquear los documentos"
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed font-semibold"
-                >
-                  <FileSignature size={12} /> Generar docs 🔒
-                </span>
+                <div className="relative group/tooltip">
+                  <span
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ink-2 text-ink-4 border border-ink-3 cursor-not-allowed font-semibold select-none"
+                  >
+                    <FileSignature size={12} /> Generar docs 🔒
+                  </span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:block z-50 pointer-events-none w-52">
+                    <div className="bg-ink-9 text-white text-[10px] rounded-lg px-2.5 py-2 text-center leading-snug shadow-lg">
+                      {p.score != null && p.score > 0
+                        ? `Score insuficiente (${p.score.toFixed(0)}/100) — analiza primero para desbloquear`
+                        : 'Primero analiza con IA para desbloquear la generación de documentos'}
+                    </div>
+                    <div className="w-2 h-2 bg-ink-9 rotate-45 mx-auto -mt-1" />
+                  </div>
+                </div>
                 <button
                   onClick={() => onAnalizar(p)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-kap-600 text-white hover:bg-kap-700 font-semibold"
                 >
-                  <ClipboardList size={11} /> Analizar IA
+                  <ClipboardList size={11} /> {p.score != null && p.score > 0 ? 'Analizar profundo' : 'Analizar IA'}
                 </button>
               </>
             )}
@@ -2992,21 +3115,21 @@ function PostulacionCard({
 
             <button
               onClick={() => setShowChecklist(v => !v)}
-              className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+              className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-ink-3 text-ink-5 hover:bg-ink-1"
               title="Ver requisitos para postular"
             >
               {showChecklist ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             </button>
             <button
               onClick={() => {
-                if (confirm('¿Eliminar esta postulación? No se puede deshacer.')) {
+                if (confirm(`¿Descartar "${p.licitacion_nombre || p.company_name || 'esta licitación'}"?\n\nSe eliminará de tus postulaciones y no podrás recuperarla.`)) {
                   onEliminar(p.id)
                 }
               }}
-              className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-red-100 text-red-400 hover:bg-red-50 hover:border-red-300"
-              title="Eliminar postulación"
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-ink-3 text-ink-4 hover:bg-bad-light hover:border-bad-border hover:text-bad transition-colors"
+              title="Descartar esta licitación"
             >
-              <Trash2 size={11} />
+              <Trash2 size={11} /> Descartar
             </button>
           </div>
         </div>
@@ -3014,34 +3137,34 @@ function PostulacionCard({
 
       {/* Documentos generados por IA */}
       {showDocs && (p.documentos_ia?.length ?? 0) > 0 && (
-        <div className="mx-4 mb-3 rounded-xl border border-violet-100 bg-violet-50/40 p-3 space-y-2">
+        <div className="mx-4 mb-3 rounded-xl border border-kap-300 bg-kap-100/40 p-3 space-y-2">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] font-semibold text-violet-700 flex items-center gap-1.5">
+            <p className="text-[11px] font-semibold text-kap-600 flex items-center gap-1.5">
               <FileSignature size={11} /> {p.documentos_ia!.length} documento{p.documentos_ia!.length !== 1 ? 's' : ''} generado{p.documentos_ia!.length !== 1 ? 's' : ''}
             </p>
             <NavLink
               to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
-              className="flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-800 hover:underline"
+              className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-600 hover:underline"
             >
               <FileSignature size={10} /> Abrir en Generar documentos →
             </NavLink>
           </div>
           {p.documentos_ia!.map(doc => (
-            <div key={doc.tipo} className="bg-white rounded-lg border border-violet-100 px-3 py-2 flex items-center justify-between gap-2">
+            <div key={doc.tipo} className="bg-white rounded-lg border border-kap-300 px-3 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center shrink-0">
-                  <FileText size={10} className="text-violet-600" />
+                <div className="w-5 h-5 rounded-md bg-kap-100 flex items-center justify-center shrink-0">
+                  <FileText size={10} className="text-kap-600" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-800 truncate">{doc.label}</p>
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-xs font-semibold text-ink-8 truncate">{doc.label}</p>
+                  <p className="text-[10px] text-ink-4">
                     Generado {new Date(doc.created_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
                   </p>
                 </div>
               </div>
               <NavLink
                 to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}&doc=${doc.tipo}`}
-                className="flex items-center gap-1 text-[10px] font-bold text-violet-700 bg-violet-100 hover:bg-violet-200 px-2.5 py-1 rounded-lg shrink-0 transition-colors"
+                className="flex items-center gap-1 text-[10px] font-bold text-kap-600 bg-kap-100 hover:bg-kap-100 px-2.5 py-1 rounded-lg shrink-0 transition-colors"
               >
                 <ExternalLink size={9} /> Abrir
               </NavLink>
@@ -3052,13 +3175,13 @@ function PostulacionCard({
 
       {/* Checklist colapsable */}
       {showChecklist && (
-        <div className="mx-4 mb-3 rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-4 text-xs">
+        <div className="mx-4 mb-3 rounded-xl border border-ink-2 bg-ink-1 p-4 space-y-4 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Requisitos legales previos */}
             <div>
-              <p className="font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <p className="font-semibold text-ink-7 mb-2 flex items-center gap-1.5">
                 🏛️ Habilitación legal previa
-                <span className="text-[10px] font-normal text-gray-400">(obligatorio para TODAS las licitaciones)</span>
+                <span className="text-[10px] font-normal text-ink-4">(obligatorio para TODAS las licitaciones)</span>
               </p>
               <ul className="space-y-1.5">
                 {[
@@ -3069,10 +3192,10 @@ function PostulacionCard({
                   { label: 'Representante legal con poderes vigentes', url: null },
                   { label: 'Sin condenas por corrupción o lavado de activos', url: null },
                 ].map((req, i) => (
-                  <li key={i} className="flex items-start gap-2 text-gray-600">
-                    <span className="mt-0.5 text-gray-300 shrink-0">☐</span>
+                  <li key={i} className="flex items-start gap-2 text-ink-6">
+                    <span className="mt-0.5 text-ink-4 shrink-0">☐</span>
                     {req.url ? (
-                      <a href={req.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 hover:underline flex-1">
+                      <a href={req.url} target="_blank" rel="noopener noreferrer" className="hover:text-kap-600 hover:underline flex-1">
                         {req.label} <ExternalLink size={9} className="inline mb-0.5" />
                       </a>
                     ) : (
@@ -3085,7 +3208,7 @@ function PostulacionCard({
 
             {/* Requisitos para esta licitación */}
             <div>
-              <p className="font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <p className="font-semibold text-ink-7 mb-2 flex items-center gap-1.5">
                 📋 Para esta postulación
               </p>
               <ul className="space-y-1.5">
@@ -3098,8 +3221,8 @@ function PostulacionCard({
                   { label: 'Certificaciones técnicas requeridas por las bases' },
                   { label: `Subir oferta ANTES del cierre${p.licitacion_fecha_cierre ? `: ${p.licitacion_fecha_cierre}` : ''}` },
                 ].map((req, i) => (
-                  <li key={i} className="flex items-start gap-2 text-gray-600">
-                    <span className="mt-0.5 text-gray-300 shrink-0">☐</span>
+                  <li key={i} className="flex items-start gap-2 text-ink-6">
+                    <span className="mt-0.5 text-ink-4 shrink-0">☐</span>
                     <span className="flex-1">{req.label}</span>
                   </li>
                 ))}
@@ -3109,7 +3232,7 @@ function PostulacionCard({
 
           {/* CTA directo al portal */}
           {mpUrl && (
-            <div className="pt-3 border-t border-gray-200">
+            <div className="pt-3 border-t border-ink-3">
               <a
                 href={mpUrl}
                 target="_blank"
@@ -3119,7 +3242,7 @@ function PostulacionCard({
                 <ExternalLink size={14} />
                 Ir a postular en Mercado Público →
               </a>
-              <p className="text-[10px] text-gray-400 text-center mt-1.5">
+              <p className="text-[10px] text-ink-4 text-center mt-1.5">
                 Se abre la ficha oficial de la licitación donde debes subir tu oferta
               </p>
             </div>

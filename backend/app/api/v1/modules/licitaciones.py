@@ -25,8 +25,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/modules/licitaciones", tags=["licitaciones"])
 
 # ── Job store en memoria para análisis en background ─────────────────────────
-# { job_id: { "status": "pending|done|error", "result": {...}, "error": str } }
+# { job_id: { "status": "pending|done|error", "result": {...}, "error": str, "created_at": float } }
 _analysis_jobs: dict = {}
+_JOB_TTL_SECONDS = 3600  # limpiar jobs con más de 1 hora
+
+def _cleanup_old_jobs():
+    import time
+    cutoff = time.time() - _JOB_TTL_SECONDS
+    expired = [jid for jid, j in _analysis_jobs.items() if j.get("created_at", 0) < cutoff]
+    for jid in expired:
+        del _analysis_jobs[jid]
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -168,11 +176,14 @@ async def preview_licitaciones(
     rubros_perfil: list = []
     regiones_perfil: list = []
     try:
-        from app.models.tenant import Tenant
-        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-        if tenant and tenant.licitaciones_profile:
-            rubros_perfil = tenant.licitaciones_profile.get('rubros') or []
-            regiones_perfil = tenant.licitaciones_profile.get('regiones') or []
+        from app.models.tenant import TenantModule
+        mod = db.query(TenantModule).filter(
+            TenantModule.tenant_id == current_user.tenant_id,
+            TenantModule.module.in_(["licitaciones", "licitador"])
+        ).first()
+        if mod and mod.niche_config:
+            rubros_perfil = mod.niche_config.get('rubros') or []
+            regiones_perfil = mod.niche_config.get('regiones') or []
     except Exception:
         pass
 
@@ -304,12 +315,35 @@ async def listar_prospectos(
     )
 
 
+@router.get("/prospectos/{prospect_id}")
+async def obtener_prospecto(
+    prospect_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve un prospecto individual por ID."""
+    from app.models.prospect import Prospect as ProspectModel
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+    p = db.query(ProspectModel).filter(
+        ProspectModel.id == prospect_id,
+        ProspectModel.tenant_id == current_user.tenant_id,
+    ).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+    servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
+    return servicio._serializar(p)
+
+
 class AsistentePerfilRequest(BaseModel):
-    campo: str  # "descripcion" | "proyectos" | "diferenciadores"
+    campo: str
     rubros: list[str] = []
     regiones: list[str] = []
     descripcion_actual: Optional[str] = None
     diferenciadores_actuales: Optional[str] = None
+    proyectos: Optional[str] = None
+    certificaciones: Optional[str] = None
+    rubros_disponibles: list[str] = []
 
 
 @router.post("/asistente-perfil")
@@ -367,17 +401,101 @@ Los diferenciadores deben:
 Formato: una línea por diferenciador, empezando con verbo o sustantivo.
 Sin numeración. Sin explicaciones. Solo las líneas."""
 
+    elif data.campo == "sugerir_rubros":
+        rubros_lista = "\n".join(f"- {r}" for r in data.rubros_disponibles[:80]) if data.rubros_disponibles else ""
+        prompt = f"""Analiza la descripción de esta empresa y sugiere los rubros más relevantes de la lista disponible.
+
+Descripción: {data.descripcion_actual or "No especificada"}
+Diferenciadores: {data.diferenciadores_actuales or "No especificados"}
+Proyectos anteriores: {data.proyectos or "No especificados"}
+
+Rubros disponibles:
+{rubros_lista}
+
+Responde SOLO con una lista de rubros separados por coma, exactamente como aparecen en la lista.
+Máximo 8 rubros. Sin explicaciones."""
+
+    elif data.campo == "resumen_perfil":
+        prompt = f"""Genera un resumen ejecutivo breve del perfil de empresa para licitaciones públicas.
+
+Empresa: {data.descripcion_actual or "Sin descripción"}
+Rubros: {rubros_str}
+Regiones: {regiones_str}
+Proyectos anteriores: {data.proyectos or "No especificados"}
+Certificaciones: {data.certificaciones or "Ninguna"}
+Diferenciadores: {data.diferenciadores_actuales or "No especificados"}
+
+El resumen debe:
+- Tener máximo 3 oraciones
+- Destacar fortalezas concretas
+- Sonar profesional y directo
+- Estar en tercera persona
+
+Responde SOLO con el resumen, sin títulos ni explicaciones."""
+
     else:
-        raise HTTPException(status_code=422, detail="campo inválido")
+        raise HTTPException(status_code=422, detail=f"campo inválido: {data.campo}")
 
     agent = LicitacionesAgent(db=db, tenant_id=current_user.tenant_id or "")
+    max_tokens = 600 if data.campo == "resumen_perfil" else 400
     try:
         texto = await asyncio.to_thread(
-            agent._call_claude, prompt, "claude-haiku-4-5-20251001", 400
+            agent._call_claude, prompt, "claude-haiku-4-5-20251001", max_tokens
         )
-        return {"texto": texto.strip()}
+        texto = texto.strip()
+        if data.campo == "sugerir_rubros":
+            rubros = [r.strip().lower() for r in texto.split(",") if r.strip()]
+            return {"texto": texto, "rubros": rubros}
+        return {"texto": texto}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar: {str(e)}")
+
+
+# ── Stats del módulo ─────────────────────────────────────────────────────────
+
+@router.get("/stats")
+async def licitaciones_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Contadores del módulo — evita cargar 200 prospectos en el frontend."""
+    from app.models.prospect import Prospect
+    from datetime import datetime, timedelta
+    import re
+
+    prospectos = db.query(
+        Prospect.score,
+        Prospect.licitacion_fecha_cierre,
+        Prospect.postulacion_estado,
+        Prospect.documentos_ia,
+    ).filter(
+        Prospect.tenant_id == current_user.tenant_id,
+        Prospect.source_module.in_(["licitaciones", "licitador"]),
+    ).all()
+
+    ahora = datetime.now()
+    proximos = 0
+    for p in prospectos:
+        if p.licitacion_fecha_cierre:
+            try:
+                m = re.search(r'(\d{2})/(\d{2})/(\d{4})', p.licitacion_fecha_cierre)
+                if m:
+                    fecha = datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+                    dias = (fecha - ahora).days
+                    if 0 <= dias <= 7:
+                        proximos += 1
+            except Exception:
+                pass
+
+    estados_activos = {"postulada", "evaluando", "ganada"}
+
+    return {
+        "guardadas": len(prospectos),
+        "analizadas": sum(1 for p in prospectos if (p.score or 0) > 0),
+        "con_documentos": sum(1 for p in prospectos if p.documentos_ia),
+        "postuladas": sum(1 for p in prospectos if p.postulacion_estado in estados_activos),
+        "proximas_a_cerrar": proximos,
+    }
 
 
 # ── Documentos del perfil (CV empresa, certificados PDF, etc.) ────────────────
@@ -707,8 +825,10 @@ async def iniciar_analisis(
     if not current_user.tenant_id:
         raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
 
+    import time
+    _cleanup_old_jobs()
     job_id = str(uuid.uuid4())
-    _analysis_jobs[job_id] = {"status": "pending"}
+    _analysis_jobs[job_id] = {"status": "pending", "created_at": time.time()}
     background_tasks.add_task(_run_analysis_job, job_id, prospect_id, current_user.tenant_id)
     return {"job_id": job_id, "status": "pending"}
 

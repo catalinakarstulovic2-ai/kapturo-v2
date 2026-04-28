@@ -435,7 +435,7 @@ async def buscar_por_codigo(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    n = LicitacionNormalizada(det)
+    n = LicitacionNormalizada(det, "licitador_a")
     return {
         "encontrado": True,
         "codigo": n.codigo,

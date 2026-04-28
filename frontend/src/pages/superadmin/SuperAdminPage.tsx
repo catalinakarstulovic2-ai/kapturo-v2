@@ -7,7 +7,7 @@ import {
   Building2, Users, CreditCard, BarChart2, Plus, ToggleLeft, ToggleRight,
   ShieldAlert, Pencil, Trash2, UserPlus, Package, X, ChevronLeft, Save,
   Eye, EyeOff, Loader2, DollarSign, SlidersHorizontal, RotateCcw, ChevronDown, Search,
-  Activity, Bug,
+  Activity, Bug, Mail, Send,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
@@ -37,7 +37,7 @@ const MODULE_LABELS: Record<string, string> = {
 }
 const ROLES   = ['admin', 'member'] as const
 
-type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats' | 'actividad' | 'reportes'
+type Tab = 'tenants' | 'usuarios' | 'planes' | 'stats' | 'actividad' | 'reportes' | 'email'
 
 function Badge({ active }: { active: boolean }) {
   return (
@@ -1774,6 +1774,137 @@ function PlanesTab() {
   )
 }
 
+// ── Test de Email ─────────────────────────────────────────────────────────────
+
+function TestEmailTab() {
+  const [to, setTo] = useState('')
+  const [tipo, setTipo] = useState<'basico' | 'licitaciones' | 'alarma'>('basico')
+  const [loading, setLoading] = useState(false)
+  const [resultado, setResultado] = useState<{ ok: boolean; resend_id?: string; error?: string } | null>(null)
+
+  const enviar = async () => {
+    if (!to.trim()) { toast.error('Ingresa un email destino'); return }
+    setLoading(true)
+    setResultado(null)
+    try {
+      const res = await api.post('/admin/test-email', { to: to.trim(), tipo })
+      setResultado({ ok: true, resend_id: res.data.resend_id })
+      toast.success('Email enviado correctamente ✅')
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? err?.message ?? 'Error desconocido'
+      setResultado({ ok: false, error: msg })
+      toast.error('Error al enviar email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-lg space-y-5">
+      <div className="card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Mail size={18} className="text-indigo-500" />
+          <h3 className="font-semibold text-gray-900">Prueba de email</h3>
+        </div>
+        <p className="text-sm text-gray-500">
+          Envía un email de prueba para verificar que <strong>Resend</strong> está configurado correctamente
+          y los emails salen desde <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">alertas@kapturo.cl</code>.
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Email destino</label>
+            <input
+              type="email"
+              className="input"
+              placeholder="tu@email.com"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && enviar()}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Tipo de email</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { id: 'basico', label: '✅ Básico', desc: 'Email simple de confirmación' },
+                { id: 'licitaciones', label: '⚡ Licitaciones', desc: 'Alerta diaria con tabla' },
+                { id: 'alarma', label: '🔔 Alarma', desc: 'Notificación de prospecto' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setTipo(opt.id)}
+                  className={clsx(
+                    'p-3 rounded-xl border-2 text-left transition-all',
+                    tipo === opt.id
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  <p className="text-xs font-semibold text-gray-800">{opt.label}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={enviar}
+            disabled={loading || !to.trim()}
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading
+              ? <><Loader2 size={15} className="animate-spin" /> Enviando...</>
+              : <><Send size={15} /> Enviar email de prueba</>
+            }
+          </button>
+        </div>
+
+        {resultado && (
+          <div className={clsx(
+            'rounded-xl p-4 text-sm',
+            resultado.ok ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'
+          )}>
+            {resultado.ok ? (
+              <div className="space-y-1">
+                <p className="font-semibold text-emerald-700">✅ Email enviado correctamente</p>
+                <p className="text-emerald-600 text-xs">Revisa la bandeja de entrada de <strong>{to}</strong></p>
+                {resultado.resend_id && (
+                  <p className="text-emerald-500 text-xs font-mono">ID Resend: {resultado.resend_id}</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="font-semibold text-red-700">❌ Error al enviar</p>
+                <p className="text-red-600 text-xs">{resultado.error}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-4 space-y-2">
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Configuración actual</p>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Remitente</span>
+            <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">alertas@kapturo.cl</code>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Proveedor</span>
+            <span className="text-gray-700 font-medium">Resend</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Dominio</span>
+            <span className="text-emerald-600 font-medium">✅ kapturo.cl (verificado)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 type TabDef = { id: Tab; label: string; icon: any }
@@ -1784,6 +1915,7 @@ const tabs: TabDef[] = [
   { id: 'planes',    label: 'Planes',    icon: CreditCard },
   { id: 'actividad', label: 'Actividad', icon: Activity   },
   { id: 'reportes',  label: 'Reportes',  icon: Bug        },
+  { id: 'email',     label: 'Email',     icon: Mail       },
 ]
 
 export default function SuperAdminPage() {
@@ -1799,7 +1931,7 @@ export default function SuperAdminPage() {
           <p className="text-sm text-gray-500">Panel de control global de Kapturo</p>
         </div>
       </div>
-      <div className="flex border-b border-gray-200 gap-1">
+      <div className="flex border-b border-gray-200 gap-1 flex-wrap">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -1822,6 +1954,7 @@ export default function SuperAdminPage() {
         {activeTab === 'planes'    && <PlanesTab />}
         {activeTab === 'actividad' && <ActivityTab />}
         {activeTab === 'reportes'  && <BugReportsTab />}
+        {activeTab === 'email'     && <TestEmailTab />}
       </div>
     </div>
   )

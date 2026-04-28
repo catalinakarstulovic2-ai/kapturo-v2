@@ -571,42 +571,50 @@ async def run_alertas_licitaciones(
             continue
 
         try:
-            # Buscar licitaciones en las últimas 24h usando primer rubro como keyword
+            # Buscar licitaciones publicadas ayer usando la API correctamente
             keyword = rubros[0] if len(rubros) == 1 else ", ".join(rubros[:3])
-            filtros = {
-                "fecha_desde": ayer,
-                "fecha_hasta": hoy,
-                "keyword": keyword,
-            }
-            region = cfg.get("regiones", [])
-            if len(region) == 1:
-                filtros["region"] = region[0]
+            fecha_ayer_api = (ahora - timedelta(days=1)).strftime("%d%m%Y")
+            region_filtro = cfg.get("regiones", [])
+            region_param = region_filtro[0] if len(region_filtro) == 1 else None
 
-            resultado = await asyncio.to_thread(
-                client.buscar_licitaciones,
-                tipo="licitador_b",
-                filtros=filtros,
-                pagina=1,
+            resp = await client.buscar_licitaciones(
+                fecha=fecha_ayer_api,
+                estado="publicada",
+                region=region_param,
             )
+            listado_raw = resp.get("Listado", [])
 
-            items = resultado.get("items", [])
-            if not items:
+            # Filtrar por keyword en nombre/descripción
+            import unicodedata as _ud
+            def _norm_kw(s: str) -> str:
+                return _ud.normalize('NFD', (s or "").lower()).encode('ascii', 'ignore').decode()
+
+            kw_norm = _norm_kw(keyword)
+            palabras_kw = [p for p in kw_norm.split() if len(p) > 2]
+
+            items_filtrados = []
+            for it in listado_raw:
+                txt = _norm_kw((it.get("Nombre") or "") + " " + (it.get("Descripcion") or ""))
+                if not palabras_kw or any(p in txt for p in palabras_kw):
+                    items_filtrados.append(it)
+
+            if not items_filtrados:
                 # Igual actualizamos nuevas_pendientes a 0
                 cfg["nuevas_pendientes"] = 0
                 mod.niche_config = dict(cfg)
                 flag_modified(mod, "niche_config")
                 continue
 
-            # Preparar lista para email (datos básicos)
+            # Preparar lista para email (datos básicos del listado)
             licitaciones_email = []
-            for item in items[:10]:
+            for item in items_filtrados[:10]:
                 licitaciones_email.append({
-                    "nombre": item.get("nombre") or item.get("licitacion_nombre") or "Sin nombre",
-                    "codigo": item.get("codigo") or "",
-                    "organismo": item.get("organismo") or item.get("comprador") or "",
-                    "monto_estimado": item.get("monto_estimado") or 0,
-                    "fecha_cierre": item.get("fecha_cierre") or "",
-                    "score": item.get("score") or 0,
+                    "nombre": item.get("Nombre") or "Sin nombre",
+                    "codigo": item.get("CodigoExterno") or "",
+                    "organismo": item.get("NombreOrganismo") or item.get("CodigoOrganismo") or "",
+                    "monto_estimado": float(item.get("MontoEstimado") or 0),
+                    "fecha_cierre": (item.get("FechaCierre") or "")[:10],
+                    "score": 0,
                 })
 
             # Enviar email
@@ -618,7 +626,7 @@ async def run_alertas_licitaciones(
             enviados += 1
 
             # Guardar metadatos en niche_config para badge in-app
-            cfg["nuevas_pendientes"] = len(items)
+            cfg["nuevas_pendientes"] = len(items_filtrados)
             cfg["last_alerta_enviada"] = ahora.isoformat()
             mod.niche_config = dict(cfg)
             flag_modified(mod, "niche_config")

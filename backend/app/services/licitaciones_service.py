@@ -123,6 +123,27 @@ class LicitacionesService:
         tenant = self.db.query(Tenant).filter(Tenant.id == self.tenant_id).first()
         return tenant.api_keys or {} if tenant else {}
 
+    def _get_perfil_contexto(self) -> dict:
+        """Lee el perfil de empresa desde la BD para usarlo como contexto del scorer."""
+        from app.models.tenant import TenantModule
+        mod = self.db.query(TenantModule).filter(
+            TenantModule.tenant_id == self.tenant_id,
+            TenantModule.module.in_(["licitaciones", "licitador"]),
+        ).first()
+        if not mod or not mod.niche_config:
+            return {}
+        cfg = mod.niche_config
+        return {
+            "producto": cfg.get("descripcion") or "",
+            "sector": ", ".join(cfg.get("rubros") or []),
+            "rubro": (cfg.get("rubros") or [""])[0],
+            "experiencia": str(cfg.get("experiencia_anos") or ""),
+            "region_cliente": ", ".join(cfg.get("regiones") or []),
+            "razon_social": cfg.get("razon_social") or "",
+            "certificaciones": cfg.get("certificaciones") or "",
+            "diferenciadores": cfg.get("diferenciadores") or "",
+        }
+
     # ─── PREVIEW — busca y muestra, no guarda ────────────────────────────
 
     async def buscar_preview(self, tipo: str, filtros: dict = None, pagina: int = 1,
@@ -350,6 +371,9 @@ class LicitacionesService:
 
         score, score_reason = 0.0, ""
         if calificar:
+            # Si el frontend no mandó contexto, leerlo desde el perfil en BD
+            if not any(contexto_cliente.values()) if contexto_cliente else True:
+                contexto_cliente = self._get_perfil_contexto()
             score, score_reason = await self.scorer.calificar_prospecto(p_dict, contexto_cliente)
 
         prospect = Prospect(

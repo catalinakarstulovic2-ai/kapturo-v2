@@ -121,7 +121,7 @@ export default function PerfilIAPage() {
   const [regionQuery, setRegionQuery] = useState('')
   const [activeSection, setActiveSection] = useState<string>('empresa')
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(['contacto', 'documentos', 'que_hace', 'rubros', 'equipo'])
+    new Set(['equipo'])
   )
   const toggleCollapse = (key: string) => setCollapsedSections(prev => {
     const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
@@ -227,6 +227,15 @@ export default function PerfilIAPage() {
     finally { setGenerando(null) }
   }
 
+  // Rubros genéricos que no sirven como filtro de búsqueda — deben coincidir con buildKeyword en licitacionesSearchStore
+  const RUBROS_GENERICOS = new Set([
+    'gestión', 'proyectos', 'administración', 'planificación', 'estrategia',
+    'comunicaciones', 'marketing', 'relaciones públicas', 'finanzas',
+    'recursos humanos', 'capacitación', 'consultoría', 'asesoría',
+    'servicios generales', 'ventas', 'negocios', 'coordinación', 'supervisión',
+    'contabilidad', 'legal',
+  ])
+
   const sugerirRubros = async () => {
     if (!form.descripcion && !form.diferenciadores && !form.proyectos_anteriores) {
       toast.error('Primero completa la sección "Qué hace tu empresa"')
@@ -243,22 +252,28 @@ export default function PerfilIAPage() {
         rubros_disponibles: RUBRO_CATEGORIAS.flatMap(c => c.rubros),
       })
       const sugeridos: string[] = res.data.rubros || res.data.texto?.split(',').map((r: string) => r.trim().toLowerCase()).filter(Boolean) || []
-      const validos = sugeridos.filter(r => RUBRO_CATEGORIAS.flatMap(c => c.rubros).includes(r))
+      const todoRubros = RUBRO_CATEGORIAS.flatMap(c => c.rubros)
+      // Filtrar: solo rubros válidos del catálogo Y que no sean genéricos
+      const validos = sugeridos.filter(r => todoRubros.includes(r) && !RUBROS_GENERICOS.has(r))
       if (validos.length > 0) {
         setRubrosSugeridos(validos)
       } else {
-        // Fallback: keyword matching client-side
+        // Fallback: keyword matching client-side, también filtrando genéricos
         const texto = `${form.descripcion} ${form.diferenciadores} ${form.proyectos_anteriores}`.toLowerCase()
-        const todoRubros = RUBRO_CATEGORIAS.flatMap(c => c.rubros)
-        const matches = todoRubros.filter(r => texto.includes(r) || r.split(' ').some(w => w.length > 4 && texto.includes(w)))
+        const matches = todoRubros.filter(r =>
+          !RUBROS_GENERICOS.has(r) &&
+          (texto.includes(r) || r.split(' ').some(w => w.length > 4 && texto.includes(w)))
+        )
         setRubrosSugeridos(matches.slice(0, 8))
         if (matches.length === 0) toast('No se encontraron sugerencias — intenta completar más tu descripción', { icon: '⚠️' })
       }
     } catch {
-      // Fallback client-side
       const texto = `${form.descripcion} ${form.diferenciadores} ${form.proyectos_anteriores}`.toLowerCase()
       const todoRubros = RUBRO_CATEGORIAS.flatMap(c => c.rubros)
-      const matches = todoRubros.filter(r => texto.includes(r) || r.split(' ').some(w => w.length > 4 && texto.includes(w)))
+      const matches = todoRubros.filter(r =>
+        !RUBROS_GENERICOS.has(r) &&
+        (texto.includes(r) || r.split(' ').some(w => w.length > 4 && texto.includes(w)))
+      )
       setRubrosSugeridos(matches.slice(0, 8))
     } finally {
       setSugiendoRubros(false)
@@ -274,7 +289,6 @@ export default function PerfilIAPage() {
       queryClient.invalidateQueries({ queryKey: ['licitaciones-profile'] })
       syncedRef.current = false
       toast.success('✅ Perfil guardado')
-      setShowFeedbackPerfil(true)
       setShowFeedbackPerfil(true)
       // Lock rubros after save
       if (form.rubros.length > 0) {
@@ -390,6 +404,69 @@ export default function PerfilIAPage() {
     } catch { toast.error('Error al descargar') }
   }
 
+  // ── Archivos de contexto para la IA ────────────────────────────────────────
+  const [archivosCtx, setArchivosCtx] = useState<{nombre: string; tamaño_chars: number; fecha: string}[]>([])
+  const [archivosCtxCargando, setArchivosCtxCargando] = useState(false)
+
+  useEffect(() => {
+    api.get('/modules/licitaciones/archivos-contexto')
+      .then(r => setArchivosCtx(r.data.archivos ?? []))
+      .catch(() => {})
+  }, [])
+
+  const handleArchivoCtx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setArchivosCtxCargando(true)
+    try {
+      let texto = ''
+      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+        texto = await file.text()
+      } else if (file.type === 'application/pdf') {
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          // @ts-ignore
+          const pdfjsLib = (window as any).pdfjsLib
+          if (pdfjsLib) {
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+            const pages: string[] = []
+            for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+              const page = await pdf.getPage(i)
+              const content = await page.getTextContent()
+              pages.push(content.items.map((it: any) => it.str).join(' '))
+            }
+            texto = pages.join('\n\n')
+          } else {
+            texto = `[PDF: ${file.name}]`
+          }
+        } catch { texto = `[Contenido de ${file.name}]` }
+      } else {
+        texto = await file.text()
+      }
+      if (!texto.trim()) { toast.error('No se pudo extraer texto del archivo'); return }
+      await api.post('/modules/licitaciones/archivos-contexto/texto', {
+        nombre: file.name,
+        texto: texto.slice(0, 15000),
+      })
+      toast.success(`"${file.name}" guardado — Claude lo usará en todas tus propuestas`)
+      const r = await api.get('/modules/licitaciones/archivos-contexto')
+      setArchivosCtx(r.data.archivos ?? [])
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Error al subir archivo')
+    } finally {
+      setArchivosCtxCargando(false)
+      e.target.value = ''
+    }
+  }
+
+  const eliminarArchivoCtx = async (nombre: string) => {
+    try {
+      await api.delete(`/modules/licitaciones/archivos-contexto/${encodeURIComponent(nombre)}`)
+      setArchivosCtx(prev => prev.filter(a => a.nombre !== nombre))
+      toast.success('Archivo eliminado')
+    } catch { toast.error('Error al eliminar') }
+  }
+
   const verDocumento = async (tipo: string) => {
     try {
       const res = await api.get(`/modules/licitaciones/documentos/${tipo}/download`)
@@ -403,16 +480,16 @@ export default function PerfilIAPage() {
   }
 
   const SECCIONES = [
-    { key: 'empresa',    label: 'Tu empresa',          icon: Building2, desc: 'RUT, razón social y datos legales',      badge: 'obligatorio' },
-    { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas',       badge: 'obligatorio' },
-    { key: 'documentos', label: 'Documentos',          icon: FileText,  desc: 'CV empresa, certificados PDF',           badge: 'obligatorio' },
-    { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, certificaciones', badge: 'complementa la IA' },
-    { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera tu empresa',        badge: 'obligatorio' },
-    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos',          badge: 'complementa la IA' },
+    { key: 'empresa',    label: 'Tu empresa',          icon: Building2, desc: 'RUT, razón social y datos legales',       badge: 'obligatorio'       },
+    { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, diferenciadores', badge: 'complementa la IA' },
+    { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera — filtra la búsqueda', badge: 'obligatorio'     },
+    { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas',        badge: 'obligatorio'       },
+    { key: 'documentos', label: 'Portafolio IA',         icon: FileText,  desc: 'Archivos que Claude usa en tus propuestas', badge: 'mejora la IA'      },
+    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos',          badge: 'opcional'          },
   ]
 
   if (isLoading) return (
-    <div className="flex items-center justify-center h-64 text-gray-400">
+    <div className="flex items-center justify-center h-64 text-ink-4">
       <Loader2 size={24} className="animate-spin mr-2" /> Cargando perfil…
     </div>
   )
@@ -422,20 +499,23 @@ export default function PerfilIAPage() {
     const campos = completitud.filter(c => c.grupo === sec.key)
     const ok = campos.filter(c => c.filled).length
     const total = campos.length
+    const criticalCampos = campos.filter(c => c.critical)
+    const criticalOk = criticalCampos.filter(c => c.filled).length
+    const criticalTotal = criticalCampos.length
     const tieneDoc = sec.key === 'documentos' ? Object.keys(docsMeta).length > 0 : null
     const done = sec.key === 'documentos' ? tieneDoc : (total > 0 && ok === total)
     const hasCritical = campos.some(c => c.critical && !c.filled)
-    return { ...sec, ok, total, done, hasCritical }
+    return { ...sec, ok, total, criticalOk, criticalTotal, done, hasCritical }
   })
 
   return (
     <div className="max-w-6xl mx-auto pb-16 px-6 pt-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-base font-bold text-gray-900">Perfil de empresa para IA</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Completa tu perfil para que la IA genere propuestas de calidad</p>
+          <h1 className="text-base font-bold text-ink-9">Perfil de empresa para IA</h1>
+          <p className="text-xs text-ink-4 mt-0.5">La IA usa este perfil para filtrar licitaciones relevantes y generar propuestas</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -444,34 +524,67 @@ export default function PerfilIAPage() {
               setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
               setOpenCats(new Set()); setDocsMeta({})
             }}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+            className="flex items-center gap-1 text-xs text-ink-4 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
           >
             <Trash2 size={12} /> Limpiar
           </button>
-          <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
-            className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+          <button onClick={() => {
+              if (form.rubros.length === 0) {
+                toast.error('Selecciona al menos 1 rubro — sin rubros la búsqueda no funciona')
+                scrollTo('rubros')
+                return
+              }
+              if (form.regiones.length === 0) {
+                toast.error('Selecciona al menos 1 región — sin regiones no recibirás licitaciones relevantes')
+                scrollTo('rubros')
+                return
+              }
+              guardarMutation.mutate()
+            }} disabled={guardarMutation.isPending}
+            className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-kap-600 text-white hover:bg-kap-700 disabled:opacity-40 transition-colors">
             {guardarMutation.isPending ? <><Loader2 size={13} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={13} /> Guardar</>}
           </button>
         </div>
       </div>
 
+      {/* Banner de flujo — solo si perfil incompleto */}
+      {!listoParaPostular && (
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          {[
+            { num: '1', label: 'Describe tu empresa', desc: 'Qué hace, rubros y regiones donde operas', done: !!(form.descripcion && form.rubros.length > 0 && form.regiones.length > 0) },
+            { num: '2', label: 'Guarda el perfil', desc: 'La IA genera un análisis de cómo te ve el sistema', done: !!(perfilRemoto?.descripcion) },
+            { num: '3', label: 'Busca licitaciones', desc: 'Los resultados se filtran por tu perfil automáticamente', done: false },
+          ].map(s => (
+            <div key={s.num} className={clsx('rounded-xl border px-4 py-3 flex items-start gap-3',
+              s.done ? 'bg-emerald-50 border-emerald-200' : 'bg-ink-1 border-ink-3')}>
+              <span className={clsx('text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                s.done ? 'bg-emerald-500 text-white' : 'bg-ink-4 text-white')}>{s.done ? '✓' : s.num}</span>
+              <div>
+                <p className={clsx('text-xs font-semibold', s.done ? 'text-emerald-800' : 'text-ink-7')}>{s.label}</p>
+                <p className="text-[10px] text-ink-4 mt-0.5">{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-6 items-start">
 
         {/* ── SIDEBAR IZQUIERDO: PROGRESO Y NAVEGACIÓN ─────── */}
         <div className="w-52 shrink-0 hidden lg:block self-start sticky top-4">
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto">
+          <div className="bg-white border border-ink-3 rounded-2xl shadow-sm overflow-hidden max-h-[calc(100vh-6rem)] overflow-y-auto">
 
             {/* % progreso */}
-            <div className="px-3 pt-3 pb-3 border-b border-gray-100 flex items-center gap-3">
+            <div className="px-3 pt-3 pb-3 border-b border-ink-2 flex items-center gap-3">
               <div className={clsx('text-3xl font-black leading-none shrink-0',
-                pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-indigo-600')}>
+                pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-kap-600')}>
                 {pct}%
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-gray-400">perfil completado</p>
-                <div className="w-full bg-gray-100 rounded-full h-1 mt-1">
+                <p className="text-[10px] text-ink-4">perfil completado</p>
+                <div className="w-full bg-ink-2 rounded-full h-1 mt-1">
                   <div className={clsx('h-1 rounded-full transition-all duration-700',
-                    pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-indigo-500')}
+                    pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-kap-500')}
                     style={{ width: `${pct}%` }} />
                 </div>
               </div>
@@ -482,30 +595,32 @@ export default function PerfilIAPage() {
               {progresoSecciones.map(sec => {
                 const Icon = sec.icon
                 const isActive = activeSection === sec.key
-                const docCount = sec.key === 'documentos' ? Object.keys(docsMeta).length : null
-                const displayOk = docCount !== null ? docCount : sec.ok
-                const displayTotal = docCount !== null ? DOCS_TIPOS.length : sec.total
+                const isDocumentos = sec.key === 'documentos'
+                const ctxCount = archivosCtx.length
+                const hasCriticalFields = sec.criticalTotal > 0
+                const displayOk = isDocumentos ? ctxCount : (hasCriticalFields ? sec.criticalOk : sec.ok)
+                const displayTotal: number | null = isDocumentos ? null : (hasCriticalFields ? sec.criticalTotal : sec.total)
                 const isComplementary = (sec as any).badge === 'complementa la IA'
                 return (
                   <button key={sec.key} onClick={() => scrollTo(sec.key)}
                     className={clsx(
                       'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all text-left',
-                      isActive ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50'
+                      isActive ? 'bg-kap-600 shadow-sm' : 'hover:bg-ink-1'
                     )}>
                     <Icon size={12} className={clsx('shrink-0',
                       isActive ? 'text-white' :
-                      sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : 'text-gray-300')} />
+                      sec.done ? 'text-emerald-500' : sec.hasCritical ? 'text-red-400' : 'text-ink-4')} />
                     <span className={clsx('text-[11px] flex-1 font-medium leading-tight',
                       isActive ? 'text-white font-semibold' :
-                      sec.done ? 'text-gray-700' :
+                      sec.done ? 'text-ink-7' :
                       sec.hasCritical ? 'text-red-600' :
-                      isComplementary ? 'text-gray-400' : 'text-gray-500')}>
+                      isComplementary ? 'text-ink-4' : 'text-ink-5')}>
                       {sec.label}
                     </span>
                     <span className={clsx('text-[10px] font-bold shrink-0 tabular-nums',
-                      isActive ? 'text-indigo-200' :
-                      sec.done ? 'text-emerald-500' : 'text-gray-300')}>
-                      {displayOk}/{displayTotal}
+                      isActive ? 'text-kap-300' :
+                      sec.done ? 'text-emerald-500' : 'text-ink-4')}>
+                      {displayTotal !== null ? `${displayOk}/${displayTotal}` : ctxCount > 0 ? `${ctxCount}` : '—'}
                     </span>
                   </button>
                 )
@@ -514,7 +629,7 @@ export default function PerfilIAPage() {
 
             {/* Campos críticos pendientes */}
             {!listoParaPostular && (
-              <div className="px-3 py-2.5 border-t border-gray-100 bg-red-50">
+              <div className="px-3 py-2.5 border-t border-ink-2 bg-red-50">
                 <p className="text-[9px] font-bold text-red-700 uppercase tracking-wide mb-1.5">Obligatorios</p>
                 <div className="space-y-1">
                   {completitud.filter(c => c.critical && !c.filled).map(c => (
@@ -528,7 +643,7 @@ export default function PerfilIAPage() {
             )}
 
             {listoParaPostular && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-emerald-50 text-center">
+              <div className="px-4 py-3 border-t border-ink-2 bg-emerald-50 text-center">
                 <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-1" />
                 <p className="text-[10px] font-bold text-emerald-700">¡Listo para postular!</p>
               </div>
@@ -547,15 +662,15 @@ export default function PerfilIAPage() {
               <section key={sec.key} id={sec.key} data-perfil-section>
                 {/* Section header — colapsable */}
                 <button type="button" onClick={() => toggleCollapse(sec.key)}
-                  className="w-full flex items-center gap-2 mb-4 pb-2 border-b border-gray-100 hover:border-indigo-200 transition-colors group text-left">
-                  <Icon size={15} className="text-indigo-500 shrink-0" />
-                  <h2 className="text-sm font-bold text-gray-900">{sec.label}</h2>
-                  <span className="text-xs text-gray-400 hidden sm:inline">{sec.desc}</span>
+                  className="w-full flex items-center gap-2 mb-4 pb-2 border-b border-ink-2 hover:border-kap-100 transition-colors group text-left">
+                  <Icon size={15} className="text-kap-500 shrink-0" />
+                  <h2 className="text-sm font-bold text-ink-9">{sec.label}</h2>
+                  <span className="text-xs text-ink-4 hidden sm:inline">{sec.desc}</span>
                   <span className={clsx('ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0',
-                    sec.badge === 'obligatorio' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500')}>
+                    sec.badge === 'obligatorio' ? 'bg-red-50 text-red-500' : 'bg-kap-50 text-kap-500')}>
                     {sec.badge}
                   </span>
-                  <ChevronDown size={14} className={clsx('text-gray-300 group-hover:text-gray-500 transition-transform shrink-0 ml-1',
+                  <ChevronDown size={14} className={clsx('text-ink-4 group-hover:text-ink-5 transition-transform shrink-0 ml-1',
                     isCollapsed ? '' : 'rotate-180')} />
                 </button>
                 {!isCollapsed && <div className="space-y-4">
@@ -563,18 +678,18 @@ export default function PerfilIAPage() {
                   {/* ── EMPRESA ── */}
                   {sec.key === 'empresa' && (<>
                     {/* Datos legales obligatorios */}
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Datos legales obligatorios</p>
+                    <div className="rounded-xl border border-kap-100 bg-kap-50/50 p-4 space-y-3">
+                      <p className="text-[10px] font-bold text-kap-500 uppercase tracking-wider">Datos legales obligatorios</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          <label className="block text-xs font-semibold text-ink-7 mb-1.5">
                             RUT empresa <span className="text-red-400">*</span>
                           </label>
                           <input className="input text-sm w-full" placeholder="76.123.456-7"
                             value={form.rut_empresa} onChange={e => setForm(f => ({ ...f, rut_empresa: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          <label className="block text-xs font-semibold text-ink-7 mb-1.5">
                             Razón social <span className="text-red-400">*</span>
                           </label>
                           <input className="input text-sm w-full" placeholder="Empresa Ejemplo SpA"
@@ -588,38 +703,38 @@ export default function PerfilIAPage() {
                           'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border text-left transition-all',
                           form.inscrito_chile_proveedores
                             ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                            : 'bg-ink-0 border-ink-3 text-ink-6 hover:border-ink-4'
                         )}>
                         <div className={clsx(
                           'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors',
-                          form.inscrito_chile_proveedores ? 'bg-emerald-500' : 'border-2 border-gray-300'
+                          form.inscrito_chile_proveedores ? 'bg-emerald-500' : 'border-2 border-ink-3'
                         )}>
                           {form.inscrito_chile_proveedores && <Check size={10} className="text-white" />}
                         </div>
                         <div>
                           <p className="text-xs font-semibold">Inscrito en ChileProveedores</p>
-                          <p className="text-[10px] text-gray-400">Registro de proveedores del Estado</p>
+                          <p className="text-[10px] text-ink-4">Registro de proveedores del Estado</p>
                         </div>
                       </button>
                     </div>
 
                     {/* Datos complementarios */}
                     <div className="space-y-3">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Datos complementarios</p>
+                      <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider">Datos complementarios</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Años de experiencia</label>
+                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Años de experiencia</label>
                           <input type="number" min="0" className="input text-sm w-full" placeholder="5"
                             value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Sitio web</label>
+                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Sitio web</label>
                           <input className="input text-xs w-full" placeholder="www.empresa.cl"
                             value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Dirección</label>
+                        <label className="block text-xs font-medium text-ink-6 mb-1.5">Dirección</label>
                         <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
                           value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
                       </div>
@@ -631,7 +746,7 @@ export default function PerfilIAPage() {
                     <div>
                       {/* Chips de seleccionados + trigger */}
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-gray-700">Rubros donde participas <span className="text-red-400">*</span></label>
+                        <label className="text-xs font-semibold text-ink-7">Rubros donde participas <span className="text-red-400">*</span></label>
                         <div className="flex items-center gap-2">
                           {rubrosLocked ? (
                             <button type="button"
@@ -641,7 +756,7 @@ export default function PerfilIAPage() {
                             </button>
                           ) : (
                             form.rubros.length > 0 && (
-                              <button type="button" onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar todo</button>
+                              <button type="button" onClick={() => setForm(f => ({ ...f, rubros: [] }))} className="text-[10px] text-ink-4 hover:text-red-400">limpiar todo</button>
                             )
                           )}
                         </div>
@@ -653,14 +768,25 @@ export default function PerfilIAPage() {
                         <div className="flex flex-wrap gap-1 mb-3">
                           {form.rubros.map(r => (
                             rubrosLocked ? (
-                              <span key={r} className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 capitalize">{r}</span>
+                              <span key={r} className="text-[11px] px-2 py-0.5 rounded-full bg-kap-100 text-kap-700 capitalize">{r}</span>
                             ) : (
                               <button key={r} type="button" onClick={() => toggleRubro(r)}
-                                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-600 text-white capitalize">
+                                className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-kap-600 text-white capitalize">
                                 {r} <X size={9} />
                               </button>
                             )
                           ))}
+                        </div>
+                      )}
+
+                      {/* Aviso cuando no hay rubros seleccionados */}
+                      {form.rubros.length === 0 && !rubrosLocked && (
+                        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-amber-700">Sin rubros no hay búsqueda</p>
+                            <p className="text-[10px] text-amber-600 mt-0.5">Selecciona los rubros en los que opera tu empresa. La IA los usa para filtrar licitaciones relevantes y descartar las que no aplican.</p>
+                          </div>
                         </div>
                       )}
 
@@ -682,21 +808,21 @@ export default function PerfilIAPage() {
                         <button type="button" onClick={sugerirRubros} disabled={sugiendoRubros}
                           className={clsx('w-full flex items-center justify-center gap-2 text-xs font-semibold py-2.5 rounded-xl border transition-colors',
                             form.descripcion
-                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                              : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed')}>
+                              ? 'bg-kap-50 border-kap-100 text-kap-700 hover:bg-kap-100'
+                              : 'bg-ink-1 border-ink-3 text-ink-4 cursor-not-allowed')}>
                           {sugiendoRubros
                             ? <><Loader2 size={13} className="animate-spin" /> Analizando tu empresa…</>
                             : <><Sparkles size={13} /> Sugerir rubros automáticamente con IA</>}
                         </button>
                         {!form.descripcion && (
-                          <p className="text-[10px] text-gray-400 text-center mt-1">Completa primero "Qué hace tu empresa" para usar esta función</p>
+                          <p className="text-[10px] text-ink-4 text-center mt-1">Completa primero "Qué hace tu empresa" para usar esta función</p>
                         )}
                       </div>
 
                       {/* Rubros sugeridos por IA */}
                       {rubrosSugeridos.length > 0 && (
-                        <div className="mb-3 border border-indigo-200 bg-indigo-50 rounded-xl p-3">
-                          <p className="text-[10px] font-semibold text-indigo-700 mb-2 flex items-center gap-1">
+                        <div className="mb-3 border border-kap-100 bg-kap-50 rounded-xl p-3">
+                          <p className="text-[10px] font-semibold text-kap-700 mb-2 flex items-center gap-1">
                             <Sparkles size={11} /> La IA sugiere estos rubros para tu empresa:
                           </p>
                           <div className="flex flex-wrap gap-1.5">
@@ -707,8 +833,8 @@ export default function PerfilIAPage() {
                                   onClick={() => { toggleRubro(r); if (!yaSeleccionado) setRubrosSugeridos(prev => prev.filter(x => x !== r)) }}
                                   className={clsx('flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
                                     yaSeleccionado
-                                      ? 'bg-indigo-600 text-white border-indigo-600'
-                                      : 'bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-100')}>
+                                      ? 'bg-kap-600 text-white border-kap-600'
+                                      : 'bg-white text-kap-700 border-kap-300 hover:bg-kap-100')}>
                                   {yaSeleccionado ? <Check size={10} /> : <Plus size={10} />} {r}
                                 </button>
                               )
@@ -719,7 +845,7 @@ export default function PerfilIAPage() {
                               rubrosSugeridos.forEach(r => { if (!form.rubros.includes(r)) toggleRubro(r) })
                               setRubrosSugeridos([])
                             }}
-                            className="mt-2 text-[10px] text-indigo-600 font-semibold hover:underline">
+                            className="mt-2 text-[10px] text-kap-600 font-semibold hover:underline">
                             ✓ Agregar todos
                           </button>
                         </div>
@@ -727,7 +853,7 @@ export default function PerfilIAPage() {
                       {/* Buscador / rubro personalizado */}
                       <div className="mb-2">
                         <div className="relative">
-                          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
                           <input
                             type="text"
                             value={rubroQuery}
@@ -741,7 +867,7 @@ export default function PerfilIAPage() {
                               }
                             }}
                             placeholder="Buscar o escribe un rubro y presiona Enter…"
-                            className="w-full text-xs border border-gray-200 rounded-lg pl-7 pr-3 py-1.5 focus:outline-none focus:border-indigo-400"
+                            className="w-full text-xs border border-ink-3 rounded-lg pl-7 pr-3 py-1.5 focus:outline-none focus:border-kap-300"
                           />
                         </div>
                         {/* Resultados de búsqueda */}
@@ -750,20 +876,20 @@ export default function PerfilIAPage() {
                           const matches = RUBRO_CATEGORIAS.flatMap(c => c.rubros).filter(r => r.includes(q))
                           const exactMatch = matches.includes(q)
                           return (
-                            <div className="mt-1 border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                            <div className="mt-1 border border-ink-3 rounded-xl bg-white shadow-sm overflow-hidden">
                               {matches.slice(0, 8).map(r => (
                                 <button key={r} type="button"
                                   onClick={() => { toggleRubro(r); setRubroQuery('') }}
-                                  className={clsx('w-full text-left text-xs px-3 py-2 hover:bg-indigo-50 flex items-center justify-between capitalize',
-                                    form.rubros.includes(r) && 'bg-indigo-50 text-indigo-700 font-semibold')}>
+                                  className={clsx('w-full text-left text-xs px-3 py-2 hover:bg-kap-50 flex items-center justify-between capitalize',
+                                    form.rubros.includes(r) && 'bg-kap-50 text-kap-700 font-semibold')}>
                                   {r}
-                                  {form.rubros.includes(r) && <Check size={11} className="text-indigo-600" />}
+                                  {form.rubros.includes(r) && <Check size={11} className="text-kap-600" />}
                                 </button>
                               ))}
                               {!exactMatch && (
                                 <button type="button"
                                   onClick={() => { const v = rubroQuery.trim().toLowerCase(); if (!form.rubros.includes(v)) toggleRubro(v); setRubroQuery('') }}
-                                  className="w-full text-left text-xs px-3 py-2 hover:bg-indigo-50 text-indigo-600 font-semibold flex items-center gap-2 border-t border-gray-100">
+                                  className="w-full text-left text-xs px-3 py-2 hover:bg-kap-50 text-kap-600 font-semibold flex items-center gap-2 border-t border-ink-2">
                                   <Plus size={11} /> Agregar "{rubroQuery.trim()}" como rubro personalizado
                                 </button>
                               )}
@@ -773,9 +899,9 @@ export default function PerfilIAPage() {
                       </div>
 
                       {/* Tabs de categorías */}
-                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div className="border border-ink-3 rounded-xl overflow-hidden">
                         {/* Tab bar */}
-                        <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50 gap-1 p-1.5">
+                        <div className="flex overflow-x-auto border-b border-ink-3 bg-ink-1 gap-1 p-1.5">
                           {RUBRO_CATEGORIAS.map(cat => {
                             const sel = cat.rubros.filter(r => form.rubros.includes(r)).length
                             const active = tabCat === cat.label
@@ -784,15 +910,15 @@ export default function PerfilIAPage() {
                                 className={clsx(
                                   'flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap shrink-0 rounded-lg transition-all',
                                   active
-                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                    ? 'bg-kap-600 text-white shadow-sm'
                                     : sel > 0
-                                      ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                                      : 'text-gray-500 hover:text-gray-800 hover:bg-white'
+                                      ? 'bg-kap-100 text-kap-700 hover:bg-kap-100'
+                                      : 'text-ink-5 hover:text-ink-8 hover:bg-white'
                                 )}>
                                 {cat.label.split(' ')[0]}
                                 {sel > 0 && (
                                   <span className={clsx('text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shrink-0',
-                                    active ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white')}>
+                                    active ? 'bg-white text-kap-600' : 'bg-kap-600 text-white')}>
                                     {sel}
                                   </span>
                                 )}
@@ -806,8 +932,8 @@ export default function PerfilIAPage() {
                           if (!cat) return null
                           const todosSeleccionados = cat.rubros.every(r => form.rubros.includes(r))
                           return (
-                            <div className="px-3 pt-2 pb-1 flex items-center justify-between border-b border-gray-100 bg-white">
-                              <span className="text-[10px] text-gray-400">{cat.rubros.filter(r => form.rubros.includes(r)).length} de {cat.rubros.length} seleccionados</span>
+                            <div className="px-3 pt-2 pb-1 flex items-center justify-between border-b border-ink-2 bg-white">
+                              <span className="text-[10px] text-ink-4">{cat.rubros.filter(r => form.rubros.includes(r)).length} de {cat.rubros.length} seleccionados</span>
                               <button type="button"
                                 onClick={() => {
                                   if (todosSeleccionados) {
@@ -816,7 +942,7 @@ export default function PerfilIAPage() {
                                     setForm(f => ({ ...f, rubros: Array.from(new Set([...f.rubros, ...cat.rubros])) }))
                                   }
                                 }}
-                                className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                className="text-[10px] font-semibold text-kap-600 hover:text-kap-700 transition-colors">
                                 {todosSeleccionados ? 'Quitar todos' : 'Seleccionar todos'}
                               </button>
                             </div>
@@ -828,8 +954,8 @@ export default function PerfilIAPage() {
                             <button key={r} type="button" onClick={() => toggleRubro(r)}
                               className={clsx('text-[11px] px-2.5 py-1 rounded-lg border transition-colors capitalize',
                                 form.rubros.includes(r)
-                                  ? 'bg-indigo-600 text-white border-indigo-600'
-                                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
+                                  ? 'bg-kap-600 text-white border-kap-600'
+                                  : 'bg-white text-ink-6 border-ink-3 hover:border-kap-300 hover:bg-kap-50')}>
                               {r}
                             </button>
                           ))}
@@ -839,12 +965,12 @@ export default function PerfilIAPage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <label className="text-xs font-semibold text-gray-700">Regiones donde operas <span className="text-red-400">*</span>
-                          {form.regiones.length > 0 && <span className="ml-2 text-indigo-600 font-bold">{form.regiones.length} sel.</span>}
+                        <label className="text-xs font-semibold text-ink-7">Regiones donde operas <span className="text-red-400">*</span>
+                          {form.regiones.length > 0 && <span className="ml-2 text-kap-600 font-bold">{form.regiones.length} sel.</span>}
                         </label>
                         <div className="flex gap-2">
-                          {form.regiones.length > 0 && <button type="button" onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-gray-400 hover:text-red-400">limpiar</button>}
-                          <button type="button" onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-indigo-500 hover:text-indigo-700">todas</button>
+                          {form.regiones.length > 0 && <button type="button" onClick={() => setForm(f => ({ ...f, regiones: [] }))} className="text-[10px] text-ink-4 hover:text-red-400">limpiar</button>}
+                          <button type="button" onClick={() => setForm(f => ({ ...f, regiones: regionesOrdenadas.map((r: any) => r.codigo) }))} className="text-[10px] text-kap-500 hover:text-kap-700">todas</button>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -856,19 +982,19 @@ export default function PerfilIAPage() {
                           return (
                             <button key={r.codigo} type="button" onClick={() => toggleRegion(r.codigo)}
                               className={clsx('text-xs px-2.5 py-1 rounded-full border transition-colors',
-                                form.regiones.includes(r.codigo) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50')}>
+                                form.regiones.includes(r.codigo) ? 'bg-kap-600 text-white border-kap-600' : 'bg-white text-ink-6 border-ink-3 hover:border-kap-300 hover:bg-kap-50')}>
                               {nombre}
                             </button>
                           )
                         })}
                       </div>
                     </div>
-                    <div className="pt-3 border-t border-gray-100">
+                    <div className="pt-3 border-t border-ink-2">
                       <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
                         className={clsx('w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors',
                           guardarMutation.isPending
-                            ? 'bg-indigo-300 text-white cursor-not-allowed'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700')}>
+                            ? 'bg-kap-100 text-white cursor-not-allowed'
+                            : 'bg-kap-600 text-white hover:bg-kap-700')}>
                         {guardarMutation.isPending
                           ? <><Loader2 size={14} className="animate-spin" /> Guardando…</>
                           : <><CheckCircle2 size={14} /> Guardar cambios</>}
@@ -880,11 +1006,11 @@ export default function PerfilIAPage() {
                   {sec.key === 'que_hace' && (<>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-semibold text-gray-700">Descripción <span className="text-red-400">*</span>
-                          <span className="ml-1 text-[10px] font-normal text-indigo-500">← lo más importante para la IA</span>
+                        <label className="text-xs font-semibold text-ink-7">Descripción <span className="text-red-400">*</span>
+                          <span className="ml-1 text-[10px] font-normal text-kap-500">← lo más importante para la IA</span>
                         </label>
                         <button type="button" onClick={() => generarConIA('descripcion')} disabled={generando === 'descripcion'}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-700 disabled:opacity-40">
                           {generando === 'descripcion' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                           {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
                         </button>
@@ -895,9 +1021,9 @@ export default function PerfilIAPage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-gray-700">Proyectos anteriores relevantes</label>
+                        <label className="text-xs font-medium text-ink-7">Proyectos anteriores relevantes</label>
                         <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-700 disabled:opacity-40">
                           {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
                           {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
                         </button>
@@ -907,16 +1033,16 @@ export default function PerfilIAPage() {
                         value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Certificaciones</label>
+                      <label className="block text-xs font-medium text-ink-7 mb-1">Certificaciones</label>
                       <input className="input text-xs w-full"
                         placeholder="ISO 9001, ISO 14001, OHSAS 18001, ChileValora…"
                         value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-gray-700">Diferenciadores competitivos</label>
+                        <label className="text-xs font-medium text-ink-7">Diferenciadores competitivos</label>
                         <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40">
+                          className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-700 disabled:opacity-40">
                           {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                           {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
                         </button>
@@ -930,13 +1056,13 @@ export default function PerfilIAPage() {
                   {/* ── EQUIPO ── */}
                   {sec.key === 'equipo' && (<>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Equipo técnico</label>
+                      <label className="block text-xs font-medium text-ink-7 mb-1">Equipo técnico</label>
                       <textarea rows={2} className="input text-xs w-full resize-none"
                         placeholder="Ej: 15 técnicos: 3 ingenieros civiles, 5 supervisores, 7 operarios. Liderado por Ing. Juan Pérez (20 años)."
                         value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Metodología de trabajo</label>
+                      <label className="block text-xs font-medium text-ink-7 mb-1">Metodología de trabajo</label>
                       <textarea rows={2} className="input text-xs w-full resize-none"
                         placeholder="Ej: ISO 9001. Proyecto dividido en diagnóstico, ejecución y entrega. Control semanal con el organismo."
                         value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
@@ -945,46 +1071,92 @@ export default function PerfilIAPage() {
 
                   {/* ── CONTACTO ── */}
                   {sec.key === 'contacto' && (<>
-                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Firmante — aparece en todos los documentos</p>
+                    <div className="rounded-xl border border-kap-100 bg-kap-50/50 p-4 space-y-3">
+                      <p className="text-[10px] font-bold text-kap-500 uppercase tracking-wider">Firmante — aparece en todos los documentos</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nombre completo <span className="text-red-400">*</span></label>
+                          <label className="block text-xs font-semibold text-ink-7 mb-1.5">Nombre completo <span className="text-red-400">*</span></label>
                           <input className="input text-xs w-full" placeholder="Juan Pérez"
                             value={form.nombre_contacto} onChange={e => setForm(f => ({ ...f, nombre_contacto: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">Cargo</label>
+                          <label className="block text-xs font-semibold text-ink-7 mb-1.5">Cargo</label>
                           <input className="input text-xs w-full" placeholder="Gerente General"
                             value={form.cargo_contacto} onChange={e => setForm(f => ({ ...f, cargo_contacto: e.target.value }))} />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Teléfono</label>
+                          <label className="block text-xs font-medium text-ink-7 mb-1.5">Teléfono</label>
                           <input className="input text-xs w-full" placeholder="+56 9 1234 5678"
                             value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Correo</label>
+                          <label className="block text-xs font-medium text-ink-7 mb-1.5">Correo</label>
                           <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
                             value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
                         </div>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Alertas</p>
+                      <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider">Alertas</p>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Email para alertas de licitaciones</label>
+                        <label className="block text-xs font-medium text-ink-6 mb-1.5">Email para alertas de licitaciones</label>
                         <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
                           value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
-                        <p className="text-[10px] text-gray-400 mt-1">Te avisamos cuando aparezcan licitaciones que coincidan con tus rubros</p>
+                        <p className="text-[10px] text-ink-4 mt-1">Te avisamos cuando aparezcan licitaciones que coincidan con tus rubros</p>
                       </div>
                     </div>
                   </>)}
 
-                  {/* ── DOCUMENTOS ── */}
+                  {/* ── PORTAFOLIO IA / DOCUMENTOS ── */}
                   {sec.key === 'documentos' && (<>
+
+                    {/* ── Archivos de contexto — la feature más poderosa ── */}
+                    <div className="rounded-xl border-2 border-kap-100 bg-kap-50 p-4 mb-5 space-y-3">
+                      <div>
+                        <p className="text-xs font-bold text-kap-700">Portafolio para la IA — lo más importante de esta sección</p>
+                        <p className="text-[11px] text-kap-700 mt-1 leading-relaxed">
+                          Sube tu presentación de empresa, portafolio o contratos anteriores.
+                          Claude los usa en <strong>todas las propuestas</strong> que generes — sin esto, inventa ejemplos genéricos.
+                        </p>
+                      </div>
+
+                      {archivosCtx.length > 0 && (
+                        <div className="space-y-1.5">
+                          {archivosCtx.map(a => (
+                            <div key={a.nombre} className="flex items-center gap-2 bg-white rounded-lg border border-kap-100 px-3 py-2">
+                              <FileText size={12} className="text-kap-500 shrink-0" />
+                              <span className="flex-1 text-xs text-ink-8 truncate font-medium">{a.nombre}</span>
+                              <span className="text-[10px] text-ink-4 shrink-0">{(a.tamaño_chars / 1000).toFixed(1)}k chars</span>
+                              <button onClick={() => eliminarArchivoCtx(a.nombre)} className="text-ink-4 hover:text-red-400">
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <label className={clsx(
+                        'flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors w-full justify-center',
+                        archivosCtxCargando
+                          ? 'bg-kap-100 border-kap-100 opacity-60 pointer-events-none'
+                          : 'bg-white border-kap-300 hover:bg-kap-100 text-kap-700'
+                      )}>
+                        {archivosCtxCargando
+                          ? <><Loader2 size={13} className="animate-spin" /><span className="text-xs font-semibold">Procesando…</span></>
+                          : <><Upload size={13} /><span className="text-xs font-semibold">Subir PDF, TXT o Word</span></>}
+                        <input type="file" accept=".pdf,.txt,.md,.doc,.docx" className="hidden"
+                          disabled={archivosCtxCargando}
+                          onChange={handleArchivoCtx} />
+                      </label>
+
+                      {archivosCtx.length === 0 && (
+                        <p className="text-[10px] text-kap-500 text-center">Sin archivos — las propuestas serán genéricas</p>
+                      )}
+                    </div>
+
+                    <hr className="border-ink-3 mb-4" />
 
                     {/* ── Auto-rellenar perfil desde PDF ── */}
                     {!camposSugeridosPDF ? (
@@ -1032,13 +1204,13 @@ export default function PerfilIAPage() {
                             <p className="text-xs font-semibold text-emerald-900">IA extrajo de {nombreArchivoPDF}</p>
                           </div>
                           <button type="button" onClick={() => { setCamposSugeridosPDF(null); setNombreArchivoPDF(null) }}
-                            className="text-[10px] text-gray-400 hover:text-gray-600">descartar</button>
+                            className="text-[10px] text-ink-4 hover:text-ink-6">descartar</button>
                         </div>
                         <div className="space-y-1 max-h-36 overflow-y-auto">
                           {Object.entries(camposSugeridosPDF).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).map(([key, val]) => (
                             <div key={key} className="flex items-start gap-2 text-[11px]">
-                              <span className="text-gray-400 shrink-0 w-24 truncate capitalize">{key.replace(/_/g, ' ')}</span>
-                              <span className="text-gray-800 font-medium line-clamp-1">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
+                              <span className="text-ink-4 shrink-0 w-24 truncate capitalize">{key.replace(/_/g, ' ')}</span>
+                              <span className="text-ink-8 font-medium line-clamp-1">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
                             </div>
                           ))}
                         </div>
@@ -1081,7 +1253,7 @@ export default function PerfilIAPage() {
                         const isUploading = subiendo === doc.key
                         return (
                           <div key={doc.key} className={clsx('border rounded-xl transition-colors',
-                            meta ? 'border-emerald-200 bg-emerald-50/40' : 'border-dashed border-gray-300 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/30')}>
+                            meta ? 'border-emerald-200 bg-emerald-50/40' : 'border-dashed border-ink-3 bg-ink-1 hover:border-kap-300 hover:bg-kap-50/30')}>
 
                             {/* Estado: archivo subido */}
                             {meta ? (
@@ -1090,29 +1262,29 @@ export default function PerfilIAPage() {
                                   <FileText size={15} className="text-emerald-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                                  <p className="text-xs font-semibold text-ink-8 flex items-center gap-1.5">
                                     {doc.label}
                                     {doc.requerido && <span className="text-[10px] text-emerald-600 font-medium">✓ subido</span>}
                                   </p>
                                   <button type="button" onClick={() => verDocumento(doc.key)}
-                                    className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-full text-left">
+                                    className="text-[10px] text-kap-500 hover:text-kap-700 hover:underline truncate max-w-full text-left">
                                     {meta.nombre} · {Math.round(meta.size / 1024)} KB
                                   </button>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                   <button onClick={() => verDocumento(doc.key)}
-                                    className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg hover:bg-white text-indigo-500 hover:text-indigo-700 border border-transparent hover:border-indigo-200" title="Ver documento">
+                                    className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1.5 rounded-lg hover:bg-white text-kap-500 hover:text-kap-700 border border-transparent hover:border-kap-100" title="Ver documento">
                                     <span>Ver</span>
                                   </button>
                                   <button onClick={() => descargarDocumento(doc.key, meta.nombre)}
-                                    className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-gray-700" title="Descargar">
+                                    className="p-1.5 rounded-lg hover:bg-white text-ink-4 hover:text-ink-7" title="Descargar">
                                     <Download size={13} />
                                   </button>
                                   <button onClick={() => eliminarDocumento(doc.key)}
-                                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500" title="Eliminar">
+                                    className="p-1.5 rounded-lg hover:bg-red-50 text-ink-4 hover:text-red-500" title="Eliminar">
                                     <Trash2 size={13} />
                                   </button>
-                                  <label className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                                  <label className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer bg-white border border-ink-3 text-ink-6 hover:bg-ink-1 transition-colors">
                                     <Upload size={10} /> Reemplazar
                                     <input type="file" accept=".pdf,.doc,.docx" className="hidden"
                                       onChange={e => { const f = e.target.files?.[0]; if (f) subirDocumento(doc.key, f); e.target.value = '' }} />
@@ -1123,18 +1295,18 @@ export default function PerfilIAPage() {
                               /* Estado: vacío — zona de subida grande */
                               <label className={clsx('flex flex-col items-center justify-center gap-2 py-5 px-4 cursor-pointer',
                                 isUploading && 'opacity-60 pointer-events-none')}>
-                                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-kap-100 flex items-center justify-center">
                                   {isUploading
-                                    ? <Loader2 size={18} className="text-indigo-500 animate-spin" />
-                                    : <Upload size={18} className="text-indigo-500" />}
+                                    ? <Loader2 size={18} className="text-kap-500 animate-spin" />
+                                    : <Upload size={18} className="text-kap-500" />}
                                 </div>
                                 <div className="text-center">
-                                  <p className="text-xs font-semibold text-gray-700">
+                                  <p className="text-xs font-semibold text-ink-7">
                                     {doc.label}
                                     {doc.requerido && <span className="ml-1.5 text-red-400 font-normal text-[10px]">requerido</span>}
                                   </p>
-                                  <p className="text-[10px] text-gray-400 mt-0.5">{doc.desc}</p>
-                                  <p className="text-[10px] text-indigo-500 font-semibold mt-2">
+                                  <p className="text-[10px] text-ink-4 mt-0.5">{doc.desc}</p>
+                                  <p className="text-[10px] text-kap-500 font-semibold mt-2">
                                     {isUploading ? 'Subiendo…' : 'Haz click para subir PDF'}
                                   </p>
                                 </div>
@@ -1145,7 +1317,7 @@ export default function PerfilIAPage() {
                           </div>
                         )
                       })}
-                      <label className="flex items-center gap-2 text-[10px] text-indigo-500 hover:text-indigo-700 cursor-pointer w-fit mt-1">
+                      <label className="flex items-center gap-2 text-[10px] text-kap-500 hover:text-kap-700 cursor-pointer w-fit mt-1">
                         <FilePlus size={12} /> Subir otro documento
                         <input type="file" accept=".pdf,.doc,.docx" className="hidden"
                           onChange={e => { const f = e.target.files?.[0]; if (f) subirDocumento('otros', f); e.target.value = '' }} />
@@ -1187,7 +1359,7 @@ export default function PerfilIAPage() {
           {/* Guardar sticky */}
           <div className="sticky bottom-4">
             <button onClick={() => guardarMutation.mutate()} disabled={guardarMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 shadow-lg transition-colors">
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl bg-kap-600 text-white hover:bg-kap-700 disabled:opacity-40 shadow-lg transition-colors">
               {guardarMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Guardando…</> : <><CheckCircle2 size={16} /> Guardar perfil</>}
             </button>
           </div>
@@ -1202,12 +1374,12 @@ export default function PerfilIAPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
             <div className="text-center mb-4">
               <span className="text-4xl">🔓</span>
-              <h3 className="text-base font-bold text-gray-900 mt-2">¿Desbloquear rubros?</h3>
-              <p className="text-xs text-gray-500 mt-1">Los rubros definen cómo la IA filtra licitaciones. Al modificarlos podrías perder relevancia en tus alertas actuales.</p>
+              <h3 className="text-base font-bold text-ink-9 mt-2">¿Desbloquear rubros?</h3>
+              <p className="text-xs text-ink-5 mt-1">Los rubros definen cómo la IA filtra licitaciones. Al modificarlos podrías perder relevancia en tus alertas actuales.</p>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowUnlockConfirm(false)}
-                className="flex-1 text-sm font-semibold py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">
+                className="flex-1 text-sm font-semibold py-2 rounded-xl border border-ink-3 text-ink-6 hover:bg-ink-1">
                 Cancelar
               </button>
               <button type="button" onClick={() => {
@@ -1229,25 +1401,25 @@ export default function PerfilIAPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4 text-white">
+            <div className="bg-gradient-to-r from-kap-50 to-kap-200 px-6 py-4 text-white">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} />
                 <h3 className="text-base font-bold">Análisis de tu perfil</h3>
               </div>
-              <p className="text-xs text-indigo-200 mt-0.5">Así ve la IA tu empresa al postular licitaciones</p>
+              <p className="text-xs text-kap-300 mt-0.5">Así ve la IA tu empresa al postular licitaciones</p>
             </div>
 
             <div className="px-6 py-5 space-y-4">
               {generandoResumen ? (
                 <div className="flex flex-col items-center gap-3 py-6">
-                  <Loader2 size={28} className="animate-spin text-indigo-500" />
-                  <p className="text-sm text-gray-500">Analizando tu perfil…</p>
+                  <Loader2 size={28} className="animate-spin text-kap-500" />
+                  <p className="text-sm text-ink-5">Analizando tu perfil…</p>
                 </div>
               ) : resumenIA ? (<>
                 {/* Resumen positivo */}
-                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-                  <p className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide mb-1.5">✅ Tu empresa</p>
-                  <p className="text-sm text-gray-700 leading-relaxed">{resumenIA.texto}</p>
+                <div className="bg-kap-50 border border-kap-100 rounded-xl p-4">
+                  <p className="text-[11px] font-semibold text-kap-600 uppercase tracking-wide mb-1.5">✅ Tu empresa</p>
+                  <p className="text-sm text-ink-7 leading-relaxed">{resumenIA.texto}</p>
                 </div>
 
                 {/* Campos faltantes */}
@@ -1274,12 +1446,12 @@ export default function PerfilIAPage() {
             {/* Footer */}
             <div className="px-6 pb-5 flex gap-2">
               <button type="button" onClick={() => setShowResumenModal(false)}
-                className="flex-1 text-sm font-semibold py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">
+                className="flex-1 text-sm font-semibold py-2.5 rounded-xl border border-ink-3 text-ink-6 hover:bg-ink-1">
                 Seguir editando
               </button>
-              <button type="button" onClick={() => setShowResumenModal(false)}
-                className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">
-                ✓ Entendido
+              <button type="button" onClick={() => { setShowResumenModal(false); navigate('/licitaciones') }}
+                className="flex-1 text-sm font-semibold py-2.5 rounded-xl bg-kap-600 text-white hover:bg-kap-700">
+                Buscar licitaciones →
               </button>
             </div>
           </div>

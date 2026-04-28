@@ -322,7 +322,21 @@ def guardar_licitaciones_profile(
 
     from sqlalchemy.orm.attributes import flag_modified
     profile = dict(mod.niche_config or {})
-    profile.update(data.model_dump(exclude_unset=True))
+    update = data.model_dump(exclude_unset=True)
+
+    # Validar campos críticos si se están enviando
+    if "rut_empresa" in update and update["rut_empresa"]:
+        rut = update["rut_empresa"].replace(".", "").replace("-", "")
+        if len(rut) < 7:
+            raise HTTPException(status_code=422, detail="RUT empresa inválido")
+    if "rubros" in update and update["rubros"] is not None:
+        if not isinstance(update["rubros"], list):
+            raise HTTPException(status_code=422, detail="Rubros debe ser una lista")
+    if "regiones" in update and update["regiones"] is not None:
+        if not isinstance(update["regiones"], list):
+            raise HTTPException(status_code=422, detail="Regiones debe ser una lista")
+
+    profile.update(update)
     mod.niche_config = profile
     flag_modified(mod, "niche_config")
     db.commit()
