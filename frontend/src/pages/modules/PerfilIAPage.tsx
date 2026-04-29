@@ -337,6 +337,7 @@ export default function PerfilIAPage() {
     mutationFn: () => api.put('/tenant/me/licitaciones-profile', {
       ...form,
       experiencia_anos: form.experiencia_anos ? parseInt(form.experiencia_anos) : null,
+      monto_max_proyecto_uf: form.monto_max_proyecto_uf ? parseFloat(form.monto_max_proyecto_uf) : null,
     }),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['licitaciones-profile'] })
