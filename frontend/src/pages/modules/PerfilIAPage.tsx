@@ -82,9 +82,6 @@ const CAMPOS_COMPLETITUD = [
   { key: 'cargo_contacto',       label: 'Cargo del firmante',    critical: false, grupo: 'contacto'  },
   { key: 'correo',               label: 'Correo electrónico',    critical: false, grupo: 'contacto'  },
   { key: 'telefono',             label: 'Teléfono',              critical: false, grupo: 'contacto'  },
-  { key: 'proyectos_anteriores', label: 'Proyectos anteriores',  critical: false, grupo: 'que_hace'  },
-  { key: 'equipo_tecnico',       label: 'Equipo técnico',        critical: false, grupo: 'equipo'    },
-  { key: 'certificaciones',      label: 'Certificaciones',       critical: false, grupo: 'que_hace'  },
 ]
 
 const DOCS_TIPOS = [
@@ -540,8 +537,6 @@ export default function PerfilIAPage() {
     { key: 'que_hace',   label: 'Qué hace tu empresa', icon: Sparkles,  desc: 'Descripción, proyectos, diferenciadores', badge: 'complementa la IA' },
     { key: 'rubros',     label: 'Rubros y regiones',   icon: MapPin,    desc: 'Dónde y en qué opera — filtra la búsqueda', badge: 'obligatorio'     },
     { key: 'contacto',   label: 'Contacto',            icon: Award,     desc: 'Firmante y datos para propuestas',        badge: 'obligatorio'       },
-    { key: 'documentos', label: 'Portafolio IA',         icon: FileText,  desc: 'Archivos que Claude usa en tus propuestas', badge: 'mejora la IA'      },
-    { key: 'equipo',     label: 'Equipo',              icon: Users,     desc: 'Quiénes ejecutan los proyectos',          badge: 'opcional'          },
   ]
 
   if (isLoading) return (
@@ -1079,29 +1074,6 @@ export default function PerfilIAPage() {
 
                   {/* ── QUÉ HACE TU EMPRESA ── */}
                   {sec.key === 'que_hace' && (<>
-                    {/* Alertas de calidad del perfil */}
-                    {(!form.proyectos_anteriores || !form.certificaciones) && (
-                      <div className="space-y-2 mb-1">
-                        {!form.proyectos_anteriores && (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
-                            <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-semibold text-amber-700">Sin experiencia documentada</p>
-                              <p className="text-[10px] text-amber-600 mt-0.5">Las licitaciones LP y LR exigen acreditar experiencia previa. Sin proyectos registrados, la IA no puede generar propuestas competitivas para esos tipos.</p>
-                            </div>
-                          </div>
-                        )}
-                        {!form.certificaciones && (
-                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-start gap-2">
-                            <AlertCircle size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-semibold text-blue-700">Certificaciones no informadas</p>
-                              <p className="text-[10px] text-blue-600 mt-0.5">Para LP y LR, las bases suelen pedir ISO 9001, ChileValora u otras. Si las tienes, agrégalas — el scorer las pondera.</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-semibold text-ink-7">Descripción <span className="text-red-400">*</span>
@@ -1116,54 +1088,6 @@ export default function PerfilIAPage() {
                       <textarea className="input text-sm w-full resize-none" rows={4}
                         placeholder={"Ej: Empresa de servicios de aseo e higiene ambiental con 8 años de trayectoria en licitaciones públicas. Ejecutamos contratos para hospitales, municipalidades y organismos de gobierno en la RM y Región del Biobío. Equipo de 40 personas, vehículos propios y maquinaria de última generación. ISO 9001:2015 vigente. Contrato más relevante: Hospital Clínico Regional de Concepción (2023, $180M CLP)."}
                         value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-ink-7">Proyectos anteriores relevantes</label>
-                        <button type="button" onClick={() => generarConIA('proyectos_anteriores')} disabled={generando === 'proyectos_anteriores'}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-700 disabled:opacity-40">
-                          {generando === 'proyectos_anteriores' ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-                          {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
-                        </button>
-                      </div>
-                      <textarea rows={4} className="input text-xs w-full resize-none"
-                        placeholder={"Formato: Organismo / Tipo (LP, LE, LR…) / Monto / Duración / Año\n\nEj: Hospital Regional Temuco / LP / $180M CLP / 24 meses / 2023\n    Municipalidad de Rancagua / LE / $32M CLP / 6 meses / 2022\n    SERVIU Metropolitano / LR / $95M CLP / 12 meses / 2021"}
-                        value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-ink-7 mb-1">Certificaciones</label>
-                      <input className="input text-xs w-full"
-                        placeholder="Ej: ISO 9001:2015 (vigente), ISO 14001:2015, ChileValora (3 trabajadores), OHSAS 18001"
-                        value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-ink-7">Diferenciadores competitivos</label>
-                        <button type="button" onClick={() => generarConIA('diferenciadores')} disabled={generando === 'diferenciadores'}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-kap-600 hover:text-kap-700 disabled:opacity-40">
-                          {generando === 'diferenciadores' ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                          {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
-                        </button>
-                      </div>
-                      <textarea rows={3} className="input text-xs w-full resize-none"
-                        placeholder={"Ej: Única empresa de la región con ISO 9001 + ISO 14001 vigentes\n    Movilización propia — no dependemos de subcontratos\n    Tiempo de respuesta garantizado en 24h para emergencias\n    100% de contratos públicos ejecutados sin multas ni términos anticipados"}
-                        value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
-                    </div>
-                  </>)}
-
-                  {/* ── EQUIPO ── */}
-                  {sec.key === 'equipo' && (<>
-                    <div>
-                      <label className="block text-xs font-medium text-ink-7 mb-1">Equipo técnico</label>
-                      <textarea rows={4} className="input text-xs w-full resize-none"
-                        placeholder={"Formato: Nombre Apellido — Título — X años exp — Rol en proyecto\n\nEj: Juan Pérez González — Ing. Civil — 18 años — Director de Proyecto\n    María López Soto — Arquitecta — 9 años — Coordinadora técnica\n    Carlos Fuentes — Técnico en prev. de riesgos — 12 años — HSEC"}
-                        value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-ink-7 mb-1">Metodología de trabajo</label>
-                      <textarea rows={2} className="input text-xs w-full resize-none"
-                        placeholder="Ej: ISO 9001. Proyecto dividido en diagnóstico, ejecución y entrega. Control semanal con el organismo."
-                        value={form.metodologia_trabajo} onChange={e => setForm(f => ({ ...f, metodologia_trabajo: e.target.value }))} />
                     </div>
                   </>)}
 
