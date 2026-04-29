@@ -341,7 +341,6 @@ export default function PerfilIAPage() {
     }),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['licitaciones-profile'] })
-      syncedRef.current = false
       toast.success('✅ Perfil guardado')
       setShowFeedbackPerfil(true)
       // Lock rubros after save
