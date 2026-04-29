@@ -97,7 +97,7 @@ export default function PropuestasPage() {
   // ─── Paso 0: Tipo de documento ────────────────────────────────────────────
   const renderTipo = () => (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500 mb-4">¿Qué documento necesitas generar?</p>
+      <p className="text-sm text-ink-5 mb-4">¿Qué documento necesitas generar?</p>
       {TIPOS.map(t => (
         <button
           key={t.id}
@@ -105,18 +105,18 @@ export default function PropuestasPage() {
           className={clsx(
             'w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all',
             form.tipo === t.id
-              ? 'border-violet-500 bg-violet-50'
-              : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50'
+              ? 'border-kap-300 bg-kap-100'
+              : 'border-ink-3 hover:border-kap-300 hover:bg-ink-1'
           )}
         >
           <span className="text-2xl mt-0.5">{t.emoji}</span>
           <div>
-            <p className={clsx('font-semibold text-sm', form.tipo === t.id ? 'text-violet-700' : 'text-gray-800')}>
+            <p className={clsx('font-semibold text-sm', form.tipo === t.id ? 'text-kap-600' : 'text-ink-8')}>
               {t.label}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
+            <p className="text-xs text-ink-5 mt-0.5">{t.desc}</p>
           </div>
-          {form.tipo === t.id && <CheckCircle2 size={18} className="ml-auto text-violet-500 shrink-0 mt-0.5" />}
+          {form.tipo === t.id && <CheckCircle2 size={18} className="ml-auto text-kap-600 shrink-0 mt-0.5" />}
         </button>
       ))}
     </div>
@@ -127,13 +127,13 @@ export default function PropuestasPage() {
     <div className="space-y-4">
       {/* Sugerencia desde pipeline */}
       {todasLasCards.length > 0 && (
-        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3.5 space-y-2">
-          <p className="text-xs font-semibold text-violet-700 flex items-center gap-1.5">
+        <div className="bg-kap-100 border border-kap-300 rounded-xl p-3.5 space-y-2">
+          <p className="text-xs font-semibold text-kap-600 flex items-center gap-1.5">
             <Sparkles size={13} /> Cargar desde Pipeline
           </p>
-          <p className="text-[11px] text-violet-500">Selecciona una empresa de tu pipeline y pre-llenamos los datos automáticamente.</p>
+          <p className="text-[11px] text-kap-600">Selecciona una empresa de tu pipeline y pre-llenamos los datos automáticamente.</p>
           <select
-            className="input text-xs py-1.5 border-violet-200 focus:ring-violet-300"
+            className="input text-xs py-1.5 border-kap-300 focus:ring-kap-300"
             value={pipelineCardId}
             onChange={e => {
               const id = e.target.value
@@ -159,11 +159,11 @@ export default function PropuestasPage() {
         </div>
       )}
 
-      <p className="text-sm text-gray-500">Datos de la empresa a quien le envías el documento.</p>
+      <p className="text-sm text-ink-5">Datos de la empresa a quien le envías el documento.</p>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Empresa cliente *</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Empresa cliente *</label>
         <div className="relative">
-          <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
           <input
             className="input pl-9" placeholder="Ej: Municipalidad de Vitacura"
             value={form.empresa_cliente}
@@ -172,9 +172,9 @@ export default function PropuestasPage() {
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Nombre de contacto</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Nombre de contacto</label>
         <div className="relative">
-          <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
           <input
             className="input pl-9" placeholder="Ej: María González"
             value={form.contacto_nombre}
@@ -184,7 +184,7 @@ export default function PropuestasPage() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-gray-600 mb-1 block">Rubro</label>
+          <label className="text-xs font-medium text-ink-6 mb-1 block">Rubro</label>
           <input
             className="input" placeholder="Ej: Construcción"
             value={form.rubro}
@@ -192,7 +192,7 @@ export default function PropuestasPage() {
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 mb-1 block">Región</label>
+          <label className="text-xs font-medium text-ink-6 mb-1 block">Región</label>
           <input
             className="input" placeholder="Ej: Región Metropolitana"
             value={form.region}
@@ -201,7 +201,7 @@ export default function PropuestasPage() {
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Nombre de la licitación / proyecto</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Nombre de la licitación / proyecto</label>
         <input
           className="input" placeholder="Ej: Adquisición de equipos informáticos 2026"
           value={form.licitacion_nombre}
@@ -209,9 +209,9 @@ export default function PropuestasPage() {
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Monto adjudicado</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Monto adjudicado</label>
         <div className="relative">
-          <DollarSign size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <DollarSign size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
           <input
             className="input pl-9" placeholder="Ej: 5000000"
             value={form.monto_licitacion}
@@ -225,9 +225,9 @@ export default function PropuestasPage() {
   // ─── Paso 2: Datos de mi empresa ──────────────────────────────────────────
   const renderMiEmpresa = () => (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500 mb-4">Información sobre tu empresa que aparecerá en el documento.</p>
+      <p className="text-sm text-ink-5 mb-4">Información sobre tu empresa que aparecerá en el documento.</p>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Mi empresa *</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Mi empresa *</label>
         <input
           className="input" placeholder="Ej: Seguros y Garantías Chile SpA"
           value={form.mi_empresa}
@@ -235,7 +235,7 @@ export default function PropuestasPage() {
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Tu nombre</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Tu nombre</label>
         <input
           className="input" placeholder="Ej: Carlos Pérez"
           value={form.mi_nombre}
@@ -243,7 +243,7 @@ export default function PropuestasPage() {
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Servicio o producto que ofreces</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Servicio o producto que ofreces</label>
         <input
           className="input" placeholder="Ej: Pólizas de garantía y seguros de cumplimiento"
           value={form.mi_servicio}
@@ -251,7 +251,7 @@ export default function PropuestasPage() {
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-600 mb-1 block">Descripción breve de tu empresa / propuesta de valor</label>
+        <label className="text-xs font-medium text-ink-6 mb-1 block">Descripción breve de tu empresa / propuesta de valor</label>
         <textarea
           className="input resize-none" rows={3}
           placeholder="Ej: Somos especialistas en pólizas de garantía para licitaciones del Estado. Ofrecemos respuesta en 24 horas y los mejores precios del mercado."
@@ -276,20 +276,20 @@ export default function PropuestasPage() {
     ]
     return (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">Revisa los datos antes de generar.</p>
-        <div className="bg-gray-50 rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <p className="text-sm text-ink-5">Revisa los datos antes de generar.</p>
+        <div className="bg-ink-1 rounded-xl border border-ink-3 divide-y divide-ink-2">
           {items.map(i => (
             <div key={i.label} className="flex justify-between items-start px-4 py-2.5 gap-4">
-              <span className="text-xs text-gray-500 shrink-0">{i.label}</span>
-              <span className="text-xs font-medium text-gray-800 text-right">{i.value}</span>
+              <span className="text-xs text-ink-5 shrink-0">{i.label}</span>
+              <span className="text-xs font-medium text-ink-8 text-right">{i.value}</span>
             </div>
           ))}
         </div>
-        <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 flex items-start gap-3">
-          <Sparkles size={18} className="text-violet-500 shrink-0 mt-0.5" />
+        <div className="bg-kap-100 border border-kap-300 rounded-xl p-4 flex items-start gap-3">
+          <Sparkles size={18} className="text-kap-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-violet-800">IA generará tu documento</p>
-            <p className="text-xs text-violet-600 mt-0.5">Se creará un {tipoLabel.toLowerCase()} personalizado basado en los datos ingresados. Podrás editarlo y copiarlo.</p>
+            <p className="text-sm font-semibold text-kap-600">IA generará tu documento</p>
+            <p className="text-xs text-kap-600 mt-0.5">Se creará un {tipoLabel.toLowerCase()} personalizado basado en los datos ingresados. Podrás editarlo y copiarlo.</p>
           </div>
         </div>
       </div>
@@ -303,8 +303,8 @@ export default function PropuestasPage() {
         <CheckCircle2 size={18} />
         <p className="text-sm font-semibold">Documento generado exitosamente</p>
       </div>
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-        <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{resultado}</pre>
+      <div className="bg-ink-1 border border-ink-3 rounded-xl p-4">
+        <pre className="text-xs text-ink-7 whitespace-pre-wrap font-sans leading-relaxed">{resultado}</pre>
       </div>
       <div className="flex gap-2">
         <button
@@ -313,14 +313,14 @@ export default function PropuestasPage() {
             'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all',
             copiado
               ? 'bg-emerald-500 text-white'
-              : 'bg-violet-600 hover:bg-violet-700 text-white'
+              : 'bg-kap-100 hover:bg-kap-100 text-white'
           )}
         >
           {copiado ? <><CheckCircle2 size={15} /> Copiado</> : <><Copy size={15} /> Copiar documento</>}
         </button>
         <button
           onClick={reiniciar}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-ink-6 bg-ink-2 hover:bg-ink-3 transition-colors"
         >
           <RotateCcw size={15} /> Nuevo
         </button>
@@ -334,12 +334,12 @@ export default function PropuestasPage() {
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center">
+        <div className="w-10 h-10 bg-kap-100 rounded-xl flex items-center justify-center">
           <FileText size={20} className="text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Propuestas Comerciales</h1>
-          <p className="text-sm text-gray-500">Genera documentos personalizados con IA para tus clientes</p>
+          <h1 className="text-xl font-bold text-ink-9">Propuestas Comerciales</h1>
+          <p className="text-sm text-ink-5">Genera documentos personalizados con IA para tus clientes</p>
         </div>
       </div>
 
@@ -350,16 +350,16 @@ export default function PropuestasPage() {
             <div key={s} className="flex items-center gap-1 flex-1">
               <div className={clsx(
                 'flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all',
-                i < step ? 'bg-violet-600 text-white' :
-                i === step ? 'bg-violet-100 text-violet-700 border-2 border-violet-400' :
-                'bg-gray-100 text-gray-400'
+                i < step ? 'bg-kap-100 text-white' :
+                i === step ? 'bg-kap-100 text-kap-600 border-2 border-kap-300' :
+                'bg-ink-2 text-ink-4'
               )}>
                 {i < step ? <CheckCircle2 size={14} /> : i + 1}
               </div>
               <span className={clsx('text-xs font-medium hidden sm:block',
-                i === step ? 'text-violet-700' : i < step ? 'text-gray-500' : 'text-gray-300'
+                i === step ? 'text-kap-600' : i < step ? 'text-ink-5' : 'text-ink-4'
               )}>{s}</span>
-              {i < STEPS.length - 1 && <div className={clsx('flex-1 h-0.5 mx-1', i < step ? 'bg-violet-300' : 'bg-gray-200')} />}
+              {i < STEPS.length - 1 && <div className={clsx('flex-1 h-0.5 mx-1', i < step ? 'bg-kap-100' : 'bg-ink-3')} />}
             </div>
           ))}
         </div>
@@ -371,11 +371,11 @@ export default function PropuestasPage() {
 
         {/* Navegación */}
         {step < 4 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-ink-2">
             <button
               onClick={() => setStep(s => s - 1)}
               disabled={step === 0}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 disabled:opacity-0 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-ink-5 hover:text-ink-8 disabled:opacity-0 transition-colors"
             >
               <ChevronLeft size={16} /> Atrás
             </button>
@@ -413,7 +413,7 @@ export default function PropuestasPage() {
 
       {/* Info disclaimer */}
       {step < 4 && (
-        <p className="text-xs text-gray-400 text-center mt-4">
+        <p className="text-xs text-ink-4 text-center mt-4">
           El documento se genera con IA. Revisa y ajusta antes de enviarlo al cliente.
         </p>
       )}

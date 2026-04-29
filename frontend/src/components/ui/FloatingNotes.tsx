@@ -113,7 +113,7 @@ export default function FloatingNotes() {
       {!minimized && (
         <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setOpen(false)} />
       )}
-      <div className="fixed z-50 bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 flex flex-col overflow-hidden max-h-[80vh]">
+      <div className="fixed z-50 bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-ink-3 flex flex-col overflow-hidden max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2.5 bg-amber-400 select-none rounded-t-2xl">
           <span className="flex-1 text-sm font-bold text-amber-900">📋 Mis tareas</span>
@@ -133,13 +133,13 @@ export default function FloatingNotes() {
         {!minimized && (
           <>
             {/* Input nueva tarea */}
-            <div className="p-3 border-b border-gray-100 relative">
+            <div className="p-3 border-b border-ink-2 relative">
               {linked && (
                 <div className="flex items-center gap-1.5 mb-2">
-                  <span className="flex items-center gap-1 text-xs bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-medium">
+                  <span className="flex items-center gap-1 text-xs bg-kap-50 text-kap-700 border border-kap-300 px-2 py-0.5 rounded-full font-medium">
                     <User size={9} /> {linked.name}
                   </span>
-                  <button onClick={() => setLinked(null)} className="text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setLinked(null)} className="text-ink-4 hover:text-ink-6">
                     <X size={11} />
                   </button>
                 </div>
@@ -152,7 +152,7 @@ export default function FloatingNotes() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                   placeholder="Nueva tarea… usa @ para vincular"
                   rows={2}
-                  className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-brand-400 placeholder-gray-300 resize-none"
+                  className="flex-1 text-sm border border-ink-3 rounded-xl px-3 py-2 outline-none focus:border-kap-300 placeholder-ink-4 resize-none"
                 />
                 <button
                   onClick={submit}
@@ -163,17 +163,17 @@ export default function FloatingNotes() {
                 </button>
               </div>
               {showMention && suggestions.length > 0 && (
-                <div className="absolute left-3 right-3 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                <div className="absolute left-3 right-3 bottom-full mb-1 bg-white border border-ink-3 rounded-xl shadow-lg z-20 overflow-hidden">
                   {suggestions.map((p: any) => (
                     <button
                       key={p.id}
                       onMouseDown={e => { e.preventDefault(); selectProspect(p) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-left transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-kap-50 text-left transition-colors"
                     >
-                      <div className="w-6 h-6 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
-                        <User size={11} className="text-brand-600" />
+                      <div className="w-6 h-6 rounded-lg bg-kap-100 flex items-center justify-center shrink-0">
+                        <User size={11} className="text-kap-600" />
                       </div>
-                      <span className="text-sm text-gray-800 truncate">{p.company_name}</span>
+                      <span className="text-sm text-ink-8 truncate">{p.company_name}</span>
                     </button>
                   ))}
                 </div>
@@ -183,32 +183,32 @@ export default function FloatingNotes() {
             {/* Lista de tareas */}
             <div className="overflow-y-auto flex-1">
               {tasks.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-8 px-4">
+                <p className="text-xs text-ink-4 text-center py-8 px-4">
                   Sin tareas. Escribe algo y pulsa Enter.
                 </p>
               ) : (
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-ink-2">
                   {tasks.map(task => (
-                    <div key={task.id} className={`flex items-start gap-2.5 px-3 py-2.5 group transition-colors ${task.done ? 'bg-gray-50/50' : 'hover:bg-amber-50/30'}`}>
+                    <div key={task.id} className={`flex items-start gap-2.5 px-3 py-2.5 group transition-colors ${task.done ? 'bg-ink-1/50' : 'hover:bg-amber-50/30'}`}>
                       <button
                         onClick={() => toggleTask(task.id)}
                         className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                          task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 hover:border-amber-400'
+                          task.done ? 'bg-emerald-500 border-emerald-500' : 'border-ink-3 hover:border-kap-400'
                         }`}
                       >
                         {task.done && <Check size={9} className="text-white" strokeWidth={3} />}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm leading-snug ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        <p className={`text-sm leading-snug ${task.done ? 'line-through text-ink-4' : 'text-ink-8'}`}>
                           {task.text}
                         </p>
                         {task.prospectName && (
-                          <button onClick={() => navigate('/prospectos')} className="flex items-center gap-1 mt-1 text-[10px] text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-1.5 py-0.5 hover:bg-brand-100 transition-colors font-medium">
+                          <button onClick={() => navigate('/prospectos')} className="flex items-center gap-1 mt-1 text-[10px] text-kap-600 bg-kap-50 border border-kap-300 rounded-full px-1.5 py-0.5 hover:bg-kap-100 transition-colors font-medium">
                             <User size={8} /> {task.prospectName} <ArrowRight size={8} />
                           </button>
                         )}
                       </div>
-                      <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all shrink-0">
+                      <button onClick={() => deleteTask(task.id)} className="p-1 rounded-lg hover:bg-red-50 text-ink-4 hover:text-red-400 transition-all shrink-0">
                         <X size={12} />
                       </button>
                     </div>
@@ -218,8 +218,8 @@ export default function FloatingNotes() {
             </div>
 
             {done > 0 && (
-              <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-[11px] text-gray-400">{done} completada{done !== 1 ? 's' : ''}</span>
+              <div className="px-3 py-2 border-t border-ink-2 flex items-center justify-between">
+                <span className="text-[11px] text-ink-4">{done} completada{done !== 1 ? 's' : ''}</span>
                 <button onClick={clearDone} className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors">
                   <Trash2 size={10} /> Limpiar
                 </button>
@@ -235,7 +235,7 @@ export default function FloatingNotes() {
   return (
     <div
       ref={panelRef}
-      className="fixed z-50 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+      className="fixed z-50 bg-white rounded-2xl shadow-2xl border border-ink-3 flex flex-col overflow-hidden"
       style={{ left: posRef.current.x, top: posRef.current.y, width: minimized ? 220 : 340 }}
     >
       {/* Header */}
@@ -261,14 +261,14 @@ export default function FloatingNotes() {
       {!minimized && (
         <>
           {/* Input nueva tarea */}
-          <div className="p-3 border-b border-gray-100 relative">
+          <div className="p-3 border-b border-ink-2 relative">
             {/* Prospect vinculado */}
             {linked && (
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="flex items-center gap-1 text-xs bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-medium">
+                <span className="flex items-center gap-1 text-xs bg-kap-50 text-kap-700 border border-kap-300 px-2 py-0.5 rounded-full font-medium">
                   <User size={9} /> {linked.name}
                 </span>
-                <button onClick={() => setLinked(null)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setLinked(null)} className="text-ink-4 hover:text-ink-6">
                   <X size={11} />
                 </button>
               </div>
@@ -281,7 +281,7 @@ export default function FloatingNotes() {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
                 placeholder="Nueva tarea… usa @ para vincular"
                 rows={3}
-                className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-brand-400 placeholder-gray-300 resize-none"
+                className="flex-1 text-sm border border-ink-3 rounded-xl px-3 py-2 outline-none focus:border-kap-300 placeholder-ink-4 resize-none"
               />
               <button
                 onClick={submit}
@@ -294,18 +294,18 @@ export default function FloatingNotes() {
 
             {/* Autocomplete @mención */}
             {showMention && suggestions.length > 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+              <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-ink-3 rounded-xl shadow-lg z-20 overflow-hidden">
                 {suggestions.map((p: any) => (
                   <button
                     key={p.id}
                     onMouseDown={e => { e.preventDefault(); selectProspect(p) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-brand-50 text-left transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-kap-50 text-left transition-colors"
                   >
-                    <div className="w-6 h-6 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
-                      <User size={11} className="text-brand-600" />
+                    <div className="w-6 h-6 rounded-lg bg-kap-100 flex items-center justify-center shrink-0">
+                      <User size={11} className="text-kap-600" />
                     </div>
-                    <span className="text-sm text-gray-800 truncate">{p.company_name}</span>
-                    {p.contact_name && <span className="text-xs text-gray-400 truncate">{p.contact_name}</span>}
+                    <span className="text-sm text-ink-8 truncate">{p.company_name}</span>
+                    {p.contact_name && <span className="text-xs text-ink-4 truncate">{p.contact_name}</span>}
                   </button>
                 ))}
               </div>
@@ -315,19 +315,19 @@ export default function FloatingNotes() {
           {/* Lista de tareas */}
           <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
             {tasks.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-8 px-4">
+              <p className="text-xs text-ink-4 text-center py-8 px-4">
                 Sin tareas. Escribe algo y pulsa Enter.<br />
-                <span className="text-gray-300">Usa @ para vincular a un prospecto.</span>
+                <span className="text-ink-4">Usa @ para vincular a un prospecto.</span>
               </p>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-ink-2">
                 {tasks.map(task => (
-                  <div key={task.id} className={`flex items-start gap-2.5 px-3 py-2.5 group transition-colors ${task.done ? 'bg-gray-50/50' : 'hover:bg-amber-50/30'}`}>
+                  <div key={task.id} className={`flex items-start gap-2.5 px-3 py-2.5 group transition-colors ${task.done ? 'bg-ink-1/50' : 'hover:bg-amber-50/30'}`}>
                     {/* Checkbox */}
                     <button
                       onClick={() => toggleTask(task.id)}
                       className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                        task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 hover:border-amber-400'
+                        task.done ? 'bg-emerald-500 border-emerald-500' : 'border-ink-3 hover:border-kap-400'
                       }`}
                     >
                       {task.done && <Check size={9} className="text-white" strokeWidth={3} />}
@@ -335,13 +335,13 @@ export default function FloatingNotes() {
 
                     {/* Texto + prospect */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm leading-snug ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                      <p className={`text-sm leading-snug ${task.done ? 'line-through text-ink-4' : 'text-ink-8'}`}>
                         {task.text}
                       </p>
                       {task.prospectName && (
                         <button
                           onClick={() => navigate('/prospectos')}
-                          className="flex items-center gap-1 mt-1 text-[10px] text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-1.5 py-0.5 hover:bg-brand-100 transition-colors font-medium"
+                          className="flex items-center gap-1 mt-1 text-[10px] text-kap-600 bg-kap-50 border border-kap-300 rounded-full px-1.5 py-0.5 hover:bg-kap-100 transition-colors font-medium"
                         >
                           <User size={8} /> {task.prospectName} <ArrowRight size={8} />
                         </button>
@@ -351,7 +351,7 @@ export default function FloatingNotes() {
                     {/* Borrar */}
                     <button
                       onClick={() => deleteTask(task.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-ink-4 hover:text-red-400 transition-all shrink-0"
                     >
                       <X size={12} />
                     </button>
@@ -363,8 +363,8 @@ export default function FloatingNotes() {
 
           {/* Footer */}
           {done > 0 && (
-            <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-[11px] text-gray-400">{done} completada{done !== 1 ? 's' : ''}</span>
+            <div className="px-3 py-2 border-t border-ink-2 flex items-center justify-between">
+              <span className="text-[11px] text-ink-4">{done} completada{done !== 1 ? 's' : ''}</span>
               <button onClick={clearDone} className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors">
                 <Trash2 size={10} /> Limpiar
               </button>

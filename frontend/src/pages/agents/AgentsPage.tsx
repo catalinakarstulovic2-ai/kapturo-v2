@@ -26,14 +26,14 @@ function AgentCard({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+          <h3 className="font-semibold text-ink-9 text-sm">{title}</h3>
           {badge && (
             <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
               {badge}
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-500 mt-0.5 truncate">{desc}</p>
+        <p className="text-xs text-ink-5 mt-0.5 truncate">{desc}</p>
       </div>
       <button
         className="btn-primary flex items-center gap-2 text-sm py-1.5 px-3 shrink-0"
@@ -122,17 +122,17 @@ export default function AgentsPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Agentes IA</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-ink-9">Agentes IA</h1>
+        <p className="text-ink-5 text-sm mt-1">
           Los agentes trabajan para ti. Tú apruebas antes de enviar.
         </p>
       </div>
 
       {/* Member — sin acceso a ejecución */}
       {!isAdmin && (
-        <div className="card p-8 text-center text-gray-400">
-          <Bot size={36} className="mx-auto mb-3 text-gray-300" />
-          <p className="font-medium text-gray-600">Solo los administradores pueden gestionar los agentes.</p>
+        <div className="card p-8 text-center text-ink-4">
+          <Bot size={36} className="mx-auto mb-3 text-ink-4" />
+          <p className="font-medium text-ink-6">Solo los administradores pueden gestionar los agentes.</p>
           <p className="text-sm mt-1">Contacta al admin de tu equipo para configurar o ejecutar agentes.</p>
         </div>
       )}
@@ -141,39 +141,39 @@ export default function AgentsPage() {
       {isAdmin && (
       <div className="contents">
       {onboardingCompleto && agentName ? (
-        <div className="card p-5 bg-gradient-to-r from-brand-50 to-purple-50 border-brand-200">
+        <div className="card p-5 bg-gradient-to-r from-kap-50 to-kap-100 border-kap-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {/* Avatar del agente */}
-              <div className="w-14 h-14 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand-200">
+              <div className="w-14 h-14 bg-kap-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-kap-100">
                 {agentName[0].toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-bold text-gray-900 text-lg">{agentName}</p>
+                  <p className="font-bold text-ink-9 text-lg">{agentName}</p>
                   <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                     Activo
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-0.5">
+                <p className="text-sm text-ink-6 mt-0.5">
                   {agentConfig.product || 'Sin producto configurado'}
                 </p>
                 <div className="flex items-center gap-3 mt-1.5">
                   {agentConfig.tone && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-ink-5">
                       {TONOS[agentConfig.tone] || agentConfig.tone}
                     </span>
                   )}
                   {agentConfig.ideal_industry && (
-                    <span className="text-xs text-gray-400">· {agentConfig.ideal_industry}</span>
+                    <span className="text-xs text-ink-4">· {agentConfig.ideal_industry}</span>
                   )}
                 </div>
               </div>
             </div>
             <button
               onClick={() => navigate('/onboarding')}
-              className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 border border-brand-200 hover:bg-brand-50 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-sm text-kap-600 hover:text-kap-700 border border-kap-300 hover:bg-kap-50 px-3 py-1.5 rounded-lg transition-colors"
             >
               <Edit3 size={13} />Editar
             </button>
@@ -181,15 +181,15 @@ export default function AgentsPage() {
         </div>
       ) : (
         /* Sin configurar */
-        <div className="card p-5 border-dashed border-2 border-gray-200">
+        <div className="card p-5 border-dashed border-2 border-ink-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
-                <Bot size={22} className="text-gray-400" />
+              <div className="w-12 h-12 bg-ink-2 rounded-2xl flex items-center justify-center">
+                <Bot size={22} className="text-ink-4" />
               </div>
               <div>
-                <p className="font-semibold text-gray-700">Tu agente no está configurado</p>
-                <p className="text-sm text-gray-400 mt-0.5">
+                <p className="font-semibold text-ink-7">Tu agente no está configurado</p>
+                <p className="text-sm text-ink-4 mt-0.5">
                   Configúralo en 5 pasos para que trabaje a tu medida
                 </p>
               </div>
@@ -206,7 +206,7 @@ export default function AgentsPage() {
 
       {/* Los 4 agentes */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        <h2 className="text-sm font-semibold text-ink-5 uppercase tracking-wide mb-3">
           Herramientas del agente
         </h2>
         <div className="space-y-2">
@@ -214,7 +214,7 @@ export default function AgentsPage() {
             icon={Sparkles}
             title="Calificador"
             desc="Califica prospectos sin score según tu cliente ideal. Asigna puntaje 0-100."
-            color="bg-brand-500"
+            color="bg-kap-500"
             loading={activeAgent === 'calificar'}
             onRun={() => run('calificar', { limit: 50 })}
           />
@@ -251,21 +251,21 @@ export default function AgentsPage() {
       </div>
 
       {/* Agente conversacional — próximamente */}
-      <div className="card p-4 border-dashed border-2 border-gray-200 opacity-60">
+      <div className="card p-4 border-dashed border-2 border-ink-3 opacity-60">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-            <MessageCircle size={18} className="text-gray-400" />
+          <div className="w-10 h-10 bg-ink-2 rounded-xl flex items-center justify-center">
+            <MessageCircle size={18} className="text-ink-4" />
           </div>
           <div>
-            <p className="font-semibold text-gray-600 text-sm">
+            <p className="font-semibold text-ink-6 text-sm">
               Agente Conversacional WhatsApp
             </p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-ink-4">
               Responde a tus prospectos en tiempo real · Próximamente
             </p>
           </div>
           <div className="ml-auto">
-            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+            <span className="text-xs bg-ink-2 text-ink-5 px-2 py-1 rounded-full">
               En construcción
             </span>
           </div>
@@ -274,10 +274,10 @@ export default function AgentsPage() {
 
       {/* Resultado del último agente ejecutado */}
       {resultado && (
-        <div className="card p-4 bg-brand-50 border-brand-100">
+        <div className="card p-4 bg-kap-50 border-kap-300">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={15} className="text-brand-600" />
-            <p className="text-sm font-semibold text-brand-700">
+            <TrendingUp size={15} className="text-kap-600" />
+            <p className="text-sm font-semibold text-kap-700">
               Resultado — {resultado.agent}
             </p>
           </div>
@@ -286,8 +286,8 @@ export default function AgentsPage() {
               .filter(([k]) => k !== 'agent')
               .map(([k, v]) => (
                 <div key={k} className="bg-white rounded-lg p-3">
-                  <p className="text-xs text-gray-400 capitalize">{k.replace(/_/g, ' ')}</p>
-                  <p className="text-lg font-bold text-gray-900">{String(v)}</p>
+                  <p className="text-xs text-ink-4 capitalize">{k.replace(/_/g, ' ')}</p>
+                  <p className="text-lg font-bold text-ink-9">{String(v)}</p>
                 </div>
               ))}
           </div>
@@ -297,7 +297,7 @@ export default function AgentsPage() {
       {/* Mensajes pendientes de aprobación */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="font-semibold text-ink-9 flex items-center gap-2">
             Mensajes pendientes de aprobación
             {pendientes.length > 0 && (
               <span className="badge bg-amber-100 text-amber-700 text-xs">
@@ -308,10 +308,10 @@ export default function AgentsPage() {
         </div>
 
         {pendientes.length === 0 ? (
-          <div className="card p-8 text-center text-gray-400">
+          <div className="card p-8 text-center text-ink-4">
             <Bot size={32} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm">Sin mensajes pendientes.</p>
-            <p className="text-xs mt-1 text-gray-300">
+            <p className="text-xs mt-1 text-ink-4">
               Ejecuta el Agente Seguimiento para generar mensajes.
             </p>
           </div>
@@ -325,16 +325,16 @@ export default function AgentsPage() {
                       <span className="badge bg-amber-100 text-amber-700 text-xs">
                         Pendiente aprobación
                       </span>
-                      <span className="badge bg-gray-100 text-gray-600 text-xs">
+                      <span className="badge bg-ink-2 text-ink-6 text-xs">
                         {msg.channel}
                       </span>
                       {msg.generated_by_ai && (
-                        <span className="badge bg-brand-50 text-brand-600 text-xs">
+                        <span className="badge bg-kap-50 text-kap-600 text-xs">
                           IA
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                    <p className="text-sm text-ink-7 whitespace-pre-line leading-relaxed">
                       {msg.body}
                     </p>
                   </div>

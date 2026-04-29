@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,74 +7,63 @@
 
 @layer base {
   body {
-    @apply bg-[#F8F8F8] text-[#1A1A1A] antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-ink-1 text-ink-8 antialiased;
+    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
   }
-
-  h1, h2, h3, h4 {
-    @apply text-[#1A1A1A] font-semibold;
-  }
+  h1, h2, h3, h4 { @apply text-ink-9 font-semibold; }
 }
 
 @layer components {
   /* ── Botones ─────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-ink-8 hover:bg-ink-9 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-kap {
+    @apply bg-kap-500 hover:bg-kap-600 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-[#1A1A1A] font-medium px-4 py-2 rounded-xl border border-[#E5E7EB] transition-colors;
+    @apply bg-ink-0 hover:bg-ink-1 text-ink-7 font-medium px-4 py-2 rounded-xl border border-ink-3 transition-colors;
+  }
+  .btn-outline {
+    @apply bg-ink-0 hover:bg-ink-1 text-ink-7 font-medium px-4 py-2 rounded-xl border border-ink-3 transition-colors;
   }
   .btn-ghost {
-    @apply bg-transparent hover:bg-gray-100 text-[#6B7280] font-medium px-4 py-2 rounded-xl transition-colors;
+    @apply bg-transparent hover:bg-ink-2 text-ink-5 font-medium px-4 py-2 rounded-xl transition-colors;
   }
-  .btn-accent {
-    @apply bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  .btn-dark {
+    @apply bg-ink-8 hover:bg-ink-9 text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
 
   /* ── Tarjetas ────────────────────────────────────────── */
-  .card {
-    @apply bg-white rounded-2xl border border-[#E5E7EB] shadow-sm;
-  }
-  .card-flat {
-    @apply bg-white rounded-2xl border border-[#E5E7EB];
-  }
+  .card      { @apply bg-ink-0 rounded-2xl border border-ink-3 shadow-sm; }
+  .card-flat { @apply bg-ink-0 rounded-2xl border border-ink-3; }
 
   /* ── Inputs ──────────────────────────────────────────── */
   .input {
-    @apply w-full border border-[#E5E7EB] rounded-xl px-3 py-2 text-sm text-[#1A1A1A] bg-white
-           focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
-           placeholder:text-[#6B7280] transition-colors;
+    @apply w-full border border-ink-3 rounded-xl px-3 py-2 text-sm text-ink-8 bg-ink-0
+           focus:outline-none focus:ring-2 focus:ring-kap-500/30 focus:border-kap-500
+           placeholder:text-ink-5 transition-colors;
   }
 
-  /* ── Badges / Pills ──────────────────────────────────── */
-  .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-  /* Variantes semánticas */
-  .badge-brand {
-    @apply badge bg-brand-50 text-brand-700;
-  }
-  .badge-accent {
-    @apply badge bg-accent-50 text-accent-600;
-  }
-  .badge-success {
-    @apply badge bg-emerald-50 text-emerald-700;
-  }
-  .badge-warning {
-    @apply badge bg-amber-50 text-amber-700;
-  }
-  .badge-error {
-    @apply badge bg-red-50 text-red-600;
-  }
-  .badge-neutral {
-    @apply badge bg-gray-100 text-[#6B7280];
-  }
+  /* ── Pills de estado ─────────────────────────────────── */
+  .pill         { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium; }
+  .pill-ok      { @apply pill bg-ok-light text-ok border border-ok-border; }
+  .pill-warn    { @apply pill bg-warn-light text-warn border border-warn-border; }
+  .pill-bad     { @apply pill bg-bad-light text-bad border border-bad-border; }
+  .pill-info    { @apply pill bg-info-light text-info border border-info-border; }
+  .pill-neutral { @apply pill bg-ink-2 text-ink-6; }
 
-  /* ── Secciones con fondo tintado ─────────────────────── */
-  .section-brand {
-    @apply bg-brand-50 border border-brand-100 rounded-2xl;
-  }
-  .section-accent {
-    @apply bg-accent-50 border border-accent-100 rounded-2xl;
-  }
+  /* ── Badges legacy (compatibilidad) ──────────────────── */
+  .badge         { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium; }
+  .badge-brand   { @apply badge bg-kap-50 text-kap-700; }
+  .badge-success { @apply badge bg-ok-light text-ok; }
+  .badge-warning { @apply badge bg-warn-light text-warn; }
+  .badge-error   { @apply badge bg-bad-light text-bad; }
+  .badge-neutral { @apply badge bg-ink-2 text-ink-6; }
+
+  /* ── Clases de datos (montos, IDs, RUTs) ─────────────── */
+  .data-mono  { @apply font-mono text-ink-7; }
+  .data-id    { @apply font-mono text-[11px] text-ink-5 uppercase tracking-wide; }
+  .data-monto { @apply font-mono font-semibold text-ink-8; }
 }

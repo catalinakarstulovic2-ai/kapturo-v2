@@ -58,13 +58,13 @@ export default function StepFeedback({ paso, titulo, onDone }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-indigo-100 bg-white shadow-sm px-4 py-4 space-y-3">
+    <div className="rounded-2xl border border-kap-100 bg-white shadow-sm px-4 py-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <MessageSquare size={14} className="text-indigo-400 shrink-0" />
-          <p className="text-sm font-semibold text-gray-800">{titulo}</p>
+          <MessageSquare size={14} className="text-kap-500 shrink-0" />
+          <p className="text-sm font-semibold text-ink-8">{titulo}</p>
         </div>
-        <button onClick={omitir} className="text-gray-300 hover:text-gray-500 shrink-0">
+        <button onClick={omitir} className="text-ink-4 hover:text-ink-5 shrink-0">
           <X size={14} />
         </button>
       </div>
@@ -82,7 +82,7 @@ export default function StepFeedback({ paso, titulo, onDone }: Props) {
             }}
             className={clsx(
               'text-xs font-medium px-3 py-2 rounded-xl border transition-all',
-              seleccion === op.key ? op.color + ' ring-2 ring-offset-1 ring-indigo-300' : op.color
+              seleccion === op.key ? op.color + ' ring-2 ring-offset-1 ring-kap-300' : op.color
             )}
           >
             {op.label}
@@ -98,18 +98,18 @@ export default function StepFeedback({ paso, titulo, onDone }: Props) {
             onChange={e => setComentario(e.target.value)}
             placeholder="Opcional: cuéntanos qué fue lo más difícil…"
             rows={2}
-            className="w-full text-xs rounded-xl border border-gray-200 px-3 py-2 text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+            className="w-full text-xs rounded-xl border border-ink-3 px-3 py-2 text-ink-7 placeholder:text-ink-4 focus:outline-none focus:ring-2 focus:ring-kap-300 resize-none"
           />
           <button
             onClick={() => enviar(seleccion)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-kap-600 text-white text-xs font-semibold hover:bg-kap-700 transition-colors"
           >
             Enviar <ChevronRight size={12} />
           </button>
         </div>
       )}
 
-      <button onClick={omitir} className="w-full text-[11px] text-gray-400 hover:text-gray-600 text-center transition-colors">
+      <button onClick={omitir} className="w-full text-[11px] text-ink-4 hover:text-ink-6 text-center transition-colors">
         Omitir
       </button>
     </div>

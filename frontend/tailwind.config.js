@@ -4,9 +4,41 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter Tight', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
+        // ── NUEVO SISTEMA ─────────────────────────────────
+        // Acento ámbar — Kapturo
+        kap: {
+          50:  '#FFF6E6',
+          100: '#FFE8B8',
+          300: '#FFC04D',
+          500: '#F59E0B',
+          600: '#D97706',
+          700: '#92400E',
+          900: '#3D1E04',
+        },
+        // Neutros grafito tibio
+        ink: {
+          0: '#FFFFFF',
+          1: '#F9F7F4',
+          2: '#F1EDE8',
+          3: '#E5DED6',
+          4: '#C9BFB4',
+          5: '#9C9189',
+          6: '#6E6560',
+          7: '#3D3833',
+          8: '#221E1B',
+          9: '#0F0D0B',
+        },
+        // Estados semánticos
+        ok:   { DEFAULT: '#16A34A', light: '#F0FDF4', border: '#BBF7D0' },
+        warn: { DEFAULT: '#D97706', light: '#FFFBEB', border: '#FDE68A' },
+        bad:  { DEFAULT: '#DC2626', light: '#FEF2F2', border: '#FECACA' },
+        info: { DEFAULT: '#2563EB', light: '#EFF6FF', border: '#BFDBFE' },
+
+        // ── SISTEMA ANTERIOR (se mantiene mientras se migra) ──
         // Primario — Violeta Kapturo
         brand: {
           50:  '#F5F3FF',

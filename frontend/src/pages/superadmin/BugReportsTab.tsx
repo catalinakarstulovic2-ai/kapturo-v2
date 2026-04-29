@@ -40,7 +40,7 @@ export default function BugReportsTab() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20 text-gray-400">
+      <div className="flex justify-center items-center py-20 text-ink-4">
         Cargando reportes…
       </div>
     )
@@ -50,16 +50,16 @@ export default function BugReportsTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <Bug className="w-5 h-5 text-red-500" />
-        <h2 className="text-lg font-semibold text-gray-800">Reportes de problemas</h2>
-        <span className="text-sm text-gray-400 ml-auto">{reports.length} reportes</span>
+        <h2 className="text-lg font-semibold text-ink-8">Reportes de problemas</h2>
+        <span className="text-sm text-ink-4 ml-auto">{reports.length} reportes</span>
       </div>
 
       {reports.length === 0 && (
-        <p className="text-center text-gray-400 py-12">Sin reportes de problemas.</p>
+        <p className="text-center text-ink-4 py-12">Sin reportes de problemas.</p>
       )}
 
       {reports.map(r => (
-        <div key={r.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+        <div key={r.id} className="border border-ink-3 rounded-xl overflow-hidden bg-white">
           <div className="px-4 py-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -67,9 +67,9 @@ export default function BugReportsTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-gray-800">{r.user_name || r.user_email}</span>
-                  <span className="text-xs text-gray-400">{r.user_email}</span>
-                  <span className="ml-auto text-xs text-gray-400 flex items-center gap-1 flex-shrink-0">
+                  <span className="font-medium text-ink-8">{r.user_name || r.user_email}</span>
+                  <span className="text-xs text-ink-4">{r.user_email}</span>
+                  <span className="ml-auto text-xs text-ink-4 flex items-center gap-1 flex-shrink-0">
                     <Calendar className="w-3 h-3" />
                     {formatDate(r.timestamp)}
                   </span>
@@ -82,7 +82,7 @@ export default function BugReportsTab() {
                   </p>
                 )}
 
-                <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{r.descripcion}</p>
+                <p className="text-sm text-ink-7 mt-2 whitespace-pre-wrap">{r.descripcion}</p>
 
                 {r.screenshot_base64 && (
                   <button
@@ -97,7 +97,7 @@ export default function BugReportsTab() {
             </div>
 
             {expanded === r.id && r.screenshot_base64 && (
-              <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
+              <div className="mt-3 rounded-lg overflow-hidden border border-ink-3">
                 <img
                   src={`data:${r.screenshot_mime ?? 'image/png'};base64,${r.screenshot_base64}`}
                   alt="Captura de pantalla"

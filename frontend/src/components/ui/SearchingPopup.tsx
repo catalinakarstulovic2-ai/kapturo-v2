@@ -45,36 +45,36 @@ export default function SearchingPopup({
       <div
         className={clsx(
           'pointer-events-auto mx-4 mb-6 sm:mb-0 w-full max-w-sm',
-          'bg-white rounded-2xl shadow-2xl border border-gray-200',
+          'bg-white rounded-2xl shadow-2xl border border-ink-3',
           'animate-in slide-in-from-bottom-4 duration-300'
         )}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center shrink-0">
-            <Search size={16} className="text-violet-600" />
+        <div className="flex items-center gap-3 p-4 border-b border-ink-2">
+          <div className="w-9 h-9 bg-kap-100 rounded-xl flex items-center justify-center shrink-0">
+            <Search size={16} className="text-kap-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">{title}</p>
-            <p className="text-xs text-gray-400">Esto puede tardar unos momentos</p>
+            <p className="text-sm font-semibold text-ink-9">{title}</p>
+            <p className="text-xs text-ink-4">Esto puede tardar unos momentos</p>
           </div>
-          <Loader2 size={16} className="ml-auto text-violet-500 animate-spin shrink-0" />
+          <Loader2 size={16} className="ml-auto text-kap-500 animate-spin shrink-0" />
         </div>
 
         {/* Progress bar */}
-        <div className="h-1 bg-gray-100 overflow-hidden">
+        <div className="h-1 bg-ink-2 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-violet-400 to-violet-600 transition-all duration-[2000ms] ease-linear"
+            className="h-full bg-gradient-to-r from-kap-400 to-kap-600 transition-all duration-[2000ms] ease-linear"
             style={{ width: `${Math.min(((msgIndex + 1) / messages.length) * 100, 95)}%` }}
           />
         </div>
 
         {/* Mensaje actual */}
         <div className="px-4 py-3">
-          <p className="text-xs text-gray-600 font-medium transition-all duration-500">
+          <p className="text-xs text-ink-6 font-medium transition-all duration-500">
             {messages[msgIndex]}
           </p>
-          <p className="text-[11px] text-gray-400 mt-1">
+          <p className="text-[11px] text-ink-4 mt-1">
             ⏱ Tiempo estimado: menos de {minutos} minuto{minutos !== 1 ? 's' : ''}
           </p>
         </div>
@@ -86,7 +86,7 @@ export default function SearchingPopup({
               key={i}
               className={clsx(
                 'h-1.5 rounded-full transition-all duration-300',
-                i === msgIndex ? 'w-4 bg-violet-500' : i < msgIndex ? 'w-1.5 bg-violet-200' : 'w-1.5 bg-gray-200'
+                i === msgIndex ? 'w-4 bg-kap-500' : i < msgIndex ? 'w-1.5 bg-kap-200' : 'w-1.5 bg-ink-3'
               )}
             />
           ))}

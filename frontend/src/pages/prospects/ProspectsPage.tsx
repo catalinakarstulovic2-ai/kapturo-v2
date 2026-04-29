@@ -19,7 +19,7 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  new:          { label: 'Nuevo',      color: 'bg-gray-100 text-gray-600' },
+  new:          { label: 'Nuevo',      color: 'bg-ink-2 text-ink-6' },
   qualified:    { label: 'Calificado', color: 'bg-blue-100 text-blue-700' },
   contacted:    { label: 'Contactado', color: 'bg-purple-100 text-purple-700' },
   responded:    { label: 'Respondió',  color: 'bg-green-100 text-green-700' },
@@ -28,7 +28,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? { label: status, color: 'bg-gray-100 text-gray-500' }
+  const s = STATUS_MAP[status] ?? { label: status, color: 'bg-ink-2 text-ink-5' }
   return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
 }
 
@@ -93,21 +93,21 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
   })
 
   return (
-    <div className="w-full md:w-80 xl:w-96 shrink-0 md:sticky top-4 self-start bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}>
+    <div className="w-full md:w-80 xl:w-96 shrink-0 md:sticky top-4 self-start bg-white rounded-2xl border border-ink-3 shadow-lg overflow-hidden" style={{ maxHeight: 'calc(100vh - 88px)', overflowY: 'auto' }}>
 
       {/* Header */}
-      <div className="flex items-start justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+      <div className="flex items-start justify-between p-4 border-b border-ink-2 sticky top-0 bg-white z-10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-            <Building2 size={16} className="text-brand-500" />
+          <div className="w-9 h-9 rounded-xl bg-kap-50 flex items-center justify-center shrink-0">
+            <Building2 size={16} className="text-kap-500" />
           </div>
           <div>
-            <p className="font-semibold text-gray-900 leading-tight text-sm">{p.company_name || '—'}</p>
-            {p.rut && <p className="text-xs text-gray-400">RUT: {p.rut}</p>}
+            <p className="font-semibold text-ink-9 leading-tight text-sm">{p.company_name || '—'}</p>
+            {p.rut && <p className="text-xs text-ink-4">RUT: {p.rut}</p>}
           </div>
         </div>
-        <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
-          <X size={15} className="text-gray-400" />
+        <button onClick={onClose} className="p-1.5 hover:bg-ink-2 rounded-lg transition-colors shrink-0">
+          <X size={15} className="text-ink-4" />
         </button>
       </div>
 
@@ -118,48 +118,48 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
             <ScoreBadge score={p.score} />
             <StatusBadge status={p.status} />
             {p.source_module && (
-              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{p.source_module}</span>
+              <span className="text-xs bg-ink-2 text-ink-5 px-2 py-0.5 rounded-full">{p.source_module}</span>
             )}
           </div>
           {(p as any).score_reason && (
-            <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-3 leading-relaxed">{(p as any).score_reason}</p>
+            <p className="text-xs text-ink-5 bg-ink-1 rounded-xl p-3 leading-relaxed">{(p as any).score_reason}</p>
           )}
 
           {/* Contacto */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Contacto</p>
+            <p className="text-xs font-semibold text-ink-5 uppercase tracking-wide mb-2">Contacto</p>
             <div className="space-y-2">
               {p.contact_name && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Building2 size={13} className="text-gray-400 shrink-0" />
-                  <span className="text-gray-700">{p.contact_name}</span>
+                  <Building2 size={13} className="text-ink-4 shrink-0" />
+                  <span className="text-ink-7">{p.contact_name}</span>
                 </div>
               )}
               {p.email ? (
-                <a href={`mailto:${p.email}`} className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                <a href={`mailto:${p.email}`} className="flex items-center gap-2 text-sm text-kap-600 hover:underline">
                   <Mail size={13} className="shrink-0" />{p.email}
                 </a>
               ) : (
-                <div className="flex items-center gap-2 text-sm text-gray-300">
+                <div className="flex items-center gap-2 text-sm text-ink-4">
                   <Mail size={13} className="shrink-0" /><span className="italic">Sin email</span>
                 </div>
               )}
               {p.phone ? (
-                <a href={`tel:${p.phone}`} className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                <a href={`tel:${p.phone}`} className="flex items-center gap-2 text-sm text-kap-600 hover:underline">
                   <Phone size={13} className="shrink-0" />{p.phone}
                 </a>
               ) : (
-                <div className="flex items-center gap-2 text-sm text-gray-300">
+                <div className="flex items-center gap-2 text-sm text-ink-4">
                   <Phone size={13} className="shrink-0" /><span className="italic">Sin teléfono</span>
                 </div>
               )}
               {(p as any).website && (
-                <a href={(p as any).website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                <a href={(p as any).website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-kap-600 hover:underline">
                   <Globe size={13} className="shrink-0" />{(p as any).website}
                 </a>
               )}
               {p.city && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-ink-5">
                   <MapPin size={13} className="shrink-0" />{p.city}{(p as any).region ? `, ${(p as any).region}` : ''}
                 </div>
               )}
@@ -168,7 +168,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
 
           {/* Acciones */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Acciones</p>
+            <p className="text-xs font-semibold text-ink-5 uppercase tracking-wide mb-2">Acciones</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => mutEnriquecer.mutate()}
@@ -181,7 +181,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
               <button
                 onClick={() => mutPipeline.mutate()}
                 disabled={mutPipeline.isPending}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 transition-colors text-sm"
+                className="flex items-center justify-center gap-2 p-3 rounded-xl border border-kap-100 text-kap-700 hover:bg-kap-50 disabled:opacity-50 transition-colors text-sm"
               >
                 {mutPipeline.isPending ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />}
                 Al pipeline
@@ -207,7 +207,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
 
           {/* Alarma */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-semibold text-ink-5 uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Bell size={11} /> Alarma de seguimiento
             </p>
             <div className="space-y-2">
@@ -237,7 +237,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
 
           {/* Notas */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-semibold text-ink-5 uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <FileText size={11} /> Notas
             </p>
             <textarea
@@ -250,7 +250,7 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
             <button
               onClick={() => mutNotas.mutate()}
               disabled={mutNotas.isPending}
-              className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 disabled:opacity-50 transition-colors text-sm"
+              className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-ink-1 text-ink-7 border border-ink-3 hover:bg-ink-2 disabled:opacity-50 transition-colors text-sm"
             >
               {mutNotas.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
               Guardar notas
@@ -266,16 +266,16 @@ function ProspectPanel({ p, onClose }: { p: Prospect; onClose: () => void }) {
 
 function TableSkeleton() {
   return (
-    <div className="animate-pulse divide-y divide-gray-100">
+    <div className="animate-pulse divide-y divide-ink-2">
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3">
-          <div className="w-8 h-8 rounded-lg bg-gray-200 shrink-0" />
+          <div className="w-8 h-8 rounded-lg bg-ink-3 shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-gray-200 rounded w-44" />
-            <div className="h-2.5 bg-gray-100 rounded w-28" />
+            <div className="h-3 bg-ink-3 rounded w-44" />
+            <div className="h-2.5 bg-ink-2 rounded w-28" />
           </div>
-          <div className="h-5 w-10 bg-gray-200 rounded-full" />
-          <div className="h-5 w-16 bg-gray-100 rounded-full hidden md:block" />
+          <div className="h-5 w-10 bg-ink-3 rounded-full" />
+          <div className="h-5 w-16 bg-ink-2 rounded-full hidden md:block" />
         </div>
       ))}
     </div>
@@ -327,14 +327,14 @@ export default function ProspectsPage() {
 
       {/* Título */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Prospectos</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{stats.total} en total</p>
+        <h1 className="text-2xl font-bold text-ink-9">Prospectos</h1>
+        <p className="text-sm text-ink-5 mt-0.5">{stats.total} en total</p>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Users,      label: 'Total',       value: stats.total,       color: 'text-brand-600',   bg: 'bg-brand-50'   },
+          { icon: Users,      label: 'Total',       value: stats.total,       color: 'text-kap-600',   bg: 'bg-kap-50'   },
           { icon: Star,       label: 'Calificados', value: stats.calificados, color: 'text-amber-600',   bg: 'bg-amber-50'   },
           { icon: Send,       label: 'Contactados', value: stats.contactados, color: 'text-purple-600',  bg: 'bg-purple-50'  },
           { icon: TrendingUp, label: 'En pipeline', value: stats.enPipeline,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -344,8 +344,8 @@ export default function ProspectsPage() {
               <Icon size={15} className={color} />
             </div>
             <div className="min-w-0">
-              <p className="text-lg md:text-xl font-bold text-gray-900 leading-none">{value}</p>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{label}</p>
+              <p className="text-lg md:text-xl font-bold text-ink-9 leading-none">{value}</p>
+              <p className="text-xs text-ink-5 mt-0.5 truncate">{label}</p>
             </div>
           </div>
         ))}
@@ -364,20 +364,20 @@ export default function ProspectsPage() {
             onClick={() => { setModulo(opt.value); setPagina(1) }}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
               modulo === opt.value
-                ? 'bg-brand-500 text-white border-brand-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-brand-400 hover:text-brand-600'
+                ? 'bg-kap-500 text-white border-kap-300'
+                : 'bg-white text-ink-6 border-ink-3 hover:border-kap-300 hover:text-kap-600'
             }`}
           >
             {opt.label}
           </button>
         ))}
-        <div className="w-px h-5 bg-gray-200 mx-1" />
+        <div className="w-px h-5 bg-ink-3 mx-1" />
         <button
           onClick={() => { setSoloCalificados(v => !v); setPagina(1) }}
           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
             soloCalificados
               ? 'bg-amber-500 text-white border-amber-500'
-              : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-600'
+              : 'bg-white text-ink-6 border-ink-3 hover:border-amber-400 hover:text-amber-600'
           }`}
         >
           ⭐ Solo calificados
@@ -390,58 +390,58 @@ export default function ProspectsPage() {
           <TableSkeleton />
         ) : !data?.prospectos?.length ? (
           <div className="p-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <Users size={24} className="text-gray-400" />
+            <div className="w-14 h-14 rounded-2xl bg-ink-2 flex items-center justify-center mx-auto mb-4">
+              <Users size={24} className="text-ink-4" />
             </div>
-            <p className="font-semibold text-gray-700 mb-1">Todavía no tienes prospectos</p>
-            <p className="text-sm text-gray-400 mb-4">
-              {tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>{' '}o{' '}<Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
-              {tieneLicitador && !tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-brand-500 font-medium hover:underline">Licitaciones</Link>{' '}para encontrar clientes.</>}
-              {!tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/prospeccion" className="text-brand-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
+            <p className="font-semibold text-ink-7 mb-1">Todavía no tienes prospectos</p>
+            <p className="text-sm text-ink-4 mb-4">
+              {tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-kap-500 font-medium hover:underline">Licitaciones</Link>{' '}o{' '}<Link to="/prospeccion" className="text-kap-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
+              {tieneLicitador && !tieneProspector && <>Ve a{' '}<Link to="/licitaciones" className="text-kap-500 font-medium hover:underline">Licitaciones</Link>{' '}para encontrar clientes.</>}
+              {!tieneLicitador && tieneProspector && <>Ve a{' '}<Link to="/prospeccion" className="text-kap-500 font-medium hover:underline">Prospección</Link>{' '}para encontrar clientes.</>}
             </p>
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-ink-1 border-b border-ink-3">
               <tr>
-                <th className="text-left pl-5 pr-4 py-3 font-medium text-gray-600">Empresa</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Contacto</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Score</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Estado</th>
+                <th className="text-left pl-5 pr-4 py-3 font-medium text-ink-6">Empresa</th>
+                <th className="text-left px-4 py-3 font-medium text-ink-6 hidden sm:table-cell">Contacto</th>
+                <th className="text-left px-4 py-3 font-medium text-ink-6">Score</th>
+                <th className="text-left px-4 py-3 font-medium text-ink-6 hidden md:table-cell">Estado</th>
                 <th className="px-4 py-3 w-8"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-ink-2">
               {data.prospectos.map((p: Prospect) => (
                 <tr
                   key={p.id}
                   onClick={() => setSelected(p)}
-                  className="hover:bg-brand-50/40 transition-colors cursor-pointer group"
+                  className="hover:bg-kap-50/40 transition-colors cursor-pointer group"
                 >
                   <td className="pl-4 pr-3 py-3 md:pl-5 md:pr-4">
                     <div className="flex items-center gap-2 md:gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
-                        <Building2 size={14} className="text-brand-500" />
+                      <div className="w-8 h-8 rounded-lg bg-kap-50 flex items-center justify-center shrink-0">
+                        <Building2 size={14} className="text-kap-500" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate text-sm">{p.company_name || '—'}</p>
-                        {p.city && <p className="text-xs text-gray-400 truncate md:hidden">{p.city}</p>}
-                        {p.rut && <p className="text-xs text-gray-400 hidden md:block">RUT: {p.rut}</p>}
+                        <p className="font-medium text-ink-9 truncate text-sm">{p.company_name || '—'}</p>
+                        {p.city && <p className="text-xs text-ink-4 truncate md:hidden">{p.city}</p>}
+                        {p.rut && <p className="text-xs text-ink-4 hidden md:block">RUT: {p.rut}</p>}
                         {p.source_module && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full hidden md:inline">{p.source_module}</span>
+                          <span className="text-[10px] bg-ink-2 text-ink-5 px-1.5 py-0.5 rounded-full hidden md:inline">{p.source_module}</span>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <div className="space-y-0.5">
-                      {p.contact_name && <p className="text-gray-700">{p.contact_name}</p>}
+                      {p.contact_name && <p className="text-ink-7">{p.contact_name}</p>}
                       {p.email
-                        ? <p className="text-gray-400 flex items-center gap-1"><Mail size={11} />{p.email}</p>
-                        : <p className="text-gray-300 flex items-center gap-1 italic text-xs"><Mail size={11} />Sin email</p>
+                        ? <p className="text-ink-4 flex items-center gap-1"><Mail size={11} />{p.email}</p>
+                        : <p className="text-ink-4 flex items-center gap-1 italic text-xs"><Mail size={11} />Sin email</p>
                       }
-                      {p.phone && <p className="text-gray-400 flex items-center gap-1"><Phone size={11} />{p.phone}</p>}
-                      {p.city && <p className="text-gray-400 flex items-center gap-1"><MapPin size={11} />{p.city}</p>}
+                      {p.phone && <p className="text-ink-4 flex items-center gap-1"><Phone size={11} />{p.phone}</p>}
+                      {p.city && <p className="text-ink-4 flex items-center gap-1"><MapPin size={11} />{p.city}</p>}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -450,7 +450,7 @@ export default function ProspectsPage() {
                   <td className="px-4 py-3 hidden md:table-cell">
                     <StatusBadge status={p.status} />
                   </td>
-                  <td className="px-4 py-3 text-gray-300 group-hover:text-brand-400 transition-colors">
+                  <td className="px-4 py-3 text-ink-4 group-hover:text-kap-600 transition-colors">
                     <ChevronRight size={16} />
                   </td>
                 </tr>
@@ -464,7 +464,7 @@ export default function ProspectsPage() {
       {data?.total > 25 && (
         <div className="flex justify-center gap-2">
           <button className="btn-secondary text-sm py-1.5" disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}>Anterior</button>
-          <span className="px-4 py-1.5 text-sm text-gray-600">Página {pagina}</span>
+          <span className="px-4 py-1.5 text-sm text-ink-6">Página {pagina}</span>
           <button className="btn-secondary text-sm py-1.5" disabled={pagina * 25 >= data.total} onClick={() => setPagina(p => p + 1)}>Siguiente</button>
         </div>
       )}

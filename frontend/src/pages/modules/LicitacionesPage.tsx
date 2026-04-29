@@ -14,7 +14,7 @@ import {
   Mail, Phone, Globe, MapPin, User, Building2,
   Sparkles, BookmarkPlus, CheckCircle2, ExternalLink,
   SlidersHorizontal, RefreshCw, Filter, Download, Trash2, X, ArrowRight,
-  Wand2, FileSignature, Copy, Check,
+  Wand2, FileSignature, Copy, Check, Plus,
   ClipboardList, AlertTriangle, CheckCircle, XCircle, BarChart3,
   Trophy, Flag, Clock, ListChecks, Settings,
 } from 'lucide-react'
@@ -130,16 +130,16 @@ interface LicitacionPreview {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const RUBRO_CATEGORIAS: { label: string; emoji: string; rubros: string[] }[] = [
-  { label: 'Construcción & Obras',   emoji: '🏗️', rubros: ['construcción', 'infraestructura', 'obras civiles', 'arquitectura', 'forestal'] },
-  { label: 'Tecnología',             emoji: '💻', rubros: ['tecnología', 'informática', 'software', 'telecomunicaciones'] },
-  { label: 'Salud',                  emoji: '🏥', rubros: ['salud', 'farmacéutico', 'médico', 'hospitalario', 'laboratorio', 'veterinario'] },
-  { label: 'Servicios Generales',    emoji: '🧹', rubros: ['aseo', 'limpieza', 'mantención', 'seguridad', 'residuos'] },
-  { label: 'Logística & Transporte', emoji: '🚛', rubros: ['transporte', 'logística', 'vehículos', 'combustible'] },
-  { label: 'Consultoría & Negocios', emoji: '💼', rubros: ['consultoría', 'jurídico', 'marketing', 'recursos humanos', 'seguros'] },
-  { label: 'Educación',              emoji: '📚', rubros: ['educación', 'capacitación', 'deportes'] },
-  { label: 'Industria & Producción', emoji: '⚙️', rubros: ['alimentos', 'agrícola', 'minería', 'energía', 'maquinaria'] },
-  { label: 'Equipamiento',           emoji: '🪡', rubros: ['mobiliario', 'vestuario', 'uniformes', 'imprenta'] },
-  { label: 'Turismo & Gastronomía',  emoji: '🏨', rubros: ['hotelería'] },
+  { label: 'Construcción & Obras',   emoji: '🏗️', rubros: ['Servicios de construcción y mantenimiento', 'Materiales y productos de construcción', 'Artículos para estructuras, obras y construcciones', 'Servicios de ingeniería y arquitectura'] },
+  { label: 'Tecnología',             emoji: '💻', rubros: ['Tecnologías de información y telecomunicaciones', 'Equipos y suministros de oficina e informática', 'Equipos eléctricos, electrónicos e instrumentos', 'Servicios de investigación y desarrollo'] },
+  { label: 'Salud',                  emoji: '🏥', rubros: ['Equipamiento y suministros médicos', 'Servicios de salud y bienestar social', 'Productos farmacéuticos y químicos', 'Servicios de laboratorio y análisis'] },
+  { label: 'Servicios Generales',    emoji: '🧹', rubros: ['Servicios de limpieza, aseo y mantenimiento de espacios', 'Servicios de seguridad y vigilancia', 'Recursos humanos y servicios de personal', 'Servicios hoteleros, gastronómicos y turismo'] },
+  { label: 'Logística & Transporte', emoji: '🚛', rubros: ['Servicios de transporte y logística', 'Vehículos y medios de transporte', 'Combustibles, energía y productos relacionados'] },
+  { label: 'Consultoría & Negocios', emoji: '💼', rubros: ['Servicios profesionales, administrativos y consultorías de gestión empresarial', 'Servicios financieros, contables y de seguros', 'Servicios jurídicos y legales', 'Servicios de comunicaciones, publicidad y marketing'] },
+  { label: 'Educación',              emoji: '📚', rubros: ['Servicios de educación y formación profesional', 'Servicios deportivos, recreativos y culturales', 'Servicios de impresión, edición y artes gráficas'] },
+  { label: 'Industria & Producción', emoji: '⚙️', rubros: ['Equipos y maquinaria industrial', 'Alimentos, bebidas y tabaco', 'Servicios agrícolas, ganaderos y forestales', 'Minería y extracción de recursos naturales', 'Servicios veterinarios y de animales'] },
+  { label: 'Equipamiento',           emoji: '🪡', rubros: ['Mobiliario y equipamiento de oficina', 'Vestuario, uniformes y calzado'] },
+  { label: 'Medio Ambiente',         emoji: '🌱', rubros: ['Servicios de medio ambiente y gestión de residuos'] },
 ]
 
 // Badge de rubro con color según categoría detectada desde el texto de la categoría MP
@@ -159,16 +159,16 @@ const CATEGORIA_COLORS: Record<string, { bg: string; text: string; border: strin
 function detectarCategoria(categoria: string | undefined): { label: string; emoji: string } | null {
   if (!categoria) return null
   const lower = categoria.toLowerCase()
-  // Buscar qué categoría contiene algún rubro que aparezca en el string de la categoría MP
+  // Los rubros ahora son frases UNSPSC completas — buscar si alguna aparece en la categoría real
   for (const cat of RUBRO_CATEGORIAS) {
     if (cat.rubros.some(r => lower.includes(r.toLowerCase()))) {
       return { label: cat.label, emoji: cat.emoji }
     }
   }
-  // Fallback: buscar por label de categoría
+  // Fallback: buscar palabras clave del label de categoría
   for (const cat of RUBRO_CATEGORIAS) {
-    const catLower = cat.label.toLowerCase().replace(' & ', ' ')
-    if (catLower.split(' ').some(w => w.length > 4 && lower.includes(w))) {
+    const palabras = cat.label.toLowerCase().replace(' & ', ' ').split(' ').filter(w => w.length > 4)
+    if (palabras.some(w => lower.includes(w))) {
       return { label: cat.label, emoji: cat.emoji }
     }
   }
@@ -236,14 +236,13 @@ const ScoreCell = ({ score, fitScore }: { score?: number | null; fitScore?: numb
   if (n == null) return <span className="text-[10px] text-ink-4">—</span>
   const pct = Math.min(100, Math.max(0, n))
   const barColor = n >= 70 ? 'bg-ok' : n >= 50 ? 'bg-warn' : 'bg-bad'
-  const label = n >= 70 ? 'Alta' : n >= 50 ? 'Media' : 'Baja'
   const textColor = n >= 70 ? 'text-ok' : n >= 50 ? 'text-warn' : 'text-bad'
   return (
-    <div className="flex flex-col items-center gap-1 min-w-[52px]">
-      <div className="w-full bg-ink-2 rounded-full h-1.5 overflow-hidden">
+    <div className="flex items-center gap-1.5">
+      <div className="w-16 bg-ink-2 rounded-full h-1.5 overflow-hidden shrink-0">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-[10px] font-bold ${textColor} whitespace-nowrap`}>{Math.round(n)} · {label}</span>
+      <span className={`font-mono text-[10px] font-bold tabular-nums ${textColor}`}>{Math.round(n)}</span>
     </div>
   )
 }
@@ -262,7 +261,7 @@ const PERFIL_CRITICOS = [
 
 function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
   perfil?: any
-  prospectos?: Array<{ score?: number; documentos_ia?: any[]; postulacion_estado?: string }>
+  prospectos?: Array<{ id?: string; score?: number; documentos_ia?: any[]; postulacion_estado?: string }>
   onIrABuscar?: () => void
   onIrAPostulaciones?: () => void
 }) {
@@ -351,7 +350,10 @@ function GuiaRapida({ perfil, prospectos, onIrABuscar, onIrAPostulaciones }: {
         : tieneAnalizada
         ? 'Generar documentos →'
         : null,
-      ctaFn: () => navigate('/propuestas/licitaciones'),
+      ctaFn: () => {
+        const mejor = prospectos?.find(p => (p.score ?? 0) >= 50)
+        navigate(mejor ? `/propuestas/licitaciones?prospect_id=${mejor.id}` : '/propuestas/licitaciones')
+      },
       colorDone: 'bg-emerald-100 text-emerald-600',
       colorActive: 'bg-blue-100 text-blue-600',
       colorPending: 'bg-ink-2 text-ink-4',
@@ -583,6 +585,7 @@ export default function LicitacionesPage() {
   const [previewContactos, setPreviewContactos] = useState<Record<string, { phone?: string; website?: string; address?: string; source?: string; loading?: boolean }>>({})  
   const [paginaActual, setPaginaActual] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
+  const [soloViables, setSoloViables] = useState(true)
 
   // ── Estado IA ────────────────────────────────────────────────────────────
   const [iaConsulta, setIaConsulta] = useState('')
@@ -1254,8 +1257,8 @@ export default function LicitacionesPage() {
         )}
       </div>
 
-      {/* Guía rápida — solo en tab buscar */}
-      {mainTab === 'buscar' && (
+      {/* Guía rápida — solo en tab buscar y cuando el usuario no tiene postulaciones aún */}
+      {mainTab === 'buscar' && (postulacionesData?.items?.length ?? 0) === 0 && (
         <GuiaRapida
           perfil={perfilEmpresa}
           prospectos={postulacionesData?.items ?? []}
@@ -1631,22 +1634,50 @@ export default function LicitacionesPage() {
             </div>
           </div>
 
+          {/* Filtro score viable */}
+          <div className="px-5 py-2 border-b border-ink-2 flex items-center gap-2 bg-white">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                onClick={() => setSoloViables(v => !v)}
+                className={clsx(
+                  'w-8 h-4 rounded-full transition-colors relative shrink-0',
+                  soloViables ? 'bg-kap-500' : 'bg-ink-3'
+                )}
+              >
+                <div className={clsx(
+                  'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform',
+                  soloViables ? 'translate-x-4' : 'translate-x-0.5'
+                )} />
+              </div>
+              <span className="text-xs text-ink-6">
+                Solo oportunidades viables <span className="font-semibold text-ink-8">(Score ≥ 40)</span>
+              </span>
+            </label>
+            {soloViables && resultados.length > 0 && (
+              <span className="text-[11px] text-ink-4 ml-1">
+                · {resultados.filter(i => (i.fit_score ?? i.score ?? 0) >= 40).length} de {resultados.length} resultados
+              </span>
+            )}
+          </div>
+
           {/* Tabla */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-ink-5 border-b border-ink-2">
+                  <th className="px-3 py-3 font-medium hidden lg:table-cell">Código</th>
                   <th className="px-4 py-3 font-medium">Licitación</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Organismo</th>
                   <th className="px-4 py-3 font-medium">Monto est.</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Rubro</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Región</th>
                   <th className="px-4 py-3 font-medium hidden lg:table-cell">Cierre</th>
-                  <th className="px-4 py-3 font-medium text-center">Score</th>
+                  <th className="px-4 py-3 font-medium">Score</th>
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-2">
-                {resultados.map((item) => (
+                {(soloViables ? resultados.filter(i => (i.fit_score ?? i.score ?? 0) >= 40) : resultados).map((item) => (
                   <>
                     {/* Fila principal */}
                     <tr
@@ -1657,8 +1688,14 @@ export default function LicitacionesPage() {
                       )}
                       onClick={() => toggleExpand(item.codigo, item)}
                     >
+                      <td className="px-3 py-3 hidden lg:table-cell">
+                        <span className="font-mono text-[10px] text-ink-5 whitespace-nowrap">{item.codigo}</span>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-ink-9 line-clamp-1">{item.nombre}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap md:hidden">
+                          {item.organismo && <span className="text-[10px] text-ink-5 truncate max-w-[160px]">{item.organismo}</span>}
+                        </div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {item.tipo && (
                             <span className="text-[10px] font-mono bg-ink-2 text-ink-5 px-1.5 py-0.5 rounded">{item.tipo}</span>
@@ -1678,6 +1715,9 @@ export default function LicitacionesPage() {
                           })()}
                         </div>
                       </td>
+                      <td className="px-4 py-3 hidden md:table-cell text-ink-6 text-xs max-w-[140px]">
+                        <span className="line-clamp-2">{item.organismo || '—'}</span>
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-ink-9">
                         {formatMonto(item.monto)}
                       </td>
@@ -1688,7 +1728,7 @@ export default function LicitacionesPage() {
                       <td className="px-4 py-3 text-ink-6 hidden lg:table-cell text-xs line-clamp-1">
                         {item.fecha_cierre}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3">
                         <ScoreCell score={item.prospect_id ? item.score : null} fitScore={item.fit_score} />
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -1701,7 +1741,7 @@ export default function LicitacionesPage() {
                     {/* Panel expandido inline */}
                     {expandedId === item.codigo && (
                       <tr key={`${item.codigo}-detail`}>
-                        <td colSpan={7} className="bg-ink-1/60 px-4 py-3 border-b border-ink-2">
+                        <td colSpan={9} className="bg-ink-1/60 px-4 py-3 border-b border-ink-2">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                             {/* Columna izquierda: info licitación */}
@@ -2183,7 +2223,7 @@ export default function LicitacionesPage() {
                             setAnalisisData(null)
                             navigate(`/propuestas/licitaciones?prospect_id=${pid}`)
                           }}
-                          className="w-full flex items-center justify-center gap-2 bg-kap-100 hover:bg-kap-100 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                          className="w-full flex items-center justify-center gap-2 bg-kap-600 hover:bg-kap-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
                         >
                           <Sparkles size={14} /> Generar todos los documentos →
                         </button>
@@ -2338,20 +2378,41 @@ export default function LicitacionesPage() {
 // ── Configuración de estados ─────────────────────────────────────────────────
 
 const ESTADOS_CONFIG: Record<string, { label: string; color: string; icon: any; next?: string }> = {
-  en_preparacion: { label: 'En preparación', color: 'bg-blue-100 text-blue-700 border-blue-200',   icon: Clock,        next: 'postulada' },
-  postulada:      { label: 'Postulada',       color: 'bg-kap-100 text-kap-700 border-kap-100', icon: Flag,      next: 'evaluando' },
-  evaluando:      { label: 'Evaluando',        color: 'bg-amber-100 text-amber-700 border-amber-200',  icon: Loader2,    next: 'ganada' },
-  ganada:         { label: '🎉 Ganada',        color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Trophy, next: undefined },
-  perdida:        { label: 'Perdida',          color: 'bg-red-100 text-red-600 border-red-200',      icon: XCircle,    next: undefined },
+  en_preparacion: { label: 'En preparación', color: 'bg-blue-100 text-blue-700 border-blue-200',       icon: Clock,    next: 'postulada'  },
+  postulada:      { label: 'Postulada',       color: 'bg-kap-100 text-kap-700 border-kap-100',          icon: Flag,     next: 'evaluando'  },
+  evaluando:      { label: 'Evaluando',        color: 'bg-amber-100 text-amber-700 border-amber-200',   icon: Loader2,  next: 'enviada'    },
+  enviada:        { label: 'Enviada',          color: 'bg-blue-100 text-blue-700 border-blue-200',      icon: Flag,     next: 'adjudicada' },
+  ganada:         { label: '🎉 Ganada',        color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Trophy, next: undefined  },
+  adjudicada:     { label: '🏆 Adjudicada',    color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Trophy, next: undefined  },
+  perdida:        { label: 'Perdida',          color: 'bg-red-100 text-red-600 border-red-200',         icon: XCircle,  next: undefined    },
+  no_adjudicada:  { label: 'No adjudicada',    color: 'bg-red-100 text-red-600 border-red-200',         icon: XCircle,  next: undefined    },
 }
 
 const KANBAN_COLS = [
-  { key: 'en_preparacion', label: 'En preparación', icon: Clock,   bg: 'bg-blue-50',    border: 'border-blue-200' },
-  { key: 'postulada',      label: 'Postulada',       icon: Flag,    bg: 'bg-kap-50',  border: 'border-kap-100' },
-  { key: 'evaluando',      label: 'Evaluando',       icon: Loader2, bg: 'bg-amber-50',   border: 'border-amber-200' },
+  { key: 'en_preparacion', label: 'En preparación', icon: Clock,   bg: 'bg-blue-50',    border: 'border-blue-200'    },
+  { key: 'postulada',      label: 'Postulada',       icon: Flag,    bg: 'bg-kap-50',     border: 'border-kap-100'     },
+  { key: 'evaluando',      label: 'Evaluando',       icon: Loader2, bg: 'bg-amber-50',   border: 'border-amber-200'   },
+  { key: 'enviada',        label: 'Enviada',         icon: Flag,    bg: 'bg-blue-50',    border: 'border-blue-200'    },
   { key: 'ganada',         label: 'Ganadas 🎉',       icon: Trophy,  bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  { key: 'perdida',        label: 'Perdidas',        icon: XCircle, bg: 'bg-red-50',     border: 'border-red-200' },
+  { key: 'adjudicada',     label: 'Adjudicada 🏆',   icon: Trophy,  bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  { key: 'perdida',        label: 'Perdidas',        icon: XCircle, bg: 'bg-red-50',     border: 'border-red-200'     },
+  { key: 'no_adjudicada',  label: 'No adjudicada',   icon: XCircle, bg: 'bg-red-50',     border: 'border-red-200'     },
 ]
+
+function getPillInfo(estado?: string): { label: string; className: string } {
+  if (!estado) return { label: 'Sin estado', className: 'pill-neutral' }
+  const map: Record<string, { label: string; className: string }> = {
+    en_preparacion: { label: 'En preparación', className: 'pill-warn'    },
+    postulada:      { label: 'Postulada',       className: 'pill-neutral' },
+    evaluando:      { label: 'Evaluando',        className: 'pill-warn'   },
+    enviada:        { label: 'Enviada',          className: 'pill-info'   },
+    ganada:         { label: '🎉 Ganada',        className: 'pill-ok'     },
+    adjudicada:     { label: '🏆 Adjudicada',    className: 'pill-ok'     },
+    perdida:        { label: 'Perdida',          className: 'pill-bad'    },
+    no_adjudicada:  { label: 'No adjudicada',    className: 'pill-bad'    },
+  }
+  return map[estado] ?? { label: estado, className: 'pill-neutral' }
+}
 
 // ── Componente PostulacionesPanel ────────────────────────────────────────────
 
@@ -2400,7 +2461,7 @@ function PostulacionesPanel({
   const [estadoDropdown, setEstadoDropdown] = useState<string | null>(null)
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
   const [busquedaLocal, setBusquedaLocal] = useState('')
-  const [subTab, setSubTab] = useState<'todas' | 'proximas' | 'preparacion'>('todas')
+  const [subTab, setSubTab] = useState<'todas' | 'criticas' | 'preparacion' | 'enviadas' | 'cerradas'>('todas')
   const [sortBy, setSortBy] = useState<'cierre' | 'guardada' | 'score' | 'monto'>('cierre')
   const highlightRef = useRef<HTMLDivElement>(null)
 
@@ -2445,8 +2506,11 @@ function PostulacionesPanel({
     const matchBusqueda = !busquedaLocal || (p.licitacion_nombre || p.company_name || '').toLowerCase().includes(busquedaLocal.toLowerCase())
     const dias = diasAlCierre(p.licitacion_fecha_cierre)
     const matchSubTab = subTab === 'todas' ? true
-      : subTab === 'proximas' ? (dias !== null && dias >= 0 && dias <= 7)
-      : p.postulacion_estado === 'en_preparacion'
+      : subTab === 'criticas' ? (dias !== null && dias >= 0 && dias <= 3)
+      : subTab === 'preparacion' ? p.postulacion_estado === 'en_preparacion'
+      : subTab === 'enviadas' ? ['postulada', 'enviada', 'evaluando'].includes(p.postulacion_estado || '')
+      : subTab === 'cerradas' ? ['ganada', 'adjudicada', 'perdida', 'no_adjudicada'].includes(p.postulacion_estado || '')
+      : true
     return matchEstado && matchBusqueda && matchSubTab
   })].sort((a, b) => {
     if (sortBy === 'cierre') {
@@ -2515,11 +2579,17 @@ function PostulacionesPanel({
   return (
     <div className="space-y-4">
       {/* Header compacto */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-ink-8">Mis postulaciones</p>
           <p className="text-xs text-ink-4">Licitaciones guardadas · seguimiento y documentos</p>
         </div>
+        <NavLink
+          to="/licitaciones"
+          className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-kap-600 text-white hover:bg-kap-700 font-semibold shrink-0"
+        >
+          <Plus size={12} /> Postular a nueva
+        </NavLink>
       </div>
 
       {/* ─── Alertas de acción ─── */}
@@ -2545,7 +2615,7 @@ function PostulacionesPanel({
                   to={`/propuestas/licitaciones?prospect_id=${p.id}&nombre=${encodeURIComponent(p.licitacion_nombre || p.company_name || '')}`}
                   className="shrink-0 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded-lg"
                 >
-                  Abrir →
+                  Resolver →
                 </NavLink>
               </div>
             )
@@ -2588,71 +2658,72 @@ function PostulacionesPanel({
 
       {/* Métricas */}
       {(() => {
-        const ganadas = prospectos.filter(p => p.postulacion_estado === 'ganada').length
-        const perdidas = prospectos.filter(p => p.postulacion_estado === 'perdida').length
-        const terminadas = ganadas + perdidas
-        const winRate = terminadas > 0 ? Math.round(ganadas / terminadas * 100) : null
-        const montoTotal = prospectos.reduce((sum, p) => sum + (p.licitacion_monto || 0), 0)
-        const enCurso = prospectos.filter(p => ['en_preparacion', 'postulada', 'evaluando'].includes(p.postulacion_estado || '')).length
+        const now = new Date()
+        const thisMonth = now.getMonth()
+        const thisYear = now.getFullYear()
+        const enProceso = prospectos.filter(p => !p.postulacion_estado || p.postulacion_estado === 'en_preparacion').length
+        const enviadasMes = prospectos.filter(p => {
+          if (!['postulada', 'enviada', 'evaluando'].includes(p.postulacion_estado || '')) return false
+          if (!p.created_at) return true
+          const d = new Date(p.created_at)
+          return d.getMonth() === thisMonth && d.getFullYear() === thisYear
+        }).length
+        const adjudicadas = prospectos.filter(p => ['ganada', 'adjudicada'].includes(p.postulacion_estado || '')).length
+        const perdidas = prospectos.filter(p => ['perdida', 'no_adjudicada'].includes(p.postulacion_estado || '')).length
+        const tasaBase = adjudicadas + perdidas
+        const tasa = tasaBase > 0 ? Math.round(adjudicadas / tasaBase * 100) : null
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="card p-3 text-center">
-              <p className="text-2xl font-bold text-ink-9">{prospectos.length}</p>
-              <p className="text-xs text-ink-5 mt-0.5">Total guardadas</p>
-            </div>
-            <div className="card p-3 text-center">
-              <p className="text-2xl font-bold text-kap-600">{enCurso}</p>
+              <p className="text-2xl font-bold text-ink-9">{enProceso}</p>
               <p className="text-xs text-ink-5 mt-0.5">En proceso</p>
             </div>
             <div className="card p-3 text-center">
-              <p className={clsx('text-2xl font-bold', winRate != null ? (winRate >= 50 ? 'text-emerald-600' : 'text-amber-600') : 'text-ink-4')}>
-                {winRate != null ? `${winRate}%` : '—'}
-              </p>
-              <p className="text-xs text-ink-5 mt-0.5">Win rate</p>
-              {terminadas > 0 && <p className="text-[10px] text-ink-4">{ganadas}/{terminadas} resueltas</p>}
+              <p className="text-2xl font-bold text-kap-600">{enviadasMes}</p>
+              <p className="text-xs text-ink-5 mt-0.5">Enviadas este mes</p>
             </div>
             <div className="card p-3 text-center">
-              <p className="text-lg font-bold text-ink-9 leading-tight">
-                {montoTotal > 0
-                  ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', notation: 'compact' as const, maximumFractionDigits: 1 }).format(montoTotal)
-                  : '—'}
+              <p className="text-2xl font-bold text-emerald-600">{adjudicadas}</p>
+              <p className="text-xs text-ink-5 mt-0.5">Adjudicadas</p>
+            </div>
+            <div className="card p-3 text-center">
+              <p className={clsx('text-2xl font-bold', tasa != null ? (tasa >= 50 ? 'text-emerald-600' : 'text-amber-600') : 'text-ink-4')}>
+                {tasa != null ? `${tasa}%` : '—'}
               </p>
-              <p className="text-xs text-ink-5 mt-0.5">Monto total</p>
+              <p className="text-xs text-ink-5 mt-0.5">Tasa de éxito</p>
+              {tasaBase > 0 && <p className="text-[10px] text-ink-4">{adjudicadas}/{tasaBase} finalizadas</p>}
             </div>
           </div>
         )
       })()}
 
-      {/* Sub-tabs urgencia */}
-      <div className="flex items-center gap-1 bg-ink-2 rounded-xl p-1 w-fit">
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-1 bg-ink-2 rounded-xl p-1 flex-wrap">
         {([
-          { key: 'todas',       label: '🏆 Todas',            tooltip: 'Ver todas tus licitaciones guardadas' },
-          { key: 'proximas',    label: '⏰ Próximas a cerrar', tooltip: 'Solo licitaciones que cierran en los próximos 7 días — actúa rápido' },
-          { key: 'preparacion', label: '📋 En preparación',    tooltip: 'Licitaciones en estado "En preparación" — las que aún estás trabajando' },
+          { key: 'todas',       label: 'Todas',           cnt: prospectos.length },
+          { key: 'criticas',    label: '🚨 Críticas',     cnt: alertasUrgentes.length },
+          { key: 'preparacion', label: 'En preparación',  cnt: prospectos.filter(p => p.postulacion_estado === 'en_preparacion').length },
+          { key: 'enviadas',    label: 'Enviadas',        cnt: prospectos.filter(p => ['postulada','enviada','evaluando'].includes(p.postulacion_estado||'')).length },
+          { key: 'cerradas',    label: 'Cerradas',        cnt: prospectos.filter(p => ['ganada','adjudicada','perdida','no_adjudicada'].includes(p.postulacion_estado||'')).length },
         ] as const).map(t => (
-          <div key={t.key} className="relative group">
-            <button
-              onClick={() => setSubTab(t.key)}
-              title={t.tooltip}
-              className={clsx(
-                'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
-                subTab === t.key ? 'bg-white text-ink-9 shadow-sm' : 'text-ink-5 hover:text-ink-7'
-              )}
-            >
-              {t.label}
-              {t.key === 'proximas' && (() => {
-                const cnt = prospectos.filter(p => { const d = diasAlCierre(p.licitacion_fecha_cierre); return d !== null && d >= 0 && d <= 7 }).length
-                return cnt > 0 ? <span className="ml-1 text-[10px] bg-red-500 text-white rounded-full px-1">{cnt}</span> : null
-              })()}
-            </button>
-            {/* Tooltip custom */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-              <div className="bg-ink-8 text-white text-[10px] rounded-lg px-2.5 py-1.5 whitespace-nowrap max-w-[200px] text-center leading-snug shadow-lg">
-                {t.tooltip}
-              </div>
-              <div className="w-2 h-2 bg-ink-8 rotate-45 mx-auto -mt-1" />
-            </div>
-          </div>
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={clsx(
+              'px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1',
+              subTab === t.key ? 'bg-white text-ink-9 shadow-sm' : 'text-ink-5 hover:text-ink-7'
+            )}
+          >
+            {t.label}
+            {t.cnt > 0 && (
+              <span className={clsx(
+                'text-[10px] rounded-full px-1.5 leading-tight',
+                t.key === 'criticas' ? 'bg-red-500 text-white' : subTab === t.key ? 'bg-kap-500 text-white' : 'bg-ink-3 text-ink-5'
+              )}>
+                {t.cnt}
+              </span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -2684,8 +2755,11 @@ function PostulacionesPanel({
             <option value="en_preparacion">En preparación</option>
             <option value="postulada">Postulada</option>
             <option value="evaluando">Evaluando</option>
+            <option value="enviada">Enviada</option>
             <option value="ganada">Ganada</option>
+            <option value="adjudicada">Adjudicada</option>
             <option value="perdida">Perdida</option>
+            <option value="no_adjudicada">No adjudicada</option>
           </select>
           {/* Sort */}
           <select
@@ -2720,37 +2794,10 @@ function PostulacionesPanel({
         </div>
       )}
 
-      {/* Sin estado asignado */}
-      {sinEstado.length > 0 && (
-        <div className="card overflow-hidden">
-          <div className="px-4 py-2.5 bg-ink-1 border-b border-ink-2 flex items-center gap-2">
-            <Clock size={13} className="text-ink-4" />
-            <span className="text-xs font-semibold text-ink-5 uppercase tracking-wide">Sin estado ({sinEstado.length})</span>
-          </div>
-          <div className="divide-y divide-ink-2">
-            {sinEstado.map(p => (
-              <PostulacionCard
-                key={p.id}
-                p={p}
-                highlight={p.id === highlightId}
-                highlightRef={p.id === highlightId ? highlightRef : undefined}
-                onAnalizar={onAnalizar}
-                onCambiarEstado={onCambiarEstado}
-                updatingId={updatingId}
-                estadoDropdown={estadoDropdown}
-                setEstadoDropdown={setEstadoDropdown}
-                onGuardarNotas={(id, notes) => notasMutation.mutate({ id, notes })}
-                onEliminar={onEliminar}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Vista Kanban */}
       {vistaKanban ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          {KANBAN_COLS.map(col => {
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {KANBAN_COLS.filter(col => prospectosFiltrados.some(p => p.postulacion_estado === col.key) || col.key === 'en_preparacion').map(col => {
             const items = prospectosFiltrados.filter(p => p.postulacion_estado === col.key)
             return (
               <div key={col.key} className={clsx('rounded-xl border p-3 space-y-2', col.bg, col.border)}>
@@ -2802,35 +2849,39 @@ function PostulacionesPanel({
           })}
         </div>
       ) : (
-        /* Vista lista por estado */
-        KANBAN_COLS.filter(col => prospectos.some(p => p.postulacion_estado === col.key)).map(col => {
-          const items = prospectos.filter(p => p.postulacion_estado === col.key)
-          return (
-            <div key={col.key} className="card overflow-hidden">
-              <div className={clsx('px-4 py-2.5 border-b border-ink-2 flex items-center gap-2', col.bg)}>
-                <col.icon size={13} className="text-ink-5" />
-                <span className="text-xs font-semibold text-ink-6 uppercase tracking-wide">{col.label} ({items.length})</span>
-              </div>
-              <div className="divide-y divide-ink-2">
-                {items.map(p => (
-                  <PostulacionCard
-                    key={p.id}
-                    p={p}
-                    highlight={p.id === highlightId}
-                    highlightRef={p.id === highlightId ? highlightRef : undefined}
-                    onAnalizar={onAnalizar}
-                    onCambiarEstado={onCambiarEstado}
-                    updatingId={updatingId}
-                    estadoDropdown={estadoDropdown}
-                    setEstadoDropdown={setEstadoDropdown}
-                    onGuardarNotas={(id, notes) => notasMutation.mutate({ id, notes })}
-                    onEliminar={onEliminar}
-                  />
-                ))}
-              </div>
-            </div>
-          )
-        })
+        /* Vista Tabla */
+        <div className="card overflow-x-auto">
+          <table className="w-full text-xs min-w-[640px]">
+            <thead>
+              <tr className="border-b border-ink-2 bg-ink-1">
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide w-[90px]">Código</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide">Licitación</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide hidden md:table-cell">Organismo</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">Monto</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide whitespace-nowrap">Cierre</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide">Estado</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold text-ink-5 uppercase tracking-wide hidden sm:table-cell whitespace-nowrap">Score IA</th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold text-ink-5 uppercase tracking-wide">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-2">
+              {prospectosFiltrados.map(p => (
+                <PostulacionRow
+                  key={p.id}
+                  p={p}
+                  highlight={p.id === highlightId}
+                  highlightRef={p.id === highlightId ? highlightRef : undefined}
+                  onAnalizar={onAnalizar}
+                  onCambiarEstado={onCambiarEstado}
+                  updatingId={updatingId}
+                  estadoDropdown={estadoDropdown}
+                  setEstadoDropdown={setEstadoDropdown}
+                  onEliminar={onEliminar}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
@@ -3251,5 +3302,156 @@ function PostulacionCard({
       )}
 
     </div>
+  )
+}
+
+// ── Fila de postulación (vista tabla) ─────────────────────────────────────────
+
+function PostulacionRow({
+  p, highlight, highlightRef, onAnalizar, onCambiarEstado, updatingId, estadoDropdown, setEstadoDropdown, onEliminar
+}: {
+  p: ProspectoLicit
+  highlight?: boolean
+  highlightRef?: React.RefObject<HTMLDivElement>
+  onAnalizar: (p: ProspectoLicit) => void
+  onCambiarEstado: (id: string, estado: string) => void
+  updatingId: string | null
+  estadoDropdown: string | null
+  setEstadoDropdown: (id: string | null) => void
+  onEliminar: (id: string) => void
+}) {
+  const estadoBtnRef = useRef<HTMLButtonElement>(null)
+  const pill = getPillInfo(p.postulacion_estado)
+
+  const dias = (() => {
+    if (!p.licitacion_fecha_cierre) return null
+    const raw = p.licitacion_fecha_cierre
+    let fecha: Date | null = null
+    const ddmm = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+    if (ddmm) fecha = new Date(Number(ddmm[3]), Number(ddmm[2]) - 1, Number(ddmm[1]))
+    else { const d = new Date(raw); if (!isNaN(d.getTime())) fecha = d }
+    if (!fecha) return null
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return Math.ceil((fecha.getTime() - today.getTime()) / 86400000)
+  })()
+
+  const monto = p.licitacion_monto
+    ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', notation: 'compact' as const, maximumFractionDigits: 1 }).format(p.licitacion_monto)
+    : null
+  const cierreUrgente = dias !== null && dias >= 0 && dias <= 3
+  const cierreProximo = dias !== null && dias >= 4 && dias <= 7
+
+  return (
+    <tr
+      ref={highlightRef as any}
+      className={clsx('hover:bg-ink-1/50 transition-colors', highlight && 'bg-kap-50/60')}
+    >
+      {/* Código */}
+      <td className="px-3 py-2.5">
+        <span className="font-mono text-[10px] text-ink-5 break-all">{p.licitacion_codigo || '—'}</span>
+      </td>
+      {/* Licitación */}
+      <td className="px-3 py-2.5 max-w-[200px]">
+        <NavLink
+          to={`/licitaciones/postulaciones/${p.id}`}
+          className="text-xs font-medium text-ink-9 line-clamp-2 hover:text-kap-600 hover:underline leading-snug block"
+        >
+          {p.licitacion_nombre || p.company_name}
+        </NavLink>
+      </td>
+      {/* Organismo */}
+      <td className="px-3 py-2.5 hidden md:table-cell max-w-[140px]">
+        <span className="text-[11px] text-ink-5 line-clamp-1 block">{p.licitacion_organismo || '—'}</span>
+      </td>
+      {/* Monto */}
+      <td className="px-3 py-2.5 hidden sm:table-cell whitespace-nowrap">
+        <span className="text-xs font-semibold text-ink-7">{monto || '—'}</span>
+      </td>
+      {/* Cierre */}
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        {dias !== null ? (
+          <span className={clsx('text-[11px] font-semibold',
+            cierreUrgente ? 'text-red-600' : cierreProximo ? 'text-amber-600' : dias < 0 ? 'text-ink-4' : 'text-ink-5'
+          )}>
+            {dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : dias < 0 ? 'Cerrada' : `${dias}d`}
+          </span>
+        ) : <span className="text-ink-4">—</span>}
+      </td>
+      {/* Estado (pill) */}
+      <td className="px-3 py-2.5 relative">
+        <button
+          ref={estadoBtnRef}
+          onClick={() => setEstadoDropdown(estadoDropdown === p.id ? null : p.id)}
+          disabled={updatingId === p.id}
+          className={clsx(pill.className, 'cursor-pointer hover:opacity-80 whitespace-nowrap')}
+        >
+          {pill.label} ▾
+        </button>
+        {estadoDropdown === p.id && (
+          <EstadoMenuPortal
+            anchorRef={estadoBtnRef}
+            onSelect={(e) => { onCambiarEstado(p.id, e); setEstadoDropdown(null) }}
+            onClose={() => setEstadoDropdown(null)}
+          />
+        )}
+      </td>
+      {/* Score IA */}
+      <td className="px-3 py-2.5 hidden sm:table-cell">
+        {p.score != null && p.score > 0 ? (
+          <div className="flex items-center gap-1.5 min-w-[64px]">
+            <div className="flex-1 h-1.5 bg-ink-2 rounded-full overflow-hidden">
+              <div
+                className={clsx('h-full rounded-full', p.score >= 75 ? 'bg-emerald-500' : p.score >= 50 ? 'bg-kap-500' : 'bg-red-400')}
+                style={{ width: `${p.score}%` }}
+              />
+            </div>
+            <span className={clsx('text-[10px] font-bold tabular-nums shrink-0',
+              p.score >= 75 ? 'text-emerald-600' : p.score >= 50 ? 'text-kap-600' : 'text-red-500'
+            )}>
+              {p.score.toFixed(0)}
+            </span>
+          </div>
+        ) : <span className="text-ink-4 text-[11px]">—</span>}
+      </td>
+      {/* Acciones */}
+      <td className="px-3 py-2.5 text-right">
+        <div className="flex items-center gap-1 justify-end">
+          {(p.documentos_ia?.length ?? 0) > 0 ? (
+            <NavLink
+              to={`/propuestas/licitaciones?prospect_id=${p.id}`}
+              title={`${p.documentos_ia!.length} doc(s) generado(s)`}
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-kap-100 text-kap-600 border border-kap-300 hover:bg-kap-100 font-semibold"
+            >
+              <FileSignature size={11} /> {p.documentos_ia!.length}
+            </NavLink>
+          ) : (p.score != null && p.score >= 50) ? (
+            <NavLink
+              to={`/propuestas/licitaciones?prospect_id=${p.id}`}
+              title="Generar documentos"
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-kap-600 text-white hover:bg-kap-700 font-semibold"
+            >
+              <FileSignature size={11} /> Docs
+            </NavLink>
+          ) : (
+            <button
+              onClick={() => onAnalizar(p)}
+              title="Analizar con IA"
+              className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg bg-kap-600 text-white hover:bg-kap-700 font-semibold"
+            >
+              <ClipboardList size={11} /> Analizar
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (confirm(`¿Descartar "${p.licitacion_nombre || p.company_name || 'esta licitación'}"?\n\nSe eliminará de tus postulaciones.`)) onEliminar(p.id)
+            }}
+            title="Descartar"
+            className="inline-flex items-center text-[10px] px-2 py-1 rounded-lg border border-ink-3 text-ink-4 hover:bg-bad-light hover:border-bad-border hover:text-bad transition-colors"
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
+      </td>
+    </tr>
   )
 }

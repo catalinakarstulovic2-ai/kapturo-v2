@@ -57,7 +57,7 @@ export default function ProspeccionPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 pt-4">
+      <div className="flex-shrink-0 bg-white border-b border-ink-3 px-6 pt-4">
         <div className="flex items-center gap-1 overflow-x-auto pb-0 scrollbar-none">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
@@ -66,8 +66,8 @@ export default function ProspeccionPage() {
               className={clsx(
                 'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap transition-colors',
                 activeKey === key
-                  ? 'border-brand-500 text-brand-600 bg-brand-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  ? 'border-kap-300 text-kap-600 bg-kap-50'
+                  : 'border-transparent text-ink-5 hover:text-ink-8 hover:bg-ink-1'
               )}
             >
               <Icon size={15} />

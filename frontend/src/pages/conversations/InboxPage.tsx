@@ -52,8 +52,8 @@ function MessageBubble({ msg }: { msg: Message }) {
   const statusIcon = () => {
     if (!isOutbound) return null
     if (msg.status === 'read') return <CheckCheck size={14} className="text-blue-400" />
-    if (msg.status === 'delivered' || msg.status === 'sent') return <CheckCheck size={14} className="text-gray-400" />
-    return <Check size={14} className="text-gray-400" />
+    if (msg.status === 'delivered' || msg.status === 'sent') return <CheckCheck size={14} className="text-ink-4" />
+    return <Check size={14} className="text-ink-4" />
   }
 
   return (
@@ -62,7 +62,7 @@ function MessageBubble({ msg }: { msg: Message }) {
         className={`max-w-[72%] px-4 py-2.5 rounded-2xl shadow-sm text-sm leading-relaxed ${
           isOutbound
             ? 'bg-green-500 text-white rounded-br-sm'
-            : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
+            : 'bg-white text-ink-8 rounded-bl-sm border border-ink-2'
         }`}
       >
         {/* Badge IA */}
@@ -77,7 +77,7 @@ function MessageBubble({ msg }: { msg: Message }) {
         <p className="whitespace-pre-wrap">{msg.body}</p>
 
         {/* Hora + estado */}
-        <div className={`flex items-center gap-1 mt-1 justify-end ${isOutbound ? 'opacity-75' : 'text-gray-400'}`}>
+        <div className={`flex items-center gap-1 mt-1 justify-end ${isOutbound ? 'opacity-75' : 'text-ink-4'}`}>
           <span className="text-[11px]">{formatTime(msg.created_at)}</span>
           {statusIcon()}
         </div>
@@ -202,15 +202,15 @@ export default function InboxPage() {
   })
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50 overflow-hidden rounded-xl border border-gray-200">
+    <div className="flex h-[calc(100vh-4rem)] bg-ink-1 overflow-hidden rounded-xl border border-ink-3">
 
       {/* ── Panel izquierdo: lista de conversaciones ── */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+      <div className="w-80 bg-white border-r border-ink-3 flex flex-col shrink-0">
         {/* Header */}
-        <div className="h-14 px-4 flex items-center border-b border-gray-200">
+        <div className="h-14 px-4 flex items-center border-b border-ink-3">
           <div className="flex items-center gap-2">
             <MessageSquare size={18} className="text-green-600" />
-            <h2 className="font-semibold text-gray-900">Conversaciones</h2>
+            <h2 className="font-semibold text-ink-9">Conversaciones</h2>
           </div>
           {conversations.length > 0 && (
             <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -223,20 +223,30 @@ export default function InboxPage() {
         <div className="flex-1 overflow-y-auto">
           {convsLoading ? (
             <div className="flex justify-center items-center h-32">
-              <Loader2 size={20} className="animate-spin text-gray-400" />
+              <Loader2 size={20} className="animate-spin text-ink-4" />
             </div>
           ) : conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-center px-6">
-              <MessageSquare size={32} className="mb-2 opacity-30" />
-              <p className="text-sm">Sin conversaciones aún.</p>
-              <p className="text-xs mt-1">Los mensajes de WhatsApp aparecerán aquí.</p>
+            <div className="flex flex-col items-center justify-center h-full py-10 text-ink-4 text-center px-6 gap-3">
+              <MessageSquare size={36} className="opacity-20" />
+              <div>
+                <p className="text-sm font-medium text-ink-6">Sin conversaciones</p>
+                <p className="text-xs mt-1 leading-relaxed">
+                  Los mensajes entrantes de WhatsApp aparecen aquí cuando tu número esté conectado.
+                </p>
+              </div>
+              <a
+                href="/configuracion"
+                className="text-xs font-semibold text-kap-600 hover:text-kap-800 border border-kap-200 px-3 py-1.5 rounded-lg hover:bg-kap-50 transition-colors"
+              >
+                Configurar WhatsApp →
+              </a>
             </div>
           ) : (
             conversations.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => setSelectedConvId(conv.id)}
-                className={`w-full px-4 py-3 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                className={`w-full px-4 py-3 text-left border-b border-ink-2 hover:bg-ink-1 transition-colors ${
                   selectedConvId === conv.id ? 'bg-green-50 border-l-2 border-l-green-500' : ''
                 }`}
               >
@@ -247,21 +257,21 @@ export default function InboxPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900 truncate">
+                      <span className="text-sm font-medium text-ink-9 truncate">
                         {conv.prospect_name ?? `Prospecto ${conv.prospect_id.slice(0, 6)}`}
                       </span>
-                      <span className="text-[11px] text-gray-400 shrink-0 ml-1">
+                      <span className="text-[11px] text-ink-4 shrink-0 ml-1">
                         {formatDate(conv.last_message_at)}
                       </span>
                     </div>
                     {conv.prospect_contact && (
-                      <p className="text-xs text-gray-400 truncate">{conv.prospect_contact}</p>
+                      <p className="text-xs text-ink-4 truncate">{conv.prospect_contact}</p>
                     )}
                     <div className="flex items-center gap-1 mt-0.5">
                       {conv.last_message_direction === 'outbound' && (
-                        <Check size={12} className="text-gray-400 shrink-0" />
+                        <Check size={12} className="text-ink-4 shrink-0" />
                       )}
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-ink-5 truncate">
                         {conv.last_message_preview || 'Sin mensajes'}
                       </p>
                     </div>
@@ -278,15 +288,15 @@ export default function InboxPage() {
         {selectedConvId && selectedConv ? (
           <>
             {/* Header del hilo */}
-            <div className="h-14 px-4 flex items-center gap-3 bg-white border-b border-gray-200 shrink-0">
+            <div className="h-14 px-4 flex items-center gap-3 bg-white border-b border-ink-3 shrink-0">
               <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
                 <MessageSquare size={16} className="text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-ink-9">
                   {selectedConv.prospect_name ?? `Prospecto ${selectedConv.prospect_id.slice(0, 8)}`}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-5">
                   {selectedConv.prospect_contact && `${selectedConv.prospect_contact} · `}
                   {selectedConv.channel} · {selectedConv.is_open ? 'Abierta' : 'Cerrada'}
                 </p>
@@ -298,10 +308,10 @@ export default function InboxPage() {
               {/* Fondo tipo WhatsApp */}
               {messagesLoading ? (
                 <div className="flex justify-center items-center h-32">
-                  <Loader2 size={20} className="animate-spin text-gray-500" />
+                  <Loader2 size={20} className="animate-spin text-ink-5" />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <div className="flex flex-col items-center justify-center h-full text-ink-5">
                   <MessageSquare size={32} className="mb-2 opacity-30" />
                   <p className="text-sm">Sin mensajes en esta conversación.</p>
                 </div>
@@ -313,10 +323,10 @@ export default function InboxPage() {
             </div>
 
             {/* Caja de redacción */}
-            <div className="bg-white border-t border-gray-200 px-4 py-3 shrink-0">
+            <div className="bg-white border-t border-ink-3 px-4 py-3 shrink-0">
               <div className="flex items-end gap-3">
                 <textarea
-                  className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 max-h-28"
+                  className="flex-1 resize-none rounded-2xl border border-ink-3 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 max-h-28"
                   rows={2}
                   placeholder="Escribe un mensaje..."
                   value={draftBody}
@@ -330,7 +340,7 @@ export default function InboxPage() {
                 />
                 {/* Botón Redactar con IA */}
                 <button
-                  className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2.5 rounded-2xl transition-colors shrink-0 disabled:opacity-60"
+                  className="flex items-center gap-2 bg-kap-500 hover:bg-kap-600 text-white text-sm font-medium px-4 py-2.5 rounded-2xl transition-colors shrink-0 disabled:opacity-60"
                   onClick={handleDraftWithAI}
                   disabled={aiLoading}
                   title="La IA redacta un mensaje para este prospecto, queda pendiente de aprobación"
@@ -354,19 +364,19 @@ export default function InboxPage() {
                   }
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1.5 px-1">
+              <p className="text-[11px] text-ink-4 mt-1.5 px-1">
                 Puedes enviar mensajes directos o usar "Redactar con IA" para generar uno y aprobarlo.
               </p>
             </div>
           </>
         ) : (
           /* Estado vacío — no hay conversación seleccionada */
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-[#efeae2]">
+          <div className="flex-1 flex flex-col items-center justify-center text-ink-4 bg-[#efeae2]">
             <div className="w-20 h-20 bg-white/60 rounded-full flex items-center justify-center mb-4 shadow-sm">
               <MessageSquare size={36} className="opacity-40" />
             </div>
-            <p className="font-medium text-gray-600">Selecciona una conversación</p>
-            <p className="text-sm mt-1 text-gray-400">
+            <p className="font-medium text-ink-6">Selecciona una conversación</p>
+            <p className="text-sm mt-1 text-ink-4">
               Los mensajes de WhatsApp con tus prospectos aparecerán aquí.
             </p>
           </div>

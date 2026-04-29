@@ -132,7 +132,7 @@ export default function ActivityTab() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20 text-gray-400">
+      <div className="flex justify-center items-center py-20 text-ink-4">
         Cargando actividad…
       </div>
     )
@@ -142,41 +142,41 @@ export default function ActivityTab() {
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-4">
         <Activity className="w-5 h-5 text-blue-500" />
-        <h2 className="text-lg font-semibold text-gray-800">Actividad de usuarios</h2>
-        <span className="text-sm text-gray-400 ml-auto">{users.length} usuarios activos</span>
+        <h2 className="text-lg font-semibold text-ink-8">Actividad de usuarios</h2>
+        <span className="text-sm text-ink-4 ml-auto">{users.length} usuarios activos</span>
       </div>
 
       {users.length === 0 && (
-        <p className="text-center text-gray-400 py-12">Sin actividad registrada aún.</p>
+        <p className="text-center text-ink-4 py-12">Sin actividad registrada aún.</p>
       )}
 
       {users.map(u => (
-        <div key={u.user_id} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div key={u.user_id} className="border border-ink-3 rounded-xl overflow-hidden bg-white shadow-sm">
           {/* Tarjeta del usuario */}
           <button
             onClick={() => toggleUser(u.user_id)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-1 transition-colors text-left"
           >
             {expandedUser === u.user_id
-              ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              ? <ChevronDown className="w-4 h-4 text-ink-4 flex-shrink-0" />
+              : <ChevronRight className="w-4 h-4 text-ink-4 flex-shrink-0" />
             }
             <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-gray-800 truncate">{u.user_name || u.user_email}</p>
+                <p className="font-semibold text-ink-8 truncate">{u.user_name || u.user_email}</p>
                 {u.role && (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-ink-2 text-ink-5">
                     {ROLE_LABELS[u.role] ?? u.role}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <p className="text-xs text-gray-400 truncate">{u.user_email}</p>
+                <p className="text-xs text-ink-4 truncate">{u.user_email}</p>
                 {u.tenant_name && (
-                  <span className="text-xs text-gray-400">· {u.tenant_name}</span>
+                  <span className="text-xs text-ink-4">· {u.tenant_name}</span>
                 )}
               </div>
               {/* Módulos activos */}
@@ -195,7 +195,7 @@ export default function ActivityTab() {
             </div>
             <div className="text-right flex-shrink-0 ml-2">
               <p className="text-sm font-bold text-blue-600">{u.total_acciones} acciones</p>
-              <p className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
+              <p className="text-xs text-ink-4 flex items-center justify-end gap-1 mt-0.5">
                 <Clock className="w-3 h-3" />
                 {formatDate(u.ultimo_acceso)}
               </p>
@@ -204,19 +204,19 @@ export default function ActivityTab() {
 
           {/* Historial expandido */}
           {expandedUser === u.user_id && (
-            <div className="border-t border-gray-100 bg-gray-50 divide-y divide-gray-100 max-h-80 overflow-y-auto">
+            <div className="border-t border-ink-2 bg-ink-1 divide-y divide-ink-2 max-h-80 overflow-y-auto">
               {loadingLogs === u.user_id && (
-                <p className="text-sm text-gray-400 px-4 py-3">Cargando historial…</p>
+                <p className="text-sm text-ink-4 px-4 py-3">Cargando historial…</p>
               )}
               {userLogs[u.user_id]?.map(log => (
                 <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white transition-colors">
                   <span className="text-base flex-shrink-0">{actionIcon(log.action)}</span>
-                  <span className="text-sm text-gray-700 flex-1">{actionDetail(log)}</span>
-                  <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{formatDate(log.timestamp)}</span>
+                  <span className="text-sm text-ink-7 flex-1">{actionDetail(log)}</span>
+                  <span className="text-xs text-ink-4 flex-shrink-0 whitespace-nowrap">{formatDate(log.timestamp)}</span>
                 </div>
               ))}
               {!loadingLogs && userLogs[u.user_id]?.length === 0 && (
-                <p className="text-sm text-gray-400 px-4 py-3">Sin registros.</p>
+                <p className="text-sm text-ink-4 px-4 py-3">Sin registros.</p>
               )}
             </div>
           )}

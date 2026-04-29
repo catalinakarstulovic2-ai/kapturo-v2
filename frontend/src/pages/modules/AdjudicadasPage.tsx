@@ -397,15 +397,15 @@ export default function AdjudicadasPage() {
             <Trophy size={20} className="text-amber-600" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mercado Público</h1>
-            <p className="text-gray-500 text-xs sm:text-sm hidden sm:block">Licitaciones públicas de Chile · Empresas, contratos y oportunidades</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-ink-9">Mercado Público</h1>
+            <p className="text-ink-5 text-xs sm:text-sm hidden sm:block">Licitaciones públicas de Chile · Empresas, contratos y oportunidades</p>
           </div>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           {isAdmin && (
             <button
               onClick={() => setMostrarConfig(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-ink-2 text-ink-6 hover:bg-ink-2 transition-colors"
             >
               <Sparkles size={14} />
               <span className="hidden sm:inline">Configurar módulo</span>
@@ -413,7 +413,7 @@ export default function AdjudicadasPage() {
           )}
           <button
             onClick={() => navigate('/pipeline')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors bg-ink-2 text-ink-6 hover:bg-ink-2"
           >
             <Kanban size={14} /> <span className="hidden sm:inline">Ver Pipeline</span>
           </button>
@@ -427,7 +427,7 @@ export default function AdjudicadasPage() {
             key={tab.id}
             className={clsx(
               'shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
-              pestana === tab.id ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-50'
+              pestana === tab.id ? 'bg-kap-500 text-white' : 'text-ink-6 hover:bg-ink-1'
             )}
             onClick={() => {
               setPestana(tab.id)
@@ -447,8 +447,8 @@ export default function AdjudicadasPage() {
         const INFO: Record<string, { icon: string; texto: string; color: string }> = {
           adjudicadas:     { icon: '🏆', texto: 'El ganador ya fue declarado oficialmente. Identifica la empresa adjudicada y contáctalas en el momento justo.', color: 'bg-amber-50 border-amber-200 text-amber-800' },
           por_adjudicarse: { icon: '⏳', texto: 'El plazo de ofertas aún está abierto. Detecta las licitaciones activas y las empresas que están compitiendo.', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-          cerrada:         { icon: '🔍', texto: 'El plazo venció y el organismo está evaluando las ofertas. En los próximos días se declarará un ganador.', color: 'bg-violet-50 border-violet-200 text-violet-800' },
-          desierta:        { icon: '🚫', texto: 'Nadie presentó ofertas. El organismo podría relanzar la licitación bajo condiciones similares.', color: 'bg-gray-50 border-gray-200 text-gray-600' },
+          cerrada:         { icon: '🔍', texto: 'El plazo venció y el organismo está evaluando las ofertas. En los próximos días se declarará un ganador.', color: 'bg-kap-100 border-kap-300 text-kap-600' },
+          desierta:        { icon: '🚫', texto: 'Nadie presentó ofertas. El organismo podría relanzar la licitación bajo condiciones similares.', color: 'bg-ink-1 border-ink-3 text-ink-6' },
           revocada:        { icon: '↩️', texto: 'El organismo canceló el proceso antes de adjudicar. Pueden ser relanzadas en el futuro.', color: 'bg-red-50 border-red-200 text-red-700' },
           suspendida:      { icon: '⏸️', texto: 'El proceso está pausado temporalmente. Puede retomarse o terminar cancelado.', color: 'bg-orange-50 border-orange-200 text-orange-700' },
         }
@@ -465,24 +465,24 @@ export default function AdjudicadasPage() {
       {/* Filtros */}
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <SlidersHorizontal size={15} className="text-gray-500" />
-          <span className="text-sm font-semibold text-gray-700">Filtros de búsqueda</span>
+          <SlidersHorizontal size={15} className="text-ink-5" />
+          <span className="text-sm font-semibold text-ink-7">Filtros de búsqueda</span>
         </div>
 
         {/* Rubros */}
         <div ref={rubrosRef}>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Rubro / Industria</label>
+          <label className="block text-xs font-semibold text-ink-6 mb-1.5">Rubro / Industria</label>
           <button
             type="button"
             onClick={() => { setShowRubrosDropdown(v => !v); setBuscarRubroQuery(''); setCategoriaActiva(null) }}
             className={clsx(
               'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-white text-left transition-all',
               showRubrosDropdown
-                ? 'border-brand-400 ring-2 ring-brand-100'
-                : 'border-gray-300 hover:border-gray-400'
+                ? 'border-kap-400 ring-2 ring-kap-100'
+                : 'border-ink-3 hover:border-ink-4'
             )}
           >
-            <span className={clsx('text-sm', rubrosSeleccionados.length > 0 ? 'text-gray-900 font-medium' : 'text-gray-400')}>
+            <span className={clsx('text-sm', rubrosSeleccionados.length > 0 ? 'text-ink-9 font-medium' : 'text-ink-4')}>
               {rubrosSeleccionados.length === 0
                 ? 'Todos los rubros'
                 : `${rubrosSeleccionados.length} rubro${rubrosSeleccionados.length > 1 ? 's' : ''} seleccionado${rubrosSeleccionados.length > 1 ? 's' : ''}`}
@@ -491,12 +491,12 @@ export default function AdjudicadasPage() {
               {rubrosSeleccionados.length > 0 && (
                 <button
                   onClick={e => { e.stopPropagation(); setRubrosSeleccionados([]); setCategoriaActiva(null) }}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded"
+                  className="text-ink-4 hover:text-red-500 transition-colors p-0.5 rounded"
                 >
                   <X size={12} />
                 </button>
               )}
-              <ChevronDown size={15} className={clsx('text-gray-400 transition-transform', showRubrosDropdown && 'rotate-180')} />
+              <ChevronDown size={15} className={clsx('text-ink-4 transition-transform', showRubrosDropdown && 'rotate-180')} />
             </div>
           </button>
 
@@ -507,30 +507,30 @@ export default function AdjudicadasPage() {
                 <button
                   key={r}
                   onClick={() => setRubrosSeleccionados(rubrosSeleccionados.filter(x => x !== r))}
-                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-kap-50 border border-kap-200 text-kap-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
                 >
                   {r} <X size={9} />
                 </button>
               ))}
               {rubrosSeleccionados.length > 6 && (
-                <span className="text-[11px] text-gray-400 self-center">+{rubrosSeleccionados.length - 6} más</span>
+                <span className="text-[11px] text-ink-4 self-center">+{rubrosSeleccionados.length - 6} más</span>
               )}
             </div>
           )}
 
           {/* Panel expandido */}
           {showRubrosDropdown && (
-            <div className="mt-2 border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-md">
+            <div className="mt-2 border border-ink-3 rounded-2xl bg-white overflow-hidden shadow-md">
 
               {/* Buscador */}
               <div className="px-3 pt-3 pb-2">
                 <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" />
                   <input
                     autoFocus type="text" placeholder="Buscar rubro…"
                     value={buscarRubroQuery}
                     onChange={e => { setBuscarRubroQuery(e.target.value); setCategoriaActiva(null) }}
-                    className="w-full text-sm pl-8 pr-3 py-2 rounded-xl border border-gray-200 outline-none focus:border-brand-300 bg-gray-50 focus:bg-white transition-colors"
+                    className="w-full text-sm pl-8 pr-3 py-2 rounded-xl border border-ink-3 outline-none focus:border-kap-300 bg-ink-1 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
@@ -543,7 +543,7 @@ export default function AdjudicadasPage() {
                       onClick={() => setCategoriaActiva(null)}
                       className={clsx(
                         'shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap',
-                        categoriaActiva === null ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        categoriaActiva === null ? 'bg-ink-8 text-white' : 'bg-ink-2 text-ink-5 hover:bg-ink-2'
                       )}
                     >
                       Todos
@@ -557,17 +557,17 @@ export default function AdjudicadasPage() {
                           className={clsx(
                             'shrink-0 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap',
                             categoriaActiva === g.label
-                              ? 'bg-gray-800 text-white'
+                              ? 'bg-ink-8 text-white'
                               : sel > 0
-                                ? 'bg-brand-50 border border-brand-200 text-brand-700'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                ? 'bg-kap-50 border border-kap-200 text-kap-700'
+                                : 'bg-ink-2 text-ink-5 hover:bg-ink-2'
                           )}
                         >
                           <span>{g.icon}</span>
                           <span>{g.label.split(' ')[0]}</span>
                           {sel > 0 && (
                             <span className={clsx('rounded-full text-[10px] font-bold w-4 h-4 flex items-center justify-center',
-                              categoriaActiva === g.label ? 'bg-white text-gray-800' : 'bg-brand-500 text-white'
+                              categoriaActiva === g.label ? 'bg-white text-ink-8' : 'bg-kap-500 text-white'
                             )}>{sel}</span>
                           )}
                         </button>
@@ -592,7 +592,7 @@ export default function AdjudicadasPage() {
                 const todosSeleccionados = items.every(r => rubrosSeleccionados.includes(r))
                 return (
                   <div className="px-3 pb-2 flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400">{items.length} rubros en esta categoría</span>
+                    <span className="text-[11px] text-ink-4">{items.length} rubros en esta categoría</span>
                     <button
                       onClick={() => {
                         if (todosSeleccionados) {
@@ -605,7 +605,7 @@ export default function AdjudicadasPage() {
                         'text-xs px-3 py-1 rounded-lg font-semibold transition-colors',
                         todosSeleccionados
                           ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                          : 'bg-brand-500 text-white hover:bg-brand-600'
+                          : 'bg-kap-500 text-white hover:bg-kap-600'
                       )}
                     >
                       {todosSeleccionados ? 'Quitar todos' : 'Seleccionar todos'}
@@ -626,7 +626,7 @@ export default function AdjudicadasPage() {
                   } else {
                     items = RUBRO_GRUPOS.flatMap(g => g.rubros.filter(r => allRubros.includes(r)))
                   }
-                  if (items.length === 0) return <p className="text-xs text-gray-400 text-center py-4">Sin resultados</p>
+                  if (items.length === 0) return <p className="text-xs text-ink-4 text-center py-4">Sin resultados</p>
                   return (
                     <div className="grid grid-cols-2 gap-2">
                       {items.map(r => {
@@ -638,13 +638,13 @@ export default function AdjudicadasPage() {
                             className={clsx(
                               'flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left text-sm font-medium transition-all touch-manipulation',
                               sel
-                                ? 'border-brand-400 bg-brand-50 text-brand-800 shadow-sm'
-                                : 'border-gray-100 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-white active:scale-[0.98]'
+                                ? 'border-kap-400 bg-kap-50 text-kap-800 shadow-sm'
+                                : 'border-ink-2 bg-ink-1 text-ink-7 hover:border-ink-4 hover:bg-ink-0 active:scale-[0.98]'
                             )}
                           >
                             <span className={clsx(
                               'w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all',
-                              sel ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
+                              sel ? 'border-kap-500 bg-kap-500' : 'border-ink-3'
                             )}>
                               {sel && <span className="block w-1.5 h-1.5 rounded-full bg-white" />}
                             </span>
@@ -658,13 +658,13 @@ export default function AdjudicadasPage() {
               </div>
 
               {/* Footer */}
-              <div className="px-3 pb-3 pt-1 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-400">
+              <div className="px-3 pb-3 pt-1 border-t border-ink-2 flex items-center justify-between">
+                <span className="text-xs text-ink-4">
                   {rubrosSeleccionados.length === 0 ? 'Ninguno seleccionado' : `${rubrosSeleccionados.length} seleccionado${rubrosSeleccionados.length > 1 ? 's' : ''}`}
                 </span>
                 <button
                   onClick={() => setShowRubrosDropdown(false)}
-                  className="text-sm px-4 py-1.5 rounded-xl bg-gray-900 text-white font-medium hover:bg-gray-700 transition-colors"
+                  className="text-sm px-4 py-1.5 rounded-xl bg-ink-8 text-white font-medium hover:bg-ink-2 transition-colors"
                 >
                   Listo
                 </button>
@@ -677,7 +677,7 @@ export default function AdjudicadasPage() {
         {/* Grid de filtros */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div ref={regionRef} className="relative col-span-2 md:col-span-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Región / Ciudad</label>
+            <label className="block text-xs font-medium text-ink-6 mb-1">Región / Ciudad</label>
             {(() => {
               const REGIONES = [
                 { codigo: '2',  nombre: 'Antofagasta',        ciudades: ['antofagasta', 'calama', 'tocopilla', 'mejillones', 'tal tal'] },
@@ -716,14 +716,14 @@ export default function AdjudicadasPage() {
                     onClick={() => setShowRegionDropdown(true)}
                   >
                     {regionesSeleccionadas.length === 0 && !showRegionDropdown && (
-                      <span className="text-gray-400 text-sm">Todas las regiones</span>
+                      <span className="text-ink-4 text-sm">Todas las regiones</span>
                     )}
                     {regionesSeleccionadas.map(cod => {
                       const r = REGIONES.find(x => x.codigo === cod)
                       return r ? (
-                        <span key={cod} className="flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                        <span key={cod} className="flex items-center gap-1 bg-kap-100 text-kap-600 text-xs px-2 py-0.5 rounded-full font-medium">
                           {r.nombre}
-                          <button onClick={e => { e.stopPropagation(); toggle(cod) }} className="hover:text-violet-900"><X size={10} /></button>
+                          <button onClick={e => { e.stopPropagation(); toggle(cod) }} className="hover:text-kap-600"><X size={10} /></button>
                         </span>
                       ) : null
                     })}
@@ -739,7 +739,7 @@ export default function AdjudicadasPage() {
                     )}
                   </div>
                   {showRegionDropdown && filtradas.length > 0 && (
-                    <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-ink-3 rounded-xl shadow-lg max-h-52 overflow-y-auto">
                       {filtradas.map(r => {
                         const sel = regionesSeleccionadas.includes(r.codigo)
                         const ciudadMatch = q ? r.ciudades.find(c => c.includes(q)) : null
@@ -747,29 +747,29 @@ export default function AdjudicadasPage() {
                           <button
                             key={r.codigo}
                             onMouseDown={e => { e.preventDefault(); toggle(r.codigo) }}
-                            className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-violet-50 transition-colors ${
-                              sel ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700'
+                            className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-kap-100 transition-colors ${
+                              sel ? 'bg-kap-100 text-kap-600 font-medium' : 'text-ink-7'
                             }`}
                           >
                             <span>
                               {r.nombre}
-                              {ciudadMatch && <span className="ml-1 text-xs text-gray-400">· {ciudadMatch}</span>}
+                              {ciudadMatch && <span className="ml-1 text-xs text-ink-4">· {ciudadMatch}</span>}
                             </span>
-                            {sel && <span className="text-violet-500 text-xs">✓</span>}
+                            {sel && <span className="text-kap-600 text-xs">✓</span>}
                           </button>
                         )
                       })}
                     </div>
                   )}
                   {regionesSeleccionadas.length > 0 && (
-                    <button onClick={() => setRegionesSeleccionadas([])} className="mt-1 text-[11px] text-gray-400 hover:text-red-400">Limpiar selección</button>
+                    <button onClick={() => setRegionesSeleccionadas([])} className="mt-1 text-[11px] text-ink-4 hover:text-red-400">Limpiar selección</button>
                   )}
                 </>
               )
             })()}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Antigüedad</label>
+            <label className="block text-xs font-medium text-ink-6 mb-1">Antigüedad</label>
             <select className="input text-sm" value={filtros.periodo} onChange={setF('periodo')}>
               <option value="7">Últimos 7 días</option>
               <option value="30">Último mes</option>
@@ -778,11 +778,11 @@ export default function AdjudicadasPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Monto mínimo</label>
+            <label className="block text-xs font-medium text-ink-6 mb-1">Monto mínimo</label>
             <input type="number" className="input text-sm" placeholder="Ej: 10000000" value={filtros.monto_minimo} onChange={setF('monto_minimo')} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Nombre / texto</label>
+            <label className="block text-xs font-medium text-ink-6 mb-1">Nombre / texto</label>
             <input
               type="text" className="input text-sm" placeholder="Ej: construcción…"
               value={filtros.keyword} onChange={setF('keyword')}
@@ -790,10 +790,10 @@ export default function AdjudicadasPage() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 -mx-5 -mb-5 px-5 pb-4 pt-3 bg-white/90 backdrop-blur-sm border-t border-gray-100 rounded-b-2xl">
+        <div className="sticky bottom-0 -mx-5 -mb-5 px-5 pb-4 pt-3 bg-white/90 backdrop-blur-sm border-t border-ink-2 rounded-b-2xl">
 
           {/* Tabs secundarios */}
-          <div className="grid grid-cols-4 gap-1.5 mb-2 bg-gray-100 p-1 rounded-xl">
+          <div className="grid grid-cols-4 gap-1.5 mb-2 bg-ink-2 p-1 rounded-xl">
             {([
               { id: 'busquedas', icon: BookOpen, label: 'Mis búsquedas', badge: busquedasGuardadas.length || null },
               { id: 'guardar',   icon: Bookmark, label: 'Guardar',       badge: null },
@@ -805,18 +805,18 @@ export default function AdjudicadasPage() {
                 className={clsx(
                   'flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-[11px] font-semibold transition-all',
                   activeTab === id
-                    ? 'bg-white text-violet-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'
+                    ? 'bg-white text-kap-600 shadow-sm'
+                    : 'text-ink-5 hover:text-ink-7 hover:bg-white/60'
                 )}
               >
                 <Icon size={13} />
                 <span className="leading-tight text-center">{label}</span>
-                {badge ? <span className="px-1.5 py-0.5 rounded-full bg-violet-500 text-white text-[9px] font-bold">{badge}</span> : null}
+                {badge ? <span className="px-1.5 py-0.5 rounded-full bg-kap-100 text-white text-[9px] font-bold">{badge}</span> : null}
               </button>
             ))}
             {/* Botón Buscar licitaciones dentro del grid como 4to tab */}
             <button
-              className="flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-[11px] font-semibold transition-all bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+              className="flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-[11px] font-semibold transition-all bg-kap-100 text-white hover:bg-kap-100 shadow-sm"
               onClick={() => { setActiveTab('none'); buscarMutation.mutate(1) }}
               disabled={buscarMutation.isPending}
             >
@@ -828,19 +828,19 @@ export default function AdjudicadasPage() {
 
           {/* Panel Mis búsquedas */}
           {activeTab === 'busquedas' && busquedasGuardadas.length > 0 && (
-            <div className="mb-2 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-              <div className="divide-y divide-gray-50 max-h-44 overflow-y-auto">
+            <div className="mb-2 border border-ink-3 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div className="divide-y divide-ink-2 max-h-44 overflow-y-auto">
                 {busquedasGuardadas.map(b => (
-                  <div key={b.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 group">
+                  <div key={b.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-ink-1 group">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 truncate">{b.nombre}</p>
-                      <p className="text-[11px] text-gray-400">{b.fecha} · {{ adjudicadas: 'Adjudicadas', por_adjudicarse: 'Publicadas', cerrada: 'Cerradas', desierta: 'Desiertas', revocada: 'Revocadas', suspendida: 'Suspendidas' }[b.pestana] ?? b.pestana}</p>
+                      <p className="text-xs font-semibold text-ink-8 truncate">{b.nombre}</p>
+                      <p className="text-[11px] text-ink-4">{b.fecha} · {{ adjudicadas: 'Adjudicadas', por_adjudicarse: 'Publicadas', cerrada: 'Cerradas', desierta: 'Desiertas', revocada: 'Revocadas', suspendida: 'Suspendidas' }[b.pestana] ?? b.pestana}</p>
                     </div>
                     <button onClick={() => { handleCargarBusqueda(b); setActiveTab('none') }}
-                      className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50">
+                      className="text-[11px] font-semibold text-kap-600 hover:text-kap-700 px-2 py-1 rounded-lg hover:bg-kap-50">
                       Cargar
                     </button>
-                    <button onClick={() => eliminarBusqueda(b.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100">
+                    <button onClick={() => eliminarBusqueda(b.id)} className="text-ink-4 hover:text-red-400 opacity-0 group-hover:opacity-100">
                       <X size={11} />
                     </button>
                   </div>
@@ -849,13 +849,13 @@ export default function AdjudicadasPage() {
             </div>
           )}
           {activeTab === 'busquedas' && busquedasGuardadas.length === 0 && (
-            <p className="text-xs text-gray-400 text-center mb-2 py-2">No tienes búsquedas guardadas aún.</p>
+            <p className="text-xs text-ink-4 text-center mb-2 py-2">No tienes búsquedas guardadas aún.</p>
           )}
 
           {/* Panel Guardar */}
           {activeTab === 'guardar' && (
-            <div className="mb-2 border border-violet-200 rounded-xl p-3 bg-violet-50">
-              <p className="text-xs font-semibold text-violet-700 mb-2">Nombre para esta búsqueda</p>
+            <div className="mb-2 border border-kap-300 rounded-xl p-3 bg-kap-100">
+              <p className="text-xs font-semibold text-kap-600 mb-2">Nombre para esta búsqueda</p>
               <div className="flex gap-2">
                 <input
                   autoFocus
@@ -864,10 +864,10 @@ export default function AdjudicadasPage() {
                   onChange={e => setNombreBusqueda(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleGuardarBusqueda()}
                   placeholder="Ej: Construcción Araucanía 30 días"
-                  className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-violet-200 bg-white outline-none focus:border-violet-400"
+                  className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-kap-300 bg-white outline-none focus:border-kap-300"
                 />
                 <button onClick={handleGuardarBusqueda}
-                  className="text-sm px-3 py-1.5 rounded-lg bg-violet-600 text-white font-medium hover:bg-violet-700">
+                  className="text-sm px-3 py-1.5 rounded-lg bg-kap-100 text-white font-medium hover:bg-kap-100">
                   Guardar
                 </button>
               </div>
@@ -876,11 +876,11 @@ export default function AdjudicadasPage() {
 
           {/* Panel Buscar por código — llama a la API real */}
           {activeTab === 'codigo' && (
-            <div className="mb-2 border border-gray-200 rounded-xl p-3 bg-white shadow-sm">
-              <p className="text-xs font-semibold text-gray-600 mb-2">Buscar licitación por código exacto</p>
+            <div className="mb-2 border border-ink-3 rounded-xl p-3 bg-white shadow-sm">
+              <p className="text-xs font-semibold text-ink-6 mb-2">Buscar licitación por código exacto</p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Hash size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Hash size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
                   <input
                     autoFocus
                     type="text"
@@ -897,7 +897,7 @@ export default function AdjudicadasPage() {
                         finally { setCodigoBuscando(false) }
                       }
                     }}
-                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-violet-500 bg-white font-mono"
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-ink-3 rounded-lg focus:outline-none focus:border-kap-500 bg-white font-mono"
                   />
                 </div>
                 <button
@@ -911,7 +911,7 @@ export default function AdjudicadasPage() {
                     finally { setCodigoBuscando(false) }
                   }}
                   disabled={codigoBuscando || !codigoInput.trim()}
-                  className="px-3 py-2 bg-violet-600 text-white text-sm rounded-lg font-medium hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1"
+                  className="px-3 py-2 bg-kap-100 text-white text-sm rounded-lg font-medium hover:bg-kap-100 disabled:opacity-50 flex items-center gap-1"
                 >
                   {codigoBuscando ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
                   Buscar
@@ -919,16 +919,16 @@ export default function AdjudicadasPage() {
               </div>
               {codigoError && <p className="text-xs text-red-500 mt-2">{codigoError}</p>}
               {codigoResult && (
-                <div className="mt-2 bg-gray-50 rounded-lg p-2.5 text-xs space-y-1">
-                  <p className="font-semibold text-gray-800 leading-snug">{codigoResult.nombre}</p>
-                  <p className="text-gray-500">{codigoResult.organismo} · {codigoResult.region}</p>
+                <div className="mt-2 bg-ink-1 rounded-lg p-2.5 text-xs space-y-1">
+                  <p className="font-semibold text-ink-8 leading-snug">{codigoResult.nombre}</p>
+                  <p className="text-ink-5">{codigoResult.organismo} · {codigoResult.region}</p>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 font-mono">{codigoResult.codigo}</span>
-                    <span className="text-gray-400">{codigoResult.estado}</span>
-                    {codigoResult.fecha_cierre && <span className="text-gray-400">Cierre: {codigoResult.fecha_cierre}</span>}
+                    <span className="px-2 py-0.5 rounded-full bg-ink-8 text-ink-6 font-mono">{codigoResult.codigo}</span>
+                    <span className="text-ink-4">{codigoResult.estado}</span>
+                    {codigoResult.fecha_cierre && <span className="text-ink-4">Cierre: {codigoResult.fecha_cierre}</span>}
                   </div>
                   <a href={codigoResult.url} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-800 font-medium mt-1">
+                    className="inline-flex items-center gap-1 text-kap-600 hover:text-kap-600 font-medium mt-1">
                     Ver en Mercado Público →
                   </a>
                 </div>
@@ -949,7 +949,7 @@ export default function AdjudicadasPage() {
 
       {/* Loading */}
       {buscarMutation.isPending && resultados.length === 0 && (
-        <div className="card p-10 text-center text-gray-400">
+        <div className="card p-10 text-center text-ink-4">
           <Loader2 size={28} className="mx-auto mb-2 animate-spin opacity-40" />
           <p className="text-sm">
             {pestana === 'por_adjudicarse' ? 'Cargando licitaciones próximas a cerrar…'
@@ -962,15 +962,15 @@ export default function AdjudicadasPage() {
       {/* ── Tabla: Adjudicadas ── */}
       {pestana === 'adjudicadas' && resultados.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
-            <span className="text-sm font-semibold text-gray-700">
+          <div className="px-5 py-3 border-b border-ink-2 flex items-center justify-between bg-ink-1 flex-wrap gap-2">
+            <span className="text-sm font-semibold text-ink-7">
               {totalResultados.toLocaleString('es-CL')} licitaciones
               {totalResultados > 50 && (
-                <span className="ml-1 text-gray-400 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+                <span className="ml-1 text-ink-4 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
               )}
             </span>
             <div className="flex items-center gap-2">
-              <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending} className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40">
+              <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending} className="text-xs text-ink-5 flex items-center gap-1 hover:text-ink-7 disabled:opacity-40">
                 <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
               </button>
               {isAdmin && pestana === 'adjudicadas' && (
@@ -986,20 +986,20 @@ export default function AdjudicadasPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                <tr className="text-left text-xs text-ink-5 border-b border-ink-2">
                   <th className="px-4 py-3 font-medium">Empresa adjudicada</th>
                   <th className="px-4 py-3 font-medium">
                     <button
                       onClick={toggleSortMonto}
-                      className="flex items-center gap-1.5 hover:text-gray-900 transition-colors group"
+                      className="flex items-center gap-1.5 hover:text-ink-9 transition-colors group"
                     >
                       Monto adj.
                       <span className="flex flex-col gap-[1px] opacity-40 group-hover:opacity-100 transition-opacity">
                         <span className={clsx('block w-0 h-0 border-l-[4px] border-r-[4px] border-b-[5px] border-l-transparent border-r-transparent transition-colors',
-                          sortMonto === 'asc' ? 'border-b-brand-600' : 'border-b-gray-400'
+                          sortMonto === 'asc' ? 'border-b-kap-600' : 'border-b-ink-4'
                         )} />
                         <span className={clsx('block w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent transition-colors',
-                          sortMonto === 'desc' ? 'border-t-brand-600' : 'border-t-gray-400'
+                          sortMonto === 'desc' ? 'border-t-kap-600' : 'border-t-ink-4'
                         )} />
                       </span>
                     </button>
@@ -1011,7 +1011,7 @@ export default function AdjudicadasPage() {
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-ink-2">
                 {sortedResultados.map((item) => (
                   <>
                     <tr
@@ -1024,28 +1024,28 @@ export default function AdjudicadasPage() {
                       }}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900 line-clamp-1 group-hover:text-amber-800 transition-colors">{item.nombre_adjudicado || '—'}</div>
+                        <div className="font-medium text-ink-9 line-clamp-1 group-hover:text-amber-800 transition-colors">{item.nombre_adjudicado || '—'}</div>
                         <div className="flex items-center gap-1 mt-0.5">
                           <a
                             href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                             target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             title="Ver esta licitación en el portal de Mercado Público"
-                            className="text-xs text-gray-400 line-clamp-1 hover:text-amber-600 hover:underline transition-colors"
+                            className="text-xs text-ink-4 line-clamp-1 hover:text-amber-600 hover:underline transition-colors"
                           >{item.nombre}</a>
                           <ExternalLink size={9} className="shrink-0 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        {item.rut_adjudicado && <div className="text-xs text-gray-400">RUT {item.rut_adjudicado}</div>}
+                        {item.rut_adjudicado && <div className="text-xs text-ink-4">RUT {item.rut_adjudicado}</div>}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{formatCLP(item.monto_adjudicado)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-ink-9">{formatCLP(item.monto_adjudicado)}</td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-blue-600">{formatCLP(item.poliza_seriedad)}</td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-green-600">{formatCLP(item.poliza_cumplimiento)}</td>
-                      <td className="px-4 py-3 text-gray-600 hidden md:table-cell text-xs line-clamp-1">{item.organismo}</td>
-                      <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs">{item.region || '—'}</td>
+                      <td className="px-4 py-3 text-ink-6 hidden md:table-cell text-xs line-clamp-1">{item.organismo}</td>
+                      <td className="px-4 py-3 text-ink-6 hidden lg:table-cell text-xs">{item.region || '—'}</td>
                       <td className="px-4 py-3 text-right">
                         {expandedId === item.codigo
-                          ? <ChevronUp size={15} className="text-gray-400 ml-auto" />
-                          : <ChevronDown size={15} className="text-gray-400 ml-auto" />}
+                          ? <ChevronUp size={15} className="text-ink-4 ml-auto" />
+                          : <ChevronDown size={15} className="text-ink-4 ml-auto" />}
                       </td>
                     </tr>
                     {expandedId === item.codigo && (() => {
@@ -1054,9 +1054,9 @@ export default function AdjudicadasPage() {
                       const ct = (ctData && ctData !== 'loading') ? ctData as ContactoData : null
                       return (
                         <tr key={`${item.codigo}-exp`}>
-                          <td colSpan={7} className="p-0 border-b border-gray-100">
-                            <div className="bg-white border-t-2 border-brand-100 px-6 py-5">
-                              <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+                          <td colSpan={7} className="p-0 border-b border-ink-2">
+                            <div className="bg-white border-t-2 border-kap-100 px-6 py-5">
+                              <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-ink-2">
 
                                 {/* ── Col 1: Licitación ── */}
                                 <div className="pb-5 lg:pb-0 lg:pr-6 space-y-3">
@@ -1066,30 +1066,30 @@ export default function AdjudicadasPage() {
                                   </div>
 
                                   <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Código</p>
-                                    <p className="text-sm font-mono font-semibold text-gray-700">{item.codigo}</p>
+                                    <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Código</p>
+                                    <p className="text-sm font-mono font-semibold text-ink-7">{item.codigo}</p>
                                   </div>
 
                                   <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Nombre</p>
-                                    <p className="text-sm text-gray-800 leading-snug">{item.nombre}</p>
+                                    <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Nombre</p>
+                                    <p className="text-sm text-ink-8 leading-snug">{item.nombre}</p>
                                   </div>
 
                                   <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Organismo</p>
-                                      <p className="text-xs text-gray-700 font-medium leading-snug">{item.organismo}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Organismo</p>
+                                      <p className="text-xs text-ink-7 font-medium leading-snug">{item.organismo}</p>
                                     </div>
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Región</p>
-                                      <p className="text-xs text-gray-700 font-medium">{item.region || '—'}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Región</p>
+                                      <p className="text-xs text-ink-7 font-medium">{item.region || '—'}</p>
                                     </div>
                                   </div>
 
                                   {item.fecha_adjudicacion && (
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Adjudicada el</p>
-                                      <p className="text-xs text-gray-700">{item.fecha_adjudicacion}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Adjudicada el</p>
+                                      <p className="text-xs text-ink-7">{item.fecha_adjudicacion}</p>
                                     </div>
                                   )}
 
@@ -1097,7 +1097,7 @@ export default function AdjudicadasPage() {
                                     href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                     target="_blank" rel="noopener noreferrer"
                                     onClick={e => e.stopPropagation()}
-                                    className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors mt-1"
+                                    className="inline-flex items-center gap-1.5 text-xs text-ink-5 hover:text-kap-600 transition-colors mt-1"
                                   >
                                     <ExternalLink size={11} /> Ver en Mercado Público
                                   </a>
@@ -1105,41 +1105,41 @@ export default function AdjudicadasPage() {
 
                                 {/* ── Col 2: Empresa ── */}
                                 <div className="py-5 lg:py-0 lg:px-6 space-y-3">
-                                  <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-violet-200">
-                                    <span className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-sm">🏢</span>
-                                    <span className="text-xs font-bold text-violet-700 uppercase tracking-wider">Empresa adjudicada</span>
+                                  <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-kap-300">
+                                    <span className="w-6 h-6 rounded-lg bg-kap-100 flex items-center justify-center text-sm">🏢</span>
+                                    <span className="text-xs font-bold text-kap-600 uppercase tracking-wider">Empresa adjudicada</span>
                                   </div>
 
                                   <div>
-                                    <p className="font-bold text-gray-900 text-sm">{item.nombre_adjudicado}</p>
+                                    <p className="font-bold text-ink-9 text-sm">{item.nombre_adjudicado}</p>
                                     {item.rut_adjudicado && (
-                                      <p className="text-xs text-gray-400 mt-0.5">RUT {item.rut_adjudicado}</p>
+                                      <p className="text-xs text-ink-4 mt-0.5">RUT {item.rut_adjudicado}</p>
                                     )}
                                   </div>
 
                                   {ctLoading && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                                    <div className="flex items-center gap-2 text-xs text-ink-4 bg-ink-1 rounded-lg px-3 py-2">
                                       <Loader2 size={11} className="animate-spin" /> Buscando información…
                                     </div>
                                   )}
 
                                   {ct && ct.ok && (
-                                    <div className="space-y-2 pt-1 border-t border-gray-100">
+                                    <div className="space-y-2 pt-1 border-t border-ink-2">
                                       {ct.telefono && (
                                         <a href={`tel:${ct.telefono}`} onClick={e => e.stopPropagation()}
-                                          className="flex items-center gap-2 text-xs text-gray-800 hover:text-brand-700 font-medium transition-colors">
-                                          <Phone size={12} className="text-gray-400 shrink-0" /> {ct.telefono}
+                                          className="flex items-center gap-2 text-xs text-ink-8 hover:text-kap-700 font-medium transition-colors">
+                                          <Phone size={12} className="text-ink-4 shrink-0" /> {ct.telefono}
                                         </a>
                                       )}
                                       {ct.direccion && (
-                                        <p className="flex items-start gap-2 text-xs text-gray-500">
-                                          <span className="shrink-0 mt-0.5 text-gray-400">📍</span> {ct.direccion}
+                                        <p className="flex items-start gap-2 text-xs text-ink-5">
+                                          <span className="shrink-0 mt-0.5 text-ink-4">📍</span> {ct.direccion}
                                         </p>
                                       )}
                                       {ct.website && (
                                         <a href={ct.website.startsWith('http') ? ct.website : `https://${ct.website}`} target="_blank" rel="noopener noreferrer"
                                           onClick={e => e.stopPropagation()}
-                                          className="flex items-center gap-2 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+                                          className="flex items-center gap-2 text-xs text-kap-600 hover:text-kap-700 transition-colors">
                                           <Globe size={12} className="shrink-0" /> {ct.website}
                                         </a>
                                       )}
@@ -1153,7 +1153,7 @@ export default function AdjudicadasPage() {
                                   )}
 
                                   {ct && !ct.ok && (
-                                    <p className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</p>
+                                    <p className="text-xs text-ink-4 italic">Sin datos de contacto disponibles</p>
                                   )}
 
                                   {/* Acción principal */}
@@ -1165,7 +1165,7 @@ export default function AdjudicadasPage() {
                                         </span>
                                         <button
                                           onClick={e => { e.stopPropagation(); navigate('/pipeline') }}
-                                          className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 font-semibold hover:bg-brand-100 transition-colors"
+                                          className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-kap-50 border border-kap-200 text-kap-700 font-semibold hover:bg-kap-100 transition-colors"
                                         >
                                           <Kanban size={12} /> Ver en pipeline
                                         </button>
@@ -1197,26 +1197,26 @@ export default function AdjudicadasPage() {
                                   {ct && ct.ok && ct.contactos.length > 0 && (
                                     <div className="space-y-2">
                                       {ct.contactos.map((c, i) => (
-                                        <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 space-y-2">
+                                        <div key={i} className="rounded-xl border border-ink-2 bg-ink-1 p-3.5 space-y-2">
                                           <div className="flex items-start gap-2.5">
-                                            <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                                              <UserIcon size={13} className="text-brand-600" />
+                                            <div className="w-7 h-7 rounded-full bg-kap-100 flex items-center justify-center shrink-0">
+                                              <UserIcon size={13} className="text-kap-600" />
                                             </div>
                                             <div>
-                                              <p className="text-sm font-semibold text-gray-900">{c.nombre || '—'}</p>
-                                              {c.cargo && <p className="text-xs text-gray-500">{c.cargo}</p>}
+                                              <p className="text-sm font-semibold text-ink-9">{c.nombre || '—'}</p>
+                                              {c.cargo && <p className="text-xs text-ink-5">{c.cargo}</p>}
                                             </div>
                                           </div>
                                           <div className="space-y-1 pl-9">
                                             {c.email && (
                                               <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()}
-                                                className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                                                className="flex items-center gap-1.5 text-xs text-kap-600 hover:text-kap-700 font-medium">
                                                 <Mail size={10} /> {c.email}
                                               </a>
                                             )}
                                             {c.telefono && (
                                               <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()}
-                                                className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900">
+                                                className="flex items-center gap-1.5 text-xs text-ink-6 hover:text-ink-9">
                                                 <Phone size={10} /> {c.telefono}
                                               </a>
                                             )}
@@ -1233,7 +1233,7 @@ export default function AdjudicadasPage() {
                                   )}
 
                                   {ct && ct.ok && ct.contactos.length === 0 && (
-                                    <p className="text-xs text-gray-400 italic py-1">
+                                    <p className="text-xs text-ink-4 italic py-1">
                                       Sin contactos encontrados para esta empresa
                                     </p>
                                   )}
@@ -1245,7 +1245,7 @@ export default function AdjudicadasPage() {
                                   )}
 
                                   {!ctLoading && !ct && (
-                                    <p className="text-xs text-gray-400 italic">Cargando…</p>
+                                    <p className="text-xs text-ink-4 italic">Cargando…</p>
                                   )}
                                 </div>
                                 )}
@@ -1267,9 +1267,9 @@ export default function AdjudicadasPage() {
       {/* Paginación — Adjudicadas */}
       {pestana === 'adjudicadas' && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
-          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
-          <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
-          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
+          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
+          <span className="text-sm text-ink-5">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
         </div>
       )}
 
@@ -1290,21 +1290,21 @@ export default function AdjudicadasPage() {
 
         return (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-wrap gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+            <div className="px-5 py-3 border-b border-ink-2 flex items-center justify-between bg-ink-1 flex-wrap gap-2">
+              <span className="text-sm font-semibold text-ink-7">
                 {totalResultados.toLocaleString('es-CL')} licitaciones por cerrar
                 {totalResultados > 50 && (
-                  <span className="ml-1 text-gray-400 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+                  <span className="ml-1 text-ink-4 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
                 )}
               </span>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <div className="flex items-center gap-1.5 text-[11px] text-ink-5">
                   <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> ≤3 días
                   <span className="w-2 h-2 rounded-full bg-amber-400 inline-block ml-1" /> ≤7 días
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block ml-1" /> &gt;7 días
                 </div>
                 <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending}
-                  className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40">
+                  className="text-xs text-ink-5 flex items-center gap-1 hover:text-ink-7 disabled:opacity-40">
                   <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
                 </button>
                 <button onClick={limpiar} className="text-xs text-red-400 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-100 hover:bg-red-50 transition-colors">
@@ -1315,7 +1315,7 @@ export default function AdjudicadasPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <tr className="text-left text-xs text-ink-5 border-b border-ink-2">
                     <th className="px-4 py-3 font-medium">Licitación</th>
                     <th className="px-4 py-3 font-medium">Cierra en</th>
                     <th className="px-4 py-3 font-medium">Monto estimado</th>
@@ -1325,7 +1325,7 @@ export default function AdjudicadasPage() {
                     <th className="px-4 py-3 font-medium"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-ink-2">
                   {items.map(item => {
                     const dias = diasRestantes(item.fecha_cierre)
                     const isExp = expandedId === item.codigo
@@ -1342,72 +1342,72 @@ export default function AdjudicadasPage() {
                                 target="_blank" rel="noopener noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 title="Ver esta licitación en el portal de Mercado Público"
-                                className="font-medium text-gray-900 line-clamp-2 leading-snug hover:text-blue-600 hover:underline transition-colors"
+                                className="font-medium text-ink-9 line-clamp-2 leading-snug hover:text-blue-600 hover:underline transition-colors"
                               >{item.nombre}</a>
                               <ExternalLink size={10} className="shrink-0 mt-0.5 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
-                            <div className="text-xs text-gray-400 font-mono mt-0.5">{item.codigo}</div>
+                            <div className="text-xs text-ink-4 font-mono mt-0.5">{item.codigo}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={clsx('inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border', badgeColor(dias))}>
                               <Calendar size={10} />
                               {dias <= 0 ? 'Hoy' : `${dias}d`}
                             </span>
-                            <div className="text-[10px] text-gray-400 mt-1">{item.fecha_cierre}</div>
+                            <div className="text-[10px] text-ink-4 mt-1">{item.fecha_cierre}</div>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
-                            {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-gray-400 text-xs">No indicado</span>}
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-ink-9">
+                            {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-ink-4 text-xs">No indicado</span>}
                           </td>
-                          <td className="px-4 py-3 text-gray-600 hidden md:table-cell text-xs line-clamp-1 max-w-[180px]">{item.organismo}</td>
-                          <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs">{item.region || '—'}</td>
+                          <td className="px-4 py-3 text-ink-6 hidden md:table-cell text-xs line-clamp-1 max-w-[180px]">{item.organismo}</td>
+                          <td className="px-4 py-3 text-ink-6 hidden lg:table-cell text-xs">{item.region || '—'}</td>
                           <td className="px-4 py-3">
                             {item.ofertantes_count > 0
                               ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700">
                                   <UserIcon size={10} /> {item.ofertantes_count}
                                 </span>
-                              : <span className="text-gray-300 text-xs">—</span>
+                              : <span className="text-ink-4 text-xs">—</span>
                             }
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {isExp ? <ChevronUp size={15} className="text-gray-400 ml-auto" /> : <ChevronDown size={15} className="text-gray-400 ml-auto" />}
+                            {isExp ? <ChevronUp size={15} className="text-ink-4 ml-auto" /> : <ChevronDown size={15} className="text-ink-4 ml-auto" />}
                           </td>
                         </tr>
                         {isExp && (
                           <tr key={`${item.codigo}-exp`}>
-                            <td colSpan={7} className="p-0 border-b border-gray-100">
+                            <td colSpan={7} className="p-0 border-b border-ink-2">
                               <div className="bg-white border-t-2 border-blue-100 px-6 py-5">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-ink-2 gap-6">
 
                                   {/* Col 1: Detalles licitación */}
                                   <div className="space-y-3 lg:pr-6">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-base">📋</span>
-                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Licitación</span>
+                                      <span className="text-xs font-bold text-ink-5 uppercase tracking-wider">Licitación</span>
                                     </div>
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Nombre completo</p>
-                                      <p className="text-sm text-gray-800 leading-snug">{item.nombre}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Nombre completo</p>
+                                      <p className="text-sm text-ink-8 leading-snug">{item.nombre}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Organismo</p>
-                                        <p className="text-xs text-gray-700 font-medium leading-snug">{item.organismo}</p>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Organismo</p>
+                                        <p className="text-xs text-ink-7 font-medium leading-snug">{item.organismo}</p>
                                       </div>
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Región</p>
-                                        <p className="text-xs text-gray-700 font-medium">{item.region || '—'}</p>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Región</p>
+                                        <p className="text-xs text-ink-7 font-medium">{item.region || '—'}</p>
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Fecha cierre</p>
-                                        <p className={clsx('text-sm font-semibold', diasRestantes(item.fecha_cierre) <= 3 ? 'text-red-600' : diasRestantes(item.fecha_cierre) <= 7 ? 'text-amber-600' : 'text-gray-700')}>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Fecha cierre</p>
+                                        <p className={clsx('text-sm font-semibold', diasRestantes(item.fecha_cierre) <= 3 ? 'text-red-600' : diasRestantes(item.fecha_cierre) <= 7 ? 'text-amber-600' : 'text-ink-7')}>
                                           {item.fecha_cierre}
                                         </p>
                                       </div>
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Monto estimado</p>
-                                        <p className="text-sm font-semibold text-gray-900">
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Monto estimado</p>
+                                        <p className="text-sm font-semibold text-ink-9">
                                           {item.monto_estimado ? formatCLP(item.monto_estimado) : '—'}
                                         </p>
                                       </div>
@@ -1416,7 +1416,7 @@ export default function AdjudicadasPage() {
                                       href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                       target="_blank" rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors mt-1"
+                                      className="inline-flex items-center gap-1.5 text-xs text-ink-5 hover:text-blue-600 transition-colors mt-1"
                                     >
                                       <ExternalLink size={11} /> Ver en Mercado Público
                                     </a>
@@ -1426,19 +1426,19 @@ export default function AdjudicadasPage() {
                                   <div className="space-y-3">
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-base">🏢</span>
-                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                      <span className="text-xs font-bold text-ink-5 uppercase tracking-wider">
                                         Empresas oferentes {item.ofertantes_count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">{item.ofertantes_count}</span>}
                                       </span>
                                     </div>
                                     {item.ofertantes.length === 0 ? (
-                                      <p className="text-xs text-gray-400 italic">Sin oferentes registrados aún</p>
+                                      <p className="text-xs text-ink-4 italic">Sin oferentes registrados aún</p>
                                     ) : (
                                       <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                                         {item.ofertantes.map((of, i) => (
-                                          <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                                          <div key={i} className="rounded-xl border border-ink-2 bg-ink-1 px-3.5 py-2.5 flex items-center justify-between gap-3">
                                             <div>
-                                              <p className="text-xs font-semibold text-gray-900 line-clamp-1">{of.nombre || '—'}</p>
-                                              {of.rut && <p className="text-[10px] text-gray-400 mt-0.5">RUT {of.rut}</p>}
+                                              <p className="text-xs font-semibold text-ink-9 line-clamp-1">{of.nombre || '—'}</p>
+                                              {of.rut && <p className="text-[10px] text-ink-4 mt-0.5">RUT {of.rut}</p>}
                                             </div>
                                             {of.monto_oferta != null && of.monto_oferta > 0 && (
                                               <span className="text-xs font-bold text-emerald-700 whitespace-nowrap shrink-0">
@@ -1469,9 +1469,9 @@ export default function AdjudicadasPage() {
       {/* Paginación — Por adjudicarse */}
       {pestana === 'por_adjudicarse' && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
-          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
-          <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
-          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
+          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
+          <span className="text-sm text-ink-5">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
         </div>
       )}
 
@@ -1486,20 +1486,20 @@ export default function AdjudicadasPage() {
         const items = (sortedResultados as unknown as PorAdjudicarsItem[])
         return (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
+            <div className="px-5 py-3 border-b border-ink-2 bg-ink-1 flex flex-col gap-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-semibold text-gray-700">
+                <span className="text-sm font-semibold text-ink-7">
                   {totalResultados.toLocaleString('es-CL')} licitaciones {ESTADO_LABEL[pestana] ?? pestana}
-                  {codigoBusqueda && <span className="ml-1 text-violet-600 font-normal">· filtrando por "{codigoBusqueda}"</span>}
+                  {codigoBusqueda && <span className="ml-1 text-kap-600 font-normal">· filtrando por "{codigoBusqueda}"</span>}
                   {totalResultados > 50 && (
-                    <span className="ml-1 text-gray-400 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+                    <span className="ml-1 text-ink-4 font-normal">· pág. {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
                   )}
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <select
                     value={sortOrder}
                     onChange={e => { setSortOrder(e.target.value as any); setSortMonto('none') }}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-violet-400 text-gray-600"
+                    className="text-xs border border-ink-3 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-kap-300 text-ink-6"
                   >
                     <option value="none">Ordenar por…</option>
                     <option value="fecha_desc">Más reciente</option>
@@ -1508,7 +1508,7 @@ export default function AdjudicadasPage() {
                     <option value="za">Nombre Z → A</option>
                   </select>
                   <button onClick={() => buscarMutation.mutate(paginaActual)} disabled={buscarMutation.isPending}
-                    className="text-xs text-gray-500 flex items-center gap-1 hover:text-gray-700 disabled:opacity-40">
+                    className="text-xs text-ink-5 flex items-center gap-1 hover:text-ink-7 disabled:opacity-40">
                     <RefreshCw size={11} className={buscarMutation.isPending ? 'animate-spin' : ''} /> Actualizar
                   </button>
                   <button onClick={limpiar} className="text-xs text-red-400 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-100 hover:bg-red-50 transition-colors">
@@ -1520,7 +1520,7 @@ export default function AdjudicadasPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <tr className="text-left text-xs text-ink-5 border-b border-ink-2">
                     <th className="px-4 py-3 font-medium">Licitación</th>
                     <th className="px-4 py-3 font-medium">Fecha cierre</th>
                     <th className="px-4 py-3 font-medium">Monto estimado</th>
@@ -1529,13 +1529,13 @@ export default function AdjudicadasPage() {
                     <th className="px-4 py-3 font-medium"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-ink-2">
                   {items.map(item => {
                     const isExp = expandedId === item.codigo
                     return (
                       <>
                         <tr key={item.codigo}
-                          className={clsx('group hover:bg-violet-50/60 cursor-pointer transition-all duration-150', isExp && 'bg-violet-50/40')}
+                          className={clsx('group hover:bg-kap-100/60 cursor-pointer transition-all duration-150', isExp && 'bg-kap-100/40')}
                           onClick={() => {
                             const nuevoId = expandedId === item.codigo ? null : item.codigo
                             setExpandedId(nuevoId)
@@ -1549,22 +1549,22 @@ export default function AdjudicadasPage() {
                                 target="_blank" rel="noopener noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 title="Ver esta licitación en el portal de Mercado Público"
-                                className="font-medium text-gray-900 line-clamp-2 leading-snug hover:text-violet-600 hover:underline transition-colors"
+                                className="font-medium text-ink-9 line-clamp-2 leading-snug hover:text-kap-600 hover:underline transition-colors"
                               >{item.nombre}</a>
-                              <ExternalLink size={10} className="shrink-0 mt-0.5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ExternalLink size={10} className="shrink-0 mt-0.5 text-kap-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
-                            <div className="text-xs text-gray-400 font-mono mt-0.5">{item.codigo}</div>
+                            <div className="text-xs text-ink-4 font-mono mt-0.5">{item.codigo}</div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-xs font-medium text-gray-700">{item.fecha_cierre || '—'}</span>
+                            <span className="text-xs font-medium text-ink-7">{item.fecha_cierre || '—'}</span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
-                            {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-gray-400 text-xs">No indicado</span>}
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-ink-9">
+                            {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-ink-4 text-xs">No indicado</span>}
                           </td>
-                          <td className="px-4 py-3 text-gray-600 hidden md:table-cell text-xs line-clamp-1 max-w-[180px]">{item.organismo}</td>
-                          <td className="px-4 py-3 text-gray-600 hidden lg:table-cell text-xs">{item.region || '—'}</td>
+                          <td className="px-4 py-3 text-ink-6 hidden md:table-cell text-xs line-clamp-1 max-w-[180px]">{item.organismo}</td>
+                          <td className="px-4 py-3 text-ink-6 hidden lg:table-cell text-xs">{item.region || '—'}</td>
                           <td className="px-4 py-3 text-right">
-                            {isExp ? <ChevronUp size={15} className="text-gray-400 ml-auto" /> : <ChevronDown size={15} className="text-gray-400 ml-auto" />}
+                            {isExp ? <ChevronUp size={15} className="text-ink-4 ml-auto" /> : <ChevronDown size={15} className="text-ink-4 ml-auto" />}
                           </td>
                         </tr>
                         {isExp && (() => {
@@ -1573,39 +1573,39 @@ export default function AdjudicadasPage() {
                           const ct = (ctData && ctData !== 'loading') ? ctData as ContactoData : null
                           return (
                           <tr key={`${item.codigo}-exp`}>
-                            <td colSpan={6} className="p-0 border-b border-gray-100">
-                              <div className="bg-white border-t-2 border-violet-100 px-6 py-5">
-                                <div className="grid grid-cols-1 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+                            <td colSpan={6} className="p-0 border-b border-ink-2">
+                              <div className="bg-white border-t-2 border-kap-300 px-6 py-5">
+                                <div className="grid grid-cols-1 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-ink-2">
 
                                   {/* Col 1: Detalles */}
                                   <div className="space-y-3 lg:pr-6 pb-5 lg:pb-0">
-                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-violet-200">
-                                      <span className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center text-sm">📋</span>
-                                      <span className="text-xs font-bold text-violet-700 uppercase tracking-wider">Licitación</span>
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-kap-300">
+                                      <span className="w-6 h-6 rounded-lg bg-kap-100 flex items-center justify-center text-sm">📋</span>
+                                      <span className="text-xs font-bold text-kap-600 uppercase tracking-wider">Licitación</span>
                                     </div>
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Código</p>
-                                      <p className="text-sm font-mono font-semibold text-gray-700">{item.codigo}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Código</p>
+                                      <p className="text-sm font-mono font-semibold text-ink-7">{item.codigo}</p>
                                     </div>
                                     <div>
-                                      <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Nombre</p>
-                                      <p className="text-sm text-gray-800 leading-snug font-medium">{item.nombre}</p>
+                                      <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Nombre</p>
+                                      <p className="text-sm text-ink-8 leading-snug font-medium">{item.nombre}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Organismo</p>
-                                        <p className="text-xs text-gray-700 font-medium leading-snug">{item.organismo || '—'}</p>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Organismo</p>
+                                        <p className="text-xs text-ink-7 font-medium leading-snug">{item.organismo || '—'}</p>
                                       </div>
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Región</p>
-                                        <p className="text-xs text-gray-700 font-medium">{item.region || '—'}</p>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Región</p>
+                                        <p className="text-xs text-ink-7 font-medium">{item.region || '—'}</p>
                                       </div>
                                     </div>
                                     <a
                                       href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                       target="_blank" rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors mt-1"
+                                      className="inline-flex items-center gap-1.5 text-xs text-ink-5 hover:text-kap-600 transition-colors mt-1"
                                     >
                                       <ExternalLink size={11} /> Ver en Mercado Público
                                     </a>
@@ -1613,19 +1613,19 @@ export default function AdjudicadasPage() {
 
                                   {/* Col 2: Plazos y montos */}
                                   <div className="space-y-3 lg:px-6 py-5 lg:py-0">
-                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-gray-200">
-                                      <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-sm">📊</span>
-                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Datos</span>
+                                    <div className="flex items-center gap-2 mb-1 pb-2 border-b-2 border-ink-3">
+                                      <span className="w-6 h-6 rounded-lg bg-ink-2 flex items-center justify-center text-sm">📊</span>
+                                      <span className="text-xs font-bold text-ink-5 uppercase tracking-wider">Datos</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Fecha cierre</p>
-                                        <p className="text-sm font-semibold text-gray-900">{item.fecha_cierre || '—'}</p>
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Fecha cierre</p>
+                                        <p className="text-sm font-semibold text-ink-9">{item.fecha_cierre || '—'}</p>
                                       </div>
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Monto estimado</p>
-                                        <p className="text-sm font-bold text-gray-900">
-                                          {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-gray-400 font-normal">No indicado</span>}
+                                        <p className="text-[10px] text-ink-4 uppercase font-medium mb-0.5">Monto estimado</p>
+                                        <p className="text-sm font-bold text-ink-9">
+                                          {item.monto_estimado ? formatCLP(item.monto_estimado) : <span className="text-ink-4 font-normal">No indicado</span>}
                                         </p>
                                       </div>
                                     </div>
@@ -1658,29 +1658,29 @@ export default function AdjudicadasPage() {
                                       </span>
                                     </div>
                                     {item.ofertantes.length === 0 ? (
-                                      <div className="flex flex-col gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3">
-                                        <p className="text-xs font-semibold text-gray-600">🔍 Ver en Mercado Público</p>
-                                        <p className="text-[11px] text-gray-500 leading-snug">La API pública no expone el cuadro de ofertas. Consúltalo directamente:</p>
+                                      <div className="flex flex-col gap-2 bg-ink-1 border border-ink-3 rounded-xl px-3.5 py-3">
+                                        <p className="text-xs font-semibold text-ink-6">🔍 Ver en Mercado Público</p>
+                                        <p className="text-[11px] text-ink-5 leading-snug">La API pública no expone el cuadro de ofertas. Consúltalo directamente:</p>
                                         <a
                                           href={`https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${item.codigo}`}
                                           target="_blank" rel="noopener noreferrer"
                                           onClick={e => e.stopPropagation()}
-                                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 underline"
+                                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-kap-600 hover:text-kap-700 underline"
                                         >
                                           <ExternalLink size={11} /> Cuadro de ofertas
                                         </a>
-                                        <div className="flex items-start gap-1.5 mt-1 pt-2 border-t border-gray-200">
-                                          <Bell size={10} className="text-violet-400 shrink-0 mt-0.5" />
-                                          <p className="text-[10px] text-gray-400 leading-snug">Cuando esta licitación pase a adjudicada recibirás una alerta en el dashboard.</p>
+                                        <div className="flex items-start gap-1.5 mt-1 pt-2 border-t border-ink-3">
+                                          <Bell size={10} className="text-kap-600 shrink-0 mt-0.5" />
+                                          <p className="text-[10px] text-ink-4 leading-snug">Cuando esta licitación pase a adjudicada recibirás una alerta en el dashboard.</p>
                                         </div>
                                       </div>
                                     ) : (
                                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                         {item.ofertantes.map((of, i) => (
-                                          <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                                          <div key={i} className="rounded-xl border border-ink-2 bg-ink-1 px-3.5 py-2.5 flex items-center justify-between gap-3">
                                             <div>
-                                              <p className="text-xs font-semibold text-gray-900 line-clamp-1">{of.nombre || '—'}</p>
-                                              {of.rut && <p className="text-[10px] text-gray-400 mt-0.5">RUT {of.rut}</p>}
+                                              <p className="text-xs font-semibold text-ink-9 line-clamp-1">{of.nombre || '—'}</p>
+                                              {of.rut && <p className="text-[10px] text-ink-4 mt-0.5">RUT {of.rut}</p>}
                                             </div>
                                             {of.monto_oferta != null && of.monto_oferta > 0 && (
                                               <span className="text-xs font-bold text-emerald-700 whitespace-nowrap shrink-0">
@@ -1701,7 +1701,7 @@ export default function AdjudicadasPage() {
                                     </div>
 
                                     {ctLoading && (
-                                      <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                                      <div className="flex items-center gap-2 text-xs text-ink-4 bg-ink-1 rounded-lg px-3 py-2">
                                         <Loader2 size={11} className="animate-spin" /> Buscando información…
                                       </div>
                                     )}
@@ -1710,37 +1710,37 @@ export default function AdjudicadasPage() {
                                       <div className="space-y-2">
                                         {ct.telefono && (
                                           <a href={`tel:${ct.telefono}`} onClick={e => e.stopPropagation()}
-                                            className="flex items-center gap-2 text-xs text-gray-800 hover:text-brand-700 font-medium transition-colors">
-                                            <Phone size={12} className="text-gray-400 shrink-0" /> {ct.telefono}
+                                            className="flex items-center gap-2 text-xs text-ink-8 hover:text-kap-700 font-medium transition-colors">
+                                            <Phone size={12} className="text-ink-4 shrink-0" /> {ct.telefono}
                                           </a>
                                         )}
                                         {ct.website && (
                                           <a href={ct.website.startsWith('http') ? ct.website : `https://${ct.website}`} target="_blank" rel="noopener noreferrer"
                                             onClick={e => e.stopPropagation()}
-                                            className="flex items-center gap-2 text-xs text-brand-600 hover:text-brand-700 transition-colors">
+                                            className="flex items-center gap-2 text-xs text-kap-600 hover:text-kap-700 transition-colors">
                                             <Globe size={12} className="shrink-0" /> {ct.website}
                                           </a>
                                         )}
                                         {ct.direccion && (
-                                          <p className="flex items-start gap-2 text-xs text-gray-500">
-                                            <span className="shrink-0 mt-0.5 text-gray-400">📍</span> {ct.direccion}
+                                          <p className="flex items-start gap-2 text-xs text-ink-5">
+                                            <span className="shrink-0 mt-0.5 text-ink-4">📍</span> {ct.direccion}
                                           </p>
                                         )}
                                         {ct.contactos && ct.contactos.length > 0 && (
-                                          <div className="space-y-2 pt-1 border-t border-gray-100">
+                                          <div className="space-y-2 pt-1 border-t border-ink-2">
                                             {ct.contactos.map((c, i) => (
-                                              <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
-                                                <p className="text-xs font-semibold text-gray-900">{c.nombre || '—'}</p>
-                                                {c.cargo && <p className="text-[11px] text-gray-500">{c.cargo}</p>}
+                                              <div key={i} className="rounded-xl border border-ink-2 bg-ink-1 p-3 space-y-1.5">
+                                                <p className="text-xs font-semibold text-ink-9">{c.nombre || '—'}</p>
+                                                {c.cargo && <p className="text-[11px] text-ink-5">{c.cargo}</p>}
                                                 {c.email && (
                                                   <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()}
-                                                    className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700">
+                                                    className="flex items-center gap-1.5 text-xs text-kap-600 hover:text-kap-700">
                                                     <Mail size={10} /> {c.email}
                                                   </a>
                                                 )}
                                                 {c.telefono && (
                                                   <a href={`tel:${c.telefono}`} onClick={e => e.stopPropagation()}
-                                                    className="flex items-center gap-1.5 text-xs text-gray-600">
+                                                    className="flex items-center gap-1.5 text-xs text-ink-6">
                                                     <Phone size={10} /> {c.telefono}
                                                   </a>
                                                 )}
@@ -1752,18 +1752,18 @@ export default function AdjudicadasPage() {
                                     )}
 
                                     {ct && !ct.ok && (
-                                      <p className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</p>
+                                      <p className="text-xs text-ink-4 italic">Sin datos de contacto disponibles</p>
                                     )}
 
                                     {!ctLoading && !ct && item.organismo && (
                                       <button
                                         onClick={e => { e.stopPropagation(); buscarContacto(item.codigo, item.organismo) }}
-                                        className="text-xs text-brand-600 hover:underline"
+                                        className="text-xs text-kap-600 hover:underline"
                                       >
                                         Buscar contacto
                                       </button>
                                     )}
-                                    <div className="pt-3 border-t border-gray-100 mt-2">
+                                    <div className="pt-3 border-t border-ink-2 mt-2">
                                       <button
                                         onClick={e => { e.stopPropagation(); guardarMutation.mutate(item.codigo) }}
                                         disabled={savingCodigo === item.codigo}
@@ -1795,17 +1795,17 @@ export default function AdjudicadasPage() {
       {/* Paginación — Estados históricos */}
       {(['cerrada', 'desierta', 'revocada', 'suspendida'] as Pestana[]).includes(pestana) && resultados.length > 0 && totalResultados > 50 && (
         <div className="flex items-center justify-between px-1">
-          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
-          <span className="text-sm text-gray-500">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
-          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
+          <button disabled={paginaActual <= 1 || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual - 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Anterior</button>
+          <span className="text-sm text-ink-5">Página {paginaActual} de {Math.ceil(totalResultados / 50)}</span>
+          <button disabled={paginaActual >= Math.ceil(totalResultados / 50) || buscarMutation.isPending} onClick={() => buscarMutation.mutate(paginaActual + 1)} className="px-4 py-2 text-sm rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Siguiente →</button>
         </div>
       )}
 
       {/* Empty state */}
       {resultados.length === 0 && !buscarMutation.isPending && (
-        <div className="card p-8 text-center text-gray-400">
+        <div className="card p-8 text-center text-ink-4">
           {pestana === 'por_adjudicarse'
-            ? <><Calendar size={32} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Presiona <strong>Buscar</strong> para ver licitaciones próximas a cerrar.<br/><span className="text-xs text-gray-400">Los datos se sincronizan automáticamente cada noche.</span></p></>
+            ? <><Calendar size={32} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Presiona <strong>Buscar</strong> para ver licitaciones próximas a cerrar.<br/><span className="text-xs text-ink-4">Los datos se sincronizan automáticamente cada noche.</span></p></>
             : pestana === 'adjudicadas'
               ? <><Trophy size={32} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Configura los filtros y busca para ver empresas adjudicadas.</p></>
               : <><Search size={32} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Configura los filtros y presiona <strong>Buscar</strong> para ver resultados.</p></>
@@ -1817,18 +1817,18 @@ export default function AdjudicadasPage() {
       {mostrarConfig && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+            <div className="flex items-center justify-between p-5 border-b border-ink-2">
+              <h2 className="font-bold text-ink-9 flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-500" /> Configurar módulo Mercado Público
               </h2>
-              <button onClick={() => setMostrarConfig(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setMostrarConfig(false)} className="text-ink-4 hover:text-ink-6">
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">¿Qué ofreces a tus clientes?</label>
-                <p className="text-xs text-gray-400 mb-2">Sonnet usará esto cada vez que generes una propuesta.</p>
+                <label className="block text-sm font-semibold text-ink-7 mb-1">¿Qué ofreces a tus clientes?</label>
+                <p className="text-xs text-ink-4 mb-2">Sonnet usará esto cada vez que generes una propuesta.</p>
                 <textarea
                   rows={5}
                   placeholder="Ej: Ofrezco seguros de garantía para licitaciones (seriedad 1% y cumplimiento 5%)..."
@@ -1855,14 +1855,14 @@ export default function AdjudicadasPage() {
       {modalPropuesta && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between p-5 border-b border-ink-2">
               <div>
-                <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <h2 className="font-bold text-ink-9 flex items-center gap-2">
                   <Sparkles size={18} className="text-amber-500" /> Dame una propuesta
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">{modalPropuesta.empresa} · {modalPropuesta.proyecto}</p>
+                <p className="text-xs text-ink-5 mt-0.5">{modalPropuesta.empresa} · {modalPropuesta.proyecto}</p>
               </div>
-              <button onClick={() => setModalPropuesta(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setModalPropuesta(null)} className="text-ink-4 hover:text-ink-6">
                 <X size={20} />
               </button>
             </div>
@@ -1878,7 +1878,7 @@ export default function AdjudicadasPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2">Formato</label>
+                <label className="block text-xs font-semibold text-ink-6 mb-2">Formato</label>
                 <div className="flex gap-2">
                   {(['whatsapp', 'email', 'presupuesto'] as const).map(f => (
                     <button
@@ -1886,7 +1886,7 @@ export default function AdjudicadasPage() {
                       onClick={() => setFormatoPropuesta(f)}
                       className={clsx(
                         'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
-                        formatoPropuesta === f ? 'bg-brand-500 text-white border-brand-500' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        formatoPropuesta === f ? 'bg-kap-500 text-white border-kap-500' : 'border-ink-3 text-ink-6 hover:bg-ink-1'
                       )}
                     >
                       {f === 'whatsapp' ? '💬 WhatsApp' : f === 'email' ? '✉️ Email' : '📄 Presupuesto'}
@@ -1912,7 +1912,7 @@ export default function AdjudicadasPage() {
                       className="text-xs text-amber-600 hover:underline"
                     >Copiar</button>
                   </div>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{propuestaGenerada}</p>
+                  <p className="text-sm text-ink-8 whitespace-pre-wrap leading-relaxed">{propuestaGenerada}</p>
                 </div>
               )}
             </div>

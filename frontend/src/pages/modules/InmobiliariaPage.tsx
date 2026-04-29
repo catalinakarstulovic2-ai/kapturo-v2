@@ -26,8 +26,8 @@ function parseScoreReason(raw?: string): { razon: string; tipo?: string; accion?
 const ACCION_LABELS: Record<string, { label: string; color: string }> = {
   contactar_hoy:          { label: '⚡ Contactar hoy',         color: 'bg-emerald-100 text-emerald-700' },
   nutrir_contenido:       { label: '📩 Nutrir con contenido',  color: 'bg-sky-100 text-sky-700' },
-  invitar_programa_referidos: { label: '🤝 Invitar a referidos', color: 'bg-violet-100 text-violet-700' },
-  descartar:              { label: '🗑 Descartar',             color: 'bg-gray-100 text-gray-500' },
+  invitar_programa_referidos: { label: '🤝 Invitar a referidos', color: 'bg-kap-100 text-kap-600' },
+  descartar:              { label: '🗑 Descartar',             color: 'bg-ink-2 text-ink-5' },
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -232,19 +232,19 @@ export default function InmobiliariaPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
-            <Home size={20} className="text-brand-600" />
+          <div className="w-10 h-10 bg-kap-100 rounded-xl flex items-center justify-center">
+            <Home size={20} className="text-kap-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Inmobiliaria</h1>
-            <p className="text-gray-500 text-sm">Leads · LinkedIn · Instagram · Facebook · YouTube</p>
+            <h1 className="text-2xl font-bold text-ink-9">Inmobiliaria</h1>
+            <p className="text-ink-5 text-sm">Leads · LinkedIn · Instagram · Facebook · YouTube</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setVista('lista')}
             className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              vista === 'lista' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              vista === 'lista' ? 'bg-kap-500 text-white' : 'bg-ink-2 text-ink-6 hover:bg-ink-2'
             )}
           >
             Prospectos
@@ -252,7 +252,7 @@ export default function InmobiliariaPage() {
           <button
             onClick={() => { setVista('papelera'); refetchPapelera() }}
             className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              vista === 'papelera' ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              vista === 'papelera' ? 'bg-ink-8 text-white' : 'bg-ink-2 text-ink-6 hover:bg-ink-2'
             )}
           >
             Recuperar leads
@@ -279,16 +279,16 @@ export default function InmobiliariaPage() {
       {/* ── Vista Recuperar leads ── */}
       {vista === 'papelera' && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-            <p className="text-sm font-semibold text-gray-700">
+          <div className="px-5 py-3 border-b border-ink-2 bg-ink-1">
+            <p className="text-sm font-semibold text-ink-7">
               {descartados.length === 0 ? 'Sin leads descartados' : `${descartados.length} lead${descartados.length !== 1 ? 's' : ''} descartado${descartados.length !== 1 ? 's' : ''}`}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">Estos leads fueron descartados. Puedes recuperarlos y volverán a la lista principal.</p>
+            <p className="text-xs text-ink-4 mt-0.5">Estos leads fueron descartados. Puedes recuperarlos y volverán a la lista principal.</p>
           </div>
           {descartados.length === 0 ? (
-            <div className="p-12 text-center text-gray-400 text-sm">No hay leads descartados.</div>
+            <div className="p-12 text-center text-ink-4 text-sm">No hay leads descartados.</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-ink-2">
               {descartados.map(p => {
                 const fuente = (p as any).fuente_inmobiliaria as string | undefined
                 return (
@@ -296,17 +296,17 @@ export default function InmobiliariaPage() {
                     <ScoreBadge score={p.score} />
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-500">{p.contact_name || p.company_name || 'Sin nombre'}</span>
+                        <span className="font-semibold text-ink-5">{p.contact_name || p.company_name || 'Sin nombre'}</span>
                         <FuenteBadge source={fuente} />
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-3 text-xs text-ink-4">
                         {p.contact_title && <span>{p.contact_title}</span>}
                         {p.company_name && p.contact_name && <span>{p.company_name}</span>}
                         {(p.city || p.country) && <span>{[p.city, p.country].filter(Boolean).join(', ')}</span>}
                       </div>
                     </div>
                     <button
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-600 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-ink-2 text-ink-6 hover:bg-kap-50 hover:text-kap-600 transition-colors"
                       onClick={() => restaurar(p.id)}
                       disabled={restaurarLoading[p.id]}
                     >
@@ -325,15 +325,15 @@ export default function InmobiliariaPage() {
       {vista === 'lista' && allProspects.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Encontrados',   value: allProspects.length, color: 'text-gray-700',    bg: 'bg-gray-50',     icon: <Users size={16} /> },
+            { label: 'Encontrados',   value: allProspects.length, color: 'text-ink-7',    bg: 'bg-ink-1',     icon: <Users size={16} /> },
             { label: 'Calificados',   value: calificados,          color: 'text-emerald-600', bg: 'bg-emerald-50',  icon: <UserCheck size={16} /> },
-            { label: 'Con contacto',  value: conContacto,          color: 'text-brand-600',   bg: 'bg-brand-50',    icon: <MessageCircle size={16} /> },
-            { label: 'Sin contacto',  value: sinContacto,          color: 'text-gray-400',    bg: 'bg-gray-50',     icon: <UserX size={16} /> },
+            { label: 'Con contacto',  value: conContacto,          color: 'text-kap-600',   bg: 'bg-kap-50',    icon: <MessageCircle size={16} /> },
+            { label: 'Sin contacto',  value: sinContacto,          color: 'text-ink-4',    bg: 'bg-ink-1',     icon: <UserX size={16} /> },
           ].map(s => (
             <div key={s.label} className={`card p-4 text-center ${s.bg}`}>
               <div className={`flex justify-center mb-1 ${s.color} opacity-60`}>{s.icon}</div>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+              <p className="text-xs text-ink-5 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -342,7 +342,7 @@ export default function InmobiliariaPage() {
       {/* ── Filtros ── */}
       {vista === 'lista' && allProspects.length > 0 && (
         <div className="card p-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-1">Filtrar:</span>
+          <span className="text-xs font-semibold text-ink-4 uppercase tracking-wide mr-1">Filtrar:</span>
           {([
             { id: 'todos',         label: 'Todos',          icon: <Home size={11} /> },
             { id: 'calificados',   label: 'Calificados',    icon: <Star size={11} /> },
@@ -354,17 +354,17 @@ export default function InmobiliariaPage() {
               onClick={() => setFiltroCalidad(f.id)}
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                filtroCalidad === f.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                filtroCalidad === f.id ? 'bg-kap-500 text-white' : 'bg-ink-2 text-ink-6 hover:bg-ink-2'
               )}
             >
               {f.icon}{f.label}
             </button>
           ))}
-          <label className="flex items-center gap-1.5 ml-2 cursor-pointer text-xs text-gray-600">
+          <label className="flex items-center gap-1.5 ml-2 cursor-pointer text-xs text-ink-6">
             <input type="checkbox" checked={soloCalificados} onChange={e => setSoloCalificados(e.target.checked)} className="rounded" />
             Solo calificados (≥65)
           </label>
-          <button onClick={() => refetch()} className="ml-auto text-gray-400 hover:text-gray-600">
+          <button onClick={() => refetch()} className="ml-auto text-ink-4 hover:text-ink-6">
             <RefreshCw size={13} />
           </button>
         </div>
@@ -373,10 +373,10 @@ export default function InmobiliariaPage() {
       {/* ── Vacío ── */}
       {vista === 'lista' && !isLoading && allProspects.length === 0 && !buscarMutation.isPending && !estadoBusqueda?.buscando && (
         <div className="card p-16 text-center space-y-4">
-          <Home size={48} className="mx-auto text-gray-200" />
+          <Home size={48} className="mx-auto text-ink-3" />
           <div>
-            <p className="font-semibold text-gray-500">Sin leads todavía</p>
-            <p className="text-sm text-gray-400 mt-1">Los leads aparecen aquí automáticamente cada noche.<br />También puedes hacer clic en <strong>"Buscar ahora"</strong> para lanzar una búsqueda manual.</p>
+            <p className="font-semibold text-ink-5">Sin leads todavía</p>
+            <p className="text-sm text-ink-4 mt-1">Los leads aparecen aquí automáticamente cada noche.<br />También puedes hacer clic en <strong>"Buscar ahora"</strong> para lanzar una búsqueda manual.</p>
           </div>
         </div>
       )}
@@ -384,20 +384,20 @@ export default function InmobiliariaPage() {
       {/* ── Loading ── */}
       {vista === 'lista' && (buscarMutation.isPending || !!jobId || estadoBusqueda?.buscando) && allProspects.length === 0 && (
         <div className="card overflow-hidden">
-          <div className="bg-gradient-to-br from-brand-50 to-violet-50 px-8 py-12 text-center space-y-6">
+          <div className="bg-gradient-to-br from-kap-100 to-kap-50 px-8 py-12 text-center space-y-6">
             {/* Ícono animado */}
             <div className="relative inline-flex">
               <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-                <Search size={28} className="text-brand-500" />
+                <Search size={28} className="text-kap-500" />
               </div>
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-kap-500 rounded-full flex items-center justify-center">
                 <Loader2 size={11} className="text-white animate-spin" />
               </span>
             </div>
 
             <div className="space-y-1">
-              <p className="text-lg font-semibold text-gray-800">Buscando personas interesadas...</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-lg font-semibold text-ink-8">Buscando personas interesadas...</p>
+              <p className="text-sm text-ink-5">
                 Esto puede tardar 1-3 minutos. Puedes seguir navegando.
               </p>
             </div>
@@ -405,7 +405,7 @@ export default function InmobiliariaPage() {
             {/* Fuentes */}
             <div className="flex flex-wrap justify-center gap-2">
               {['Instagram', 'TikTok', 'Facebook', 'YouTube', 'Meta Ads', 'LinkedIn'].map(f => (
-                <span key={f} className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-600 shadow-sm border border-gray-100">
+                <span key={f} className="px-3 py-1 bg-white rounded-full text-xs font-medium text-ink-6 shadow-sm border border-ink-2">
                   {f}
                 </span>
               ))}
@@ -416,11 +416,11 @@ export default function InmobiliariaPage() {
               <div className="max-w-xs mx-auto space-y-1.5">
                 <div className="w-full bg-white/70 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className="bg-brand-500 h-1.5 rounded-full transition-all duration-1000"
+                    className="bg-kap-500 h-1.5 rounded-full transition-all duration-1000"
                     style={{ width: `${Math.min((searchSeconds / 120) * 100, 90)}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-400">{searchSeconds}s — en proceso</p>
+                <p className="text-xs text-ink-4">{searchSeconds}s — en proceso</p>
               </div>
             )}
           </div>
@@ -431,24 +431,24 @@ export default function InmobiliariaPage() {
       {vista === 'lista' && prospects.length > 0 && (
         <div className="card overflow-hidden">
           {/* Cabecera tabla */}
-          <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="px-5 py-3 border-b border-ink-2 bg-ink-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-ink-7">
                 {prospects.length} prospecto{prospects.length !== 1 ? 's' : ''}
                 {buscarMutation.isPending && (
-                  <span className="ml-2 text-brand-500 inline-flex items-center gap-1 font-normal text-xs">
+                  <span className="ml-2 text-kap-500 inline-flex items-center gap-1 font-normal text-xs">
                     <Loader2 size={10} className="animate-spin" /> actualizando...
                   </span>
                 )}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Haz click en un prospecto para ver su email, teléfono y LinkedIn. Usa <strong className="text-gray-500">Descartar</strong> para los que no te interesan — los podrás recuperar después.
+            <p className="text-xs text-ink-4 mt-1">
+              Haz click en un prospecto para ver su email, teléfono y LinkedIn. Usa <strong className="text-ink-5">Descartar</strong> para los que no te interesan — los podrás recuperar después.
             </p>
           </div>
 
           {/* Filas */}
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-ink-2">
             {prospects.map(p => {
               const fuente = (p as any).fuente_inmobiliaria as string | undefined
               const isExpanded = expandedId === p.id
@@ -457,7 +457,7 @@ export default function InmobiliariaPage() {
               const accionMeta = accion ? ACCION_LABELS[accion] : null
 
               return (
-                <div key={p.id} className={clsx('transition-colors', isExpanded ? 'bg-brand-50/40' : 'hover:bg-gray-50/60')}>
+                <div key={p.id} className={clsx('transition-colors', isExpanded ? 'bg-kap-50/40' : 'hover:bg-ink-1/60')}>
 
                   {/* Fila — click para expandir */}
                   <div
@@ -469,7 +469,7 @@ export default function InmobiliariaPage() {
                     <div className="min-w-0 space-y-1">
                       {/* Nombre + origen + acción */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-ink-9">
                           {p.contact_name || p.company_name || 'Sin nombre'}
                         </span>
                         <FuenteBadge source={fuente} />
@@ -480,14 +480,14 @@ export default function InmobiliariaPage() {
                         )}
                       </div>
                       {/* Cargo · Empresa · Industria · Ubicación */}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
-                        {p.contact_title && <span className="text-gray-700 font-medium">{p.contact_title}</span>}
-                        {p.contact_title && p.company_name && <span className="text-gray-300">·</span>}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-5">
+                        {p.contact_title && <span className="text-ink-7 font-medium">{p.contact_title}</span>}
+                        {p.contact_title && p.company_name && <span className="text-ink-4">·</span>}
                         {p.company_name && <span>{p.company_name}</span>}
-                        {p.industry && p.industry !== 'social_media' && <><span className="text-gray-300">·</span><span>{p.industry}</span></>}
+                        {p.industry && p.industry !== 'social_media' && <><span className="text-ink-4">·</span><span>{p.industry}</span></>}
                         {(p.city || p.country) && (
                           <span className="flex items-center gap-0.5">
-                            <span className="text-gray-300">·</span>
+                            <span className="text-ink-4">·</span>
                             <MapPin size={10} />
                             {[p.city, p.country].filter(Boolean).join(', ')}
                           </span>
@@ -495,7 +495,7 @@ export default function InmobiliariaPage() {
                       </div>
                       {/* Comentario visible sin expandir */}
                       {p.signal_text && (
-                        <div className="text-xs text-gray-500 italic truncate max-w-xl">
+                        <div className="text-xs text-ink-5 italic truncate max-w-xl">
                           💬 "{p.signal_text.slice(0, 120)}{p.signal_text.length > 120 ? '…' : ''}"
                         </div>
                       )}
@@ -504,14 +504,14 @@ export default function InmobiliariaPage() {
                     {/* Chevron + Descartar */}
                     <div className="flex items-center gap-3 shrink-0" onClick={e => e.stopPropagation()}>
                       <button
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-ink-4 hover:text-red-500 hover:bg-red-50 transition-colors"
                         onClick={() => excluir(p.id)}
                         disabled={excluidoLoading[p.id]}
                       >
                         {excluidoLoading[p.id] ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
                         Descartar
                       </button>
-                      <span className="text-gray-300" onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : p.id) }}>
+                      <span className="text-ink-4" onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : p.id) }}>
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </span>
                     </div>
@@ -519,16 +519,16 @@ export default function InmobiliariaPage() {
 
                   {/* Panel expandido — contacto + razón del score + pipeline */}
                   {isExpanded && (
-                    <div className="pl-[4.5rem] pr-5 pb-4 pt-2 border-t border-gray-100 space-y-3">
+                    <div className="pl-[4.5rem] pr-5 pb-4 pt-2 border-t border-ink-2 space-y-3">
                       {/* Contacto */}
                       <div className="flex flex-wrap gap-x-5 gap-y-2">
                         {p.email && (
-                          <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-xs text-brand-600 hover:underline font-medium">
+                          <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-xs text-kap-600 hover:underline font-medium">
                             <Mail size={12} />{p.email}
                           </a>
                         )}
                         {p.phone && (
-                          <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <span className="flex items-center gap-1.5 text-xs text-ink-6">
                             <Phone size={12} />{p.phone}
                           </span>
                         )}
@@ -550,24 +550,24 @@ export default function InmobiliariaPage() {
                         )}
                         {p.source_url && (
                           <a href={p.source_url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-xs text-violet-600 hover:underline font-medium">
+                            className="flex items-center gap-1.5 text-xs text-kap-600 hover:underline font-medium">
                             <ExternalLink size={12} /> Ver publicación original
                           </a>
                         )}
                         {!p.email && !p.phone && !p.linkedin_url && !p.source_url && (
-                          <span className="text-xs text-gray-400 italic">Sin datos de contacto disponibles</span>
+                          <span className="text-xs text-ink-4 italic">Sin datos de contacto disponibles</span>
                         )}
                       </div>
                       {/* Comentario que escribió — señal de intención */}
                       {(p.signal_text || p.notes) && (
-                        <div className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
+                        <div className="text-xs text-ink-6 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
                           <span className="font-medium text-amber-700 block mb-1">💬 Lo que dijo:</span>
                           "{(p.signal_text || p.notes || '').slice(0, 250)}{(p.signal_text || p.notes || '').length > 250 ? '…' : ''}"
                         </div>
                       )}
                       {/* Razón del score */}
                       {razon && (
-                        <div className="flex items-start gap-1.5 text-xs text-gray-400 italic">
+                        <div className="flex items-start gap-1.5 text-xs text-ink-4 italic">
                           <Star size={11} className="text-amber-400 mt-0.5 shrink-0" />
                           <span>{razon}</span>
                         </div>
@@ -575,7 +575,7 @@ export default function InmobiliariaPage() {
                       {/* Botón pipeline */}
                       {!p.in_pipeline ? (
                         <button
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-kap-50 text-kap-600 hover:bg-kap-100 transition-colors"
                           onClick={() => agregarPipeline(p.id)}
                           disabled={pipelineLoading[p.id]}
                         >

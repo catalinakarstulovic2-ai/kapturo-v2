@@ -52,11 +52,11 @@ export default function BugReportButton({ externalOpen, onClose }: Props) {
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <h3 className="font-semibold text-ink-8 flex items-center gap-2">
                 <MessageSquareWarning size={16} className="text-red-500" />
                 Reportar problema
               </h3>
-              <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+              <button onClick={handleClose} className="text-ink-4 hover:text-ink-6">
                 <X size={18} />
               </button>
             </div>
@@ -66,14 +66,14 @@ export default function BugReportButton({ externalOpen, onClose }: Props) {
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Describe el problema que encontraste..."
               rows={4}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="w-full border border-ink-3 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
 
             {/* Adjuntar imagen */}
             <div className="mt-3 flex items-center gap-3">
               <button
                 onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-purple-600 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-ink-5 hover:text-purple-600 transition-colors"
               >
                 <Paperclip size={13} />
                 {file ? file.name : 'Adjuntar captura (opcional)'}
@@ -95,7 +95,7 @@ export default function BugReportButton({ externalOpen, onClose }: Props) {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={handleClose}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
+                className="px-4 py-2 text-sm text-ink-5 hover:text-ink-7"
               >
                 Cancelar
               </button>

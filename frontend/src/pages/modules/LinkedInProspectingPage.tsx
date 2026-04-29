@@ -213,8 +213,8 @@ export default function LinkedInProspectingPage() {
             <Linkedin size={20} className="text-[#0A66C2]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">LinkedIn Prospecting</h1>
-            <p className="text-gray-500 text-sm">CEOs · Founders · Profesionales LATAM con capital para invertir en Florida</p>
+            <h1 className="text-2xl font-bold text-ink-9">LinkedIn Prospecting</h1>
+            <p className="text-ink-5 text-sm">CEOs · Founders · Profesionales LATAM con capital para invertir en Florida</p>
           </div>
         </div>
         {isAdmin && (
@@ -239,14 +239,14 @@ export default function LinkedInProspectingPage() {
       {liLeads.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Leads encontrados', value: liLeads.length,  icon: <Users size={16} />,     color: 'text-gray-700',    bg: 'bg-gray-50' },
+            { label: 'Leads encontrados', value: liLeads.length,  icon: <Users size={16} />,     color: 'text-ink-7',    bg: 'bg-ink-1' },
             { label: 'Calificados',        value: calificados,      icon: <UserCheck size={16} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Con contacto',       value: conContacto,      icon: <TrendingUp size={16} />, color: 'text-[#0A66C2]', bg: 'bg-blue-50' },
           ].map(s => (
             <div key={s.label} className={`card p-4 text-center ${s.bg}`}>
               <div className={`flex justify-center mb-1 ${s.color} opacity-60`}>{s.icon}</div>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+              <p className="text-xs text-ink-5 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -256,15 +256,15 @@ export default function LinkedInProspectingPage() {
       {liLeads.length > 0 && (
         <div className="card overflow-hidden">
           {/* Encabezado */}
-          <div className="px-5 py-3 border-b border-gray-100 bg-[#0A66C2]/5 flex items-center justify-between">
+          <div className="px-5 py-3 border-b border-ink-2 bg-[#0A66C2]/5 flex items-center justify-between">
             <p className="text-sm font-semibold text-[#0A66C2]">
               {liLeads.length} lead{liLeads.length !== 1 ? 's' : ''} encontrados
-              <span className="ml-2 text-xs font-normal text-gray-400">· ordenados por score IA</span>
+              <span className="ml-2 text-xs font-normal text-ink-4">· ordenados por score IA</span>
             </p>
           </div>
 
           {/* Cabecera de columnas */}
-          <div className="hidden sm:grid grid-cols-[2fr_2.5fr_1.5fr_1fr_80px] gap-x-4 px-5 py-2 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="hidden sm:grid grid-cols-[2fr_2.5fr_1.5fr_1fr_80px] gap-x-4 px-5 py-2 bg-ink-1 border-b border-ink-2 text-[11px] font-semibold uppercase tracking-wide text-ink-4">
             <span>Nombre</span>
             <span>Email</span>
             <span>Teléfono</span>
@@ -273,9 +273,9 @@ export default function LinkedInProspectingPage() {
           </div>
 
           {/* Filas */}
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-ink-2">
             {liLeads.map(p => (
-                <div key={p.id} className="px-5 py-4 hover:bg-gray-50/60 transition-colors">
+                <div key={p.id} className="px-5 py-4 hover:bg-ink-1/60 transition-colors">
 
                   {/* Fila principal — columnas de contacto */}
                   <div className="grid grid-cols-1 sm:grid-cols-[2fr_2.5fr_1.5fr_1fr_80px] gap-x-4 gap-y-2 items-center">
@@ -286,7 +286,7 @@ export default function LinkedInProspectingPage() {
                         {(p.contact_name || '?')[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
+                        <p className="text-sm font-semibold text-ink-9 truncate leading-tight">
                           {p.contact_name || 'Sin nombre'}
                         </p>
                         {p.is_qualified && (
@@ -309,7 +309,7 @@ export default function LinkedInProspectingPage() {
                           <Copy size={9} className="flex-shrink-0 opacity-40" />
                         </button>
                       ) : (
-                        <span className="text-xs text-gray-300 italic">—</span>
+                        <span className="text-xs text-ink-4 italic">—</span>
                       )}
                     </div>
 
@@ -325,7 +325,7 @@ export default function LinkedInProspectingPage() {
                           <Copy size={9} className="flex-shrink-0 opacity-40" />
                         </button>
                       ) : (
-                        <span className="text-xs text-gray-300 italic">—</span>
+                        <span className="text-xs text-ink-4 italic">—</span>
                       )}
                     </div>
 
@@ -343,7 +343,7 @@ export default function LinkedInProspectingPage() {
                           <ExternalLink size={9} className="opacity-60" />
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-300 italic">—</span>
+                        <span className="text-xs text-ink-4 italic">—</span>
                       )}
                     </div>
 
@@ -353,7 +353,7 @@ export default function LinkedInProspectingPage() {
                       {p.email ? (
                         <button
                           onClick={() => abrirModalEmail(p)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-kap-600 text-white text-xs font-semibold hover:bg-kap-700 transition-colors shadow-sm"
                         >
                           <Mail size={11} />
                           Email IA
@@ -375,23 +375,23 @@ export default function LinkedInProspectingPage() {
 
                   {/* Fila de enriquecimiento */}
                   {(p.contact_title || p.company_name || p.city || p.country) && (
-                    <div className="mt-2 ml-10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <div className="mt-2 ml-10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-5">
                       {p.contact_title && (
                         <span className="flex items-center gap-1">
-                          <Briefcase size={11} className="text-gray-300" />
+                          <Briefcase size={11} className="text-ink-4" />
                           {p.contact_title}
                         </span>
                       )}
                       {p.company_name && (
                         <span className="flex items-center gap-1">
-                          <Building2 size={11} className="text-gray-300" />
+                          <Building2 size={11} className="text-ink-4" />
                           {p.company_name}
-                          {p.industry && <span className="text-gray-400"> · {p.industry}</span>}
+                          {p.industry && <span className="text-ink-4"> · {p.industry}</span>}
                         </span>
                       )}
                       {(p.city || p.country) && (
                         <span className="flex items-center gap-1">
-                          <MapPin size={11} className="text-gray-300" />
+                          <MapPin size={11} className="text-ink-4" />
                           {[p.city, p.country].filter(Boolean).join(', ')}
                         </span>
                       )}
@@ -408,54 +408,54 @@ export default function LinkedInProspectingPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !emailModal.sending && setEmailModal(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ink-2">
               <div>
-                <p className="text-sm font-bold text-gray-900">Redactar email — {emailModal.prospect.contact_name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Para: {emailModal.prospect.email}</p>
+                <p className="text-sm font-bold text-ink-9">Redactar email — {emailModal.prospect.contact_name}</p>
+                <p className="text-xs text-ink-4 mt-0.5">Para: {emailModal.prospect.email}</p>
               </div>
-              <button onClick={() => !emailModal.sending && setEmailModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => !emailModal.sending && setEmailModal(null)} className="text-ink-4 hover:text-ink-6">
                 <X size={18} />
               </button>
             </div>
 
             {emailModal.loading ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Loader2 size={28} className="animate-spin text-indigo-500" />
-                <p className="text-sm text-gray-500">Generando borrador con IA...</p>
+                <Loader2 size={28} className="animate-spin text-kap-500" />
+                <p className="text-sm text-ink-5">Generando borrador con IA...</p>
               </div>
             ) : (
               <div className="px-6 py-5 space-y-4">
                 {/* Asunto */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Asunto</label>
+                  <label className="text-xs font-semibold text-ink-5 uppercase tracking-wide">Asunto</label>
                   <input
-                    className="mt-1.5 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="mt-1.5 w-full border border-ink-3 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kap-300"
                     value={emailModal.asunto}
                     onChange={e => setEmailModal(prev => prev ? { ...prev, asunto: e.target.value } : null)}
                   />
                 </div>
                 {/* Cuerpo */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Mensaje</label>
+                  <label className="text-xs font-semibold text-ink-5 uppercase tracking-wide">Mensaje</label>
                   <textarea
                     rows={10}
-                    className="mt-1.5 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none leading-relaxed"
+                    className="mt-1.5 w-full border border-ink-3 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kap-300 resize-none leading-relaxed"
                     value={emailModal.cuerpo}
                     onChange={e => setEmailModal(prev => prev ? { ...prev, cuerpo: e.target.value } : null)}
                   />
                 </div>
                 {/* Acciones */}
                 <div className="flex items-center justify-between pt-2">
-                  <p className="text-xs text-gray-400 flex items-center gap-1"><Pencil size={11} /> Puedes editar el borrador antes de enviar</p>
+                  <p className="text-xs text-ink-4 flex items-center gap-1"><Pencil size={11} /> Puedes editar el borrador antes de enviar</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEmailModal(null)}
-                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                      className="px-4 py-2 text-sm text-ink-5 hover:text-ink-7 transition-colors"
                     >Cancelar</button>
                     <button
                       onClick={enviarEmail}
                       disabled={emailModal.sending}
-                      className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-5 py-2 bg-kap-600 text-white text-sm font-semibold rounded-xl hover:bg-kap-700 transition-colors disabled:opacity-50"
                     >
                       {emailModal.sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                       {emailModal.sending ? 'Enviando...' : 'Enviar email'}
@@ -472,8 +472,8 @@ export default function LinkedInProspectingPage() {
       {liLeads.length === 0 && !buscarMutation.isPending && !jobId && (
         <div className="card p-12 text-center">
           <Linkedin size={40} className="mx-auto text-[#0A66C2] opacity-30 mb-3" />
-          <p className="text-gray-500 text-sm font-medium">No hay leads de LinkedIn aún</p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-ink-5 text-sm font-medium">No hay leads de LinkedIn aún</p>
+          <p className="text-ink-4 text-xs mt-1">
             {isAdmin ? 'Haz clic en "Buscar ahora" para iniciar el pipeline' : 'El administrador puede iniciar una búsqueda'}
           </p>
         </div>

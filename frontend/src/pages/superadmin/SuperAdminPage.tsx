@@ -52,8 +52,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 text-base">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <h3 className="font-bold text-ink-9 text-base">{title}</h3>
+          <button onClick={onClose} className="text-ink-4 hover:text-ink-6"><X size={18} /></button>
         </div>
         {children}
       </div>
@@ -68,7 +68,7 @@ function StatsTab() {
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/stats').then(r => r.data),
   })
-  if (isLoading) return <p className="text-gray-500 text-sm">Cargando métricas...</p>
+  if (isLoading) return <p className="text-ink-5 text-sm">Cargando métricas...</p>
   const t = data?.totales
   return (
     <div className="space-y-6">
@@ -81,18 +81,18 @@ function StatsTab() {
           { label: 'Mensajes',        value: t?.mensajes },
         ].map(s => (
           <div key={s.label} className="card p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{s.value ?? '—'}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+            <p className="text-2xl font-bold text-ink-9">{s.value ?? '—'}</p>
+            <p className="text-xs text-ink-5 mt-1">{s.label}</p>
           </div>
         ))}
       </div>
       <div className="card p-5">
-        <h3 className="font-semibold text-gray-900 mb-3">Prospectos por tenant (top 10)</h3>
+        <h3 className="font-semibold text-ink-9 mb-3">Prospectos por tenant (top 10)</h3>
         <div className="space-y-2">
           {data?.prospectos_por_tenant?.map((row: any) => (
             <div key={row.tenant} className="flex justify-between items-center text-sm">
-              <span className="text-gray-700">{row.tenant}</span>
-              <span className="font-semibold text-brand-600">{row.prospectos}</span>
+              <span className="text-ink-7">{row.tenant}</span>
+              <span className="font-semibold text-kap-600">{row.prospectos}</span>
             </div>
           ))}
         </div>
@@ -141,20 +141,20 @@ function NicheConfigModal({ tenantId, modulo, onClose }: { tenantId: string; mod
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">Configuración — {modulo.module}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <h3 className="font-semibold text-ink-8">Configuración — {modulo.module}</h3>
+          <button onClick={onClose} className="text-ink-4 hover:text-ink-6"><X size={18} /></button>
         </div>
-        <p className="text-xs text-gray-500">Edita el JSON de configuración para este módulo. Usa <code className="bg-gray-100 px-1 rounded">ubicacion</code>, <code className="bg-gray-100 px-1 rounded">queries</code>, <code className="bg-gray-100 px-1 rounded">producto</code>, <code className="bg-gray-100 px-1 rounded">nicho</code>.</p>
+        <p className="text-xs text-ink-5">Edita el JSON de configuración para este módulo. Usa <code className="bg-ink-2 px-1 rounded">ubicacion</code>, <code className="bg-ink-2 px-1 rounded">queries</code>, <code className="bg-ink-2 px-1 rounded">producto</code>, <code className="bg-ink-2 px-1 rounded">nicho</code>.</p>
         <textarea
           value={json}
           onChange={e => { setJson(e.target.value); setError('') }}
           rows={12}
-          className="w-full font-mono text-xs border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+          className="w-full font-mono text-xs border border-ink-3 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-kap-500 resize-none"
         />
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
-          <button onClick={guardar} disabled={saving} className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-ink-6 hover:text-ink-8">Cancelar</button>
+          <button onClick={guardar} disabled={saving} className="px-4 py-2 text-sm bg-kap-600 text-white rounded-lg hover:bg-kap-700 disabled:opacity-50">
             {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
@@ -289,7 +289,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
     },
   })
 
-  if (isLoading) return <p className="text-gray-500 text-sm">Cargando...</p>
+  if (isLoading) return <p className="text-ink-5 text-sm">Cargando...</p>
   if (!t) return null
 
   return (
@@ -302,7 +302,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
         />
       )}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="text-gray-400 hover:text-gray-700">
+        <button onClick={onBack} className="text-ink-4 hover:text-ink-7">
           <ChevronLeft size={20} />
         </button>
         <div className="flex-1">
@@ -326,17 +326,17 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-900">{t.name}</h2>
+              <h2 className="text-lg font-bold text-ink-9">{t.name}</h2>
               <button
                 onClick={() => { setNuevoNombre(t.name); setEditNombre(true) }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-ink-4 hover:text-ink-6"
               >
                 <Pencil size={14} />
               </button>
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-0.5">
-            <code className="bg-gray-100 px-1 rounded">{t.slug}</code>
+          <p className="text-xs text-ink-4 mt-0.5">
+            <code className="bg-ink-2 px-1 rounded">{t.slug}</code>
             {' · Creado '}{new Date(t.created_at).toLocaleDateString('es-CL')}
           </p>
         </div>
@@ -345,8 +345,8 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
 
       <div className="card p-4 flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Plan actual</p>
-          <p className="font-semibold text-gray-900 capitalize mt-0.5">
+          <p className="text-xs text-ink-4 uppercase tracking-wide font-medium">Plan actual</p>
+          <p className="font-semibold text-ink-9 capitalize mt-0.5">
             {t.plan?.name ?? 'Sin plan'}
             {t.plan ? ` — $${t.plan.price_usd}/mes` : ''}
           </p>
@@ -362,24 +362,24 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-700 text-sm">Usuarios ({t.usuarios?.length})</h3>
+            <h3 className="font-semibold text-ink-7 text-sm">Usuarios ({t.usuarios?.length})</h3>
             <button
-              className="text-brand-600 hover:text-brand-700 flex items-center gap-1 text-xs font-medium"
+              className="text-kap-600 hover:text-kap-700 flex items-center gap-1 text-xs font-medium"
               onClick={() => setShowCrearUser(true)}
             >
               <UserPlus size={13} /> Crear usuario
             </button>
           </div>
           <div className="space-y-2">
-            {t.usuarios?.length === 0 && <p className="text-xs text-gray-400">Sin usuarios</p>}
+            {t.usuarios?.length === 0 && <p className="text-xs text-ink-4">Sin usuarios</p>}
             {t.usuarios?.map((u: any) => (
               <div key={u.id} className="flex justify-between items-center text-sm">
                 <div>
-                  <p className="font-medium text-gray-900 leading-tight">{u.full_name}</p>
-                  <p className="text-gray-400 text-xs">{u.email}</p>
+                  <p className="font-medium text-ink-9 leading-tight">{u.full_name}</p>
+                  <p className="text-ink-4 text-xs">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="badge bg-gray-100 text-gray-600 capitalize text-xs">{u.role}</span>
+                  <span className="badge bg-ink-2 text-ink-6 capitalize text-xs">{u.role}</span>
                   {u.role === 'admin' && (
                     <button
                       title="Ver como este usuario"
@@ -395,7 +395,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                   <button
                     title={u.is_active ? 'Desactivar' : 'Activar'}
                     onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })}
-                    className="text-gray-400 hover:text-gray-700"
+                    className="text-ink-4 hover:text-ink-7"
                   >
                     {u.is_active
                       ? <ToggleRight size={16} className="text-emerald-500" />
@@ -409,18 +409,18 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
 
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-700 text-sm">Módulos</h3>
+            <h3 className="font-semibold text-ink-7 text-sm">Módulos</h3>
             <div className="flex items-center gap-2">
               {t.modulos?.some((m: any) => m.module === 'adjudicadas' && m.is_active) && (
                 <button
-                  className="text-violet-600 hover:text-violet-700 flex items-center gap-1 text-xs font-medium"
+                  className="text-kap-600 hover:text-kap-600 flex items-center gap-1 text-xs font-medium"
                   onClick={() => { setRubrosSeleccionados([]); setShowRubros(true) }}
                 >
                   <SlidersHorizontal size={13} /> Rubros
                 </button>
               )}
               <button
-                className="text-brand-600 hover:text-brand-700 flex items-center gap-1 text-xs font-medium"
+                className="text-kap-600 hover:text-kap-700 flex items-center gap-1 text-xs font-medium"
                 onClick={() => setShowModulo(true)}
               >
                 <Package size={13} /> Activar módulo
@@ -428,21 +428,21 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             </div>
           </div>
           <div className="space-y-2">
-            {t.modulos?.length === 0 && <p className="text-xs text-gray-400">Sin módulos asignados</p>}
+            {t.modulos?.length === 0 && <p className="text-xs text-ink-4">Sin módulos asignados</p>}
             {t.modulos?.map((m: any) => (
               <div key={m.id} className="flex justify-between items-center text-sm">
-                <span className="text-gray-700">{MODULE_LABELS[m.module] ?? m.module.replace('_', ' ')}</span>
+                <span className="text-ink-7">{MODULE_LABELS[m.module] ?? m.module.replace('_', ' ')}</span>
                 <div className="flex items-center gap-2">
                   <button
                     title="Editar configuración"
                     onClick={() => setNicheModalModulo(m)}
-                    className="text-gray-400 hover:text-brand-600 text-xs">
+                    className="text-ink-4 hover:text-kap-600 text-xs">
                     ⚙
                   </button>
                   <button
                     title={m.is_active ? 'Desactivar' : 'Activar'}
                     onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })}
-                    className="text-gray-400 hover:text-gray-700"
+                    className="text-ink-4 hover:text-ink-7"
                   >
                     {m.is_active
                       ? <ToggleRight size={16} className="text-emerald-500" />
@@ -458,7 +458,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
       {t.apis?.length > 0 && (
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-1.5">
+            <h3 className="font-semibold text-ink-7 text-sm flex items-center gap-1.5">
               <DollarSign size={14} className="text-emerald-500" /> APIs activas
             </h3>
             <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -468,18 +468,18 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                <tr className="text-ink-4 uppercase tracking-wide border-b border-ink-2">
                   <th className="text-left pb-2 font-medium">API</th>
                   <th className="text-left pb-2 font-medium">Uso</th>
                   <th className="text-right pb-2 font-medium">Costo/mes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-ink-2">
                 {t.apis.map((a: any) => (
                   <tr key={a.api} className="py-1">
-                    <td className="py-1.5 font-medium text-gray-700">{a.api}</td>
-                    <td className="py-1.5 text-gray-500">{a.uso}</td>
-                    <td className="py-1.5 text-right font-semibold text-gray-800">
+                    <td className="py-1.5 font-medium text-ink-7">{a.api}</td>
+                    <td className="py-1.5 text-ink-5">{a.uso}</td>
+                    <td className="py-1.5 text-right font-semibold text-ink-8">
                       {a.costo_usd === 0 ? <span className="text-emerald-600">Gratis</span> : `$${a.costo_usd}`}
                     </td>
                   </tr>
@@ -488,7 +488,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             </table>
           </div>
           {t.total_prospectos != null && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-ink-4 mt-2">
               Basado en {t.total_prospectos} prospectos actuales
             </p>
           )}
@@ -513,8 +513,8 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
         <Modal title={`Rubros habilitados — ${t.name}`} onClose={() => setShowRubros(false)}>
           {rubrosLoading ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Loader2 size={24} className="text-violet-500 animate-spin" />
-              <p className="text-sm text-gray-500">Cargando rubros...</p>
+              <Loader2 size={24} className="text-kap-600 animate-spin" />
+              <p className="text-sm text-ink-5">Cargando rubros...</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -529,11 +529,11 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
 
               {/* Header acciones rápidas */}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
+                <p className="text-xs text-ink-5">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
                 <div className="flex gap-3">
-                  <button className="text-xs text-violet-500 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Seleccionar todos</button>
-                  <span className="text-gray-300">|</span>
-                  <button className="text-xs text-gray-400" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
+                  <button className="text-xs text-kap-600 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Seleccionar todos</button>
+                  <span className="text-ink-4">|</span>
+                  <button className="text-xs text-ink-4" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
                 </div>
               </div>
 
@@ -541,7 +541,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
               <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
                 {buscarRubro.trim() ? (
                   // Vista búsqueda: lista plana filtrada
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="border border-ink-3 rounded-xl overflow-hidden">
                     {(rubrosData?.todos ?? [])
                       .filter((r: string) => r.toLowerCase().includes(buscarRubro.toLowerCase()))
                       .map((r: string) => {
@@ -552,12 +552,12 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                             onClick={() => setRubrosSeleccionados(prev =>
                               prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
                             )}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left active:bg-violet-50 border-b border-gray-100 last:border-0"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left active:bg-kap-100 border-b border-ink-2 last:border-0"
                           >
-                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-kap-600 border-kap-600' : 'bg-ink-0 border-ink-3'}`}>
                               {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                             </div>
-                            <span className={`text-xs capitalize ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
+                            <span className={`text-xs capitalize ${activo ? 'text-ink-9 font-medium' : 'text-ink-6'}`}>{r}</span>
                           </button>
                         )
                       })}
@@ -569,34 +569,34 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                   const abierta = categoriaAbierta === categoria
                   const todosSeleccionados = activosEnCategoria === disponibles.length
                   return (
-                    <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div key={categoria} className="border border-ink-3 rounded-xl overflow-hidden">
                       {/* Cabecera del acordeón */}
-                      <div className="flex items-center px-3 py-2.5 bg-white active:bg-gray-50">
+                      <div className="flex items-center px-3 py-2.5 bg-white active:bg-ink-1">
                         <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
-                          <span className="text-sm font-medium text-gray-800">{categoria}</span>
+                          <span className="text-sm font-medium text-ink-8">{categoria}</span>
                           {activosEnCategoria > 0 && (
-                            <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>
+                            <span className="bg-kap-100 text-kap-600 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>
                           )}
                         </button>
                         <div className="flex items-center gap-2">
                           <button
-                            className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+                            className="text-xs text-kap-600 hover:text-kap-600 font-medium whitespace-nowrap"
                             onClick={() => { if (todosSeleccionados) { setRubrosSeleccionados(prev => prev.filter(r => !disponibles.includes(r))) } else { setRubrosSeleccionados(prev => Array.from(new Set([...prev, ...disponibles]))) } }}
                           >
                             {todosSeleccionados ? 'Desmarcar' : 'Seleccionar todos'}
                           </button>
-                          <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                          <ChevronDown size={16} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
+                          <span className="text-xs text-ink-4">{activosEnCategoria}/{disponibles.length}</span>
+                          <ChevronDown size={16} className={`text-ink-4 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
                         </div>
                       </div>
 
                       {/* Checklist desplegable */}
                       {abierta && (
-                        <div className="border-t border-gray-100 bg-gray-50">
-                          <div className="px-3 py-1.5 border-b border-gray-100 flex justify-between items-center">
-                            <span className="text-xs text-gray-400">Categoría</span>
+                        <div className="border-t border-ink-2 bg-ink-1">
+                          <div className="px-3 py-1.5 border-b border-ink-2 flex justify-between items-center">
+                            <span className="text-xs text-ink-4">Categoría</span>
                             <button
-                              className="text-xs text-violet-500 font-medium"
+                              className="text-xs text-kap-600 font-medium"
                               onClick={() => {
                                 if (todosSeleccionados) {
                                   setRubrosSeleccionados(prev => prev.filter(r => !disponibles.includes(r)))
@@ -617,14 +617,14 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
                                   onClick={() => setRubrosSeleccionados(prev =>
                                     prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
                                   )}
-                                  className="flex items-center gap-2 px-3 py-2 text-left active:bg-violet-50 border-b border-r border-gray-100"
+                                  className="flex items-center gap-2 px-3 py-2 text-left active:bg-kap-100 border-b border-r border-ink-2"
                                 >
                                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                    activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'
+                                    activo ? 'bg-kap-600 border-kap-600' : 'bg-ink-0 border-ink-3'
                                   }`}>
                                     {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                   </div>
-                                  <span className={`text-xs capitalize truncate ${activo ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{r}</span>
+                                  <span className={`text-xs capitalize truncate ${activo ? 'text-ink-9 font-medium' : 'text-ink-6'}`}>{r}</span>
                                 </button>
                               )
                             })}
@@ -637,7 +637,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
               </div>
 
               {/* Footer sticky */}
-              <div className="flex gap-2 pt-2 border-t border-gray-100">
+              <div className="flex gap-2 pt-2 border-t border-ink-2">
                 <button className="btn-ghost text-sm flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
                 <button
                   className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
@@ -701,7 +701,7 @@ function TenantDetalle({ tenantId, onBack }: { tenantId: string; onBack: () => v
             >
               {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
             </select>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-ink-4">
               Si el módulo ya existe, se reactivará automáticamente.
             </p>
             {asignarModuloMutation.isError && (
@@ -894,7 +894,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
   }
 
   return (
-    <div className={`card border-l-4 transition-all ${t.is_active ? 'border-l-emerald-400' : 'border-l-gray-200'} ${expanded ? 'col-span-1 lg:col-span-2' : ''}`}>
+    <div className={`card border-l-4 transition-all ${t.is_active ? 'border-l-emerald-400' : 'border-l-ink-3'} ${expanded ? 'col-span-1 lg:col-span-2' : ''}`}>
       {nicheModalModulo && (
         <NicheConfigModal
           tenantId={t.id}
@@ -904,20 +904,20 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
       )}
       {/* ── Header siempre visible (clickeable para expandir) ── */}
       <div
-        className="p-4 flex items-start justify-between cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
+        className="p-4 flex items-start justify-between cursor-pointer select-none hover:bg-ink-1/50 rounded-t-xl transition-colors"
         onClick={() => onToggle()}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-gray-900 text-base truncate">{t.name}</h3>
+            <h3 className="font-bold text-ink-9 text-base truncate">{t.name}</h3>
             <Badge active={t.is_active} />
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">{t.slug} · {t.num_prospectos} prospectos{t.num_rubros != null ? ` · ${t.num_rubros} rubros MP` : ''}</p>
+          <p className="text-xs text-ink-4 mt-0.5">{t.slug} · {t.num_prospectos} prospectos{t.num_rubros != null ? ` · ${t.num_rubros} rubros MP` : ''}</p>
           {/* módulos como badges compactos */}
           {modulosActivos.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {modulosActivos.map((m: string) => (
-                <span key={m} className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-100">
+                <span key={m} className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-kap-100 text-kap-600 text-xs rounded-full border border-kap-300">
                   {MODULE_ICONS[m] ?? '📦'} {MODULE_LABELS[m] ?? m}
                 </span>
               ))}
@@ -928,22 +928,22 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
           <button
             title={t.is_active ? 'Desactivar' : 'Activar'}
             onClick={() => toggleTenantMutation.mutate(!t.is_active)}
-            className="p-1 text-gray-300 hover:text-gray-600"
+            className="p-1 text-ink-4 hover:text-ink-6"
           >
             {t.is_active ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
           </button>
-          <button onClick={onDelete} className="p-1 text-gray-300 hover:text-red-500">
+          <button onClick={onDelete} className="p-1 text-ink-4 hover:text-red-500">
             <Trash2 size={15} />
           </button>
-          <ChevronDown size={16} className={`text-gray-400 transition-transform ml-1 ${expanded ? 'rotate-180' : ''}`} />
+          <ChevronDown size={16} className={`text-ink-4 transition-transform ml-1 ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
       {/* ── Panel expandido ── */}
       {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50/50">
+        <div className="border-t border-ink-2 px-4 py-3 space-y-3 bg-ink-1/50">
           {loadingDetail && !detail ? (
-            <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+            <div className="flex items-center gap-2 text-xs text-ink-4 py-2">
               <Loader2 size={14} className="animate-spin" /> Cargando...
             </div>
           ) : (
@@ -957,14 +957,14 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                     <button className="btn-ghost text-xs py-1" onClick={() => setEditNombre(false)}>Cancelar</button>
                   </>
                 ) : (
-                  <button onClick={() => { setNuevoNombre(detail?.name ?? t.name); setEditNombre(true) }} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                  <button onClick={() => { setNuevoNombre(detail?.name ?? t.name); setEditNombre(true) }} className="flex items-center gap-1 text-xs text-ink-5 hover:text-ink-8">
                     <Pencil size={11} /> Renombrar
                   </button>
                 )}
-                <span className="text-xs text-gray-400 ml-auto">
-                  Plan: <strong className="text-gray-700">{detail?.plan?.name ?? 'Sin plan'}</strong>
+                <span className="text-xs text-ink-4 ml-auto">
+                  Plan: <strong className="text-ink-7">{detail?.plan?.name ?? 'Sin plan'}</strong>
                 </span>
-                <button className="text-xs text-brand-600 hover:underline" onClick={() => { setSelectedPlanId(detail?.plan?.id ?? ''); setShowPlan(true) }}>
+                <button className="text-xs text-kap-600 hover:underline" onClick={() => { setSelectedPlanId(detail?.plan?.id ?? ''); setShowPlan(true) }}>
                   Cambiar plan
                 </button>
               </div>
@@ -973,15 +973,15 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
                 {/* Usuarios */}
-                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+                <div className="bg-white rounded-xl border border-ink-3 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-600">👤 Usuarios ({detail?.usuarios?.length ?? 0})</p>
-                    <button onClick={() => setShowCrearUser(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5">
+                    <p className="text-xs font-semibold text-ink-6">👤 Usuarios ({detail?.usuarios?.length ?? 0})</p>
+                    <button onClick={() => setShowCrearUser(v => !v)} className="text-xs text-kap-600 hover:underline flex items-center gap-0.5">
                       <UserPlus size={11} /> Crear
                     </button>
                   </div>
                   {showCrearUser && (
-                    <div className="space-y-1.5 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="space-y-1.5 p-2.5 bg-ink-1 rounded-lg border border-ink-3">
                       <input className="input text-xs py-1" placeholder="Nombre" value={userForm.full_name} onChange={e => setUserForm(f => ({ ...f, full_name: e.target.value }))} />
                       <input className="input text-xs py-1" placeholder="Email" type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} />
                       <input className="input text-xs py-1" placeholder="Contraseña" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
@@ -996,21 +996,21 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                       </div>
                     </div>
                   )}
-                  <div className="divide-y divide-gray-100">
-                    {!detail?.usuarios?.length && <p className="text-xs text-gray-400 italic py-1">Sin usuarios</p>}
+                  <div className="divide-y divide-ink-2">
+                    {!detail?.usuarios?.length && <p className="text-xs text-ink-4 italic py-1">Sin usuarios</p>}
                     {detail?.usuarios?.map((u: any) => (
                       <div key={u.id} className="flex items-center gap-2 py-1.5">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{u.full_name}</p>
-                          <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                          <p className="text-xs font-medium text-ink-8 truncate">{u.full_name}</p>
+                          <p className="text-xs text-ink-4 truncate">{u.email}</p>
                         </div>
-                        <span className="text-xs text-gray-400 capitalize">{u.role}</span>
+                        <span className="text-xs text-ink-4 capitalize">{u.role}</span>
                         {u.role === 'admin' && (
                           <button onClick={() => verComo(u.id)} disabled={loadingUser === u.id} className="text-purple-400 hover:text-purple-600 disabled:opacity-40">
                             {loadingUser === u.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
                           </button>
                         )}
-                        <button onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })} className="text-gray-300 hover:text-gray-600">
+                        <button onClick={() => toggleUserMutation.mutate({ id: u.id, is_active: !u.is_active })} className="text-ink-4 hover:text-ink-6">
                           {u.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
                         </button>
                       </div>
@@ -1019,15 +1019,15 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                 </div>
 
                 {/* Módulos */}
-                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+                <div className="bg-white rounded-xl border border-ink-3 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-600">📦 Módulos ({detail?.modulos?.length ?? 0})</p>
-                    <button onClick={() => setShowModulo(v => !v)} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5">
+                    <p className="text-xs font-semibold text-ink-6">📦 Módulos ({detail?.modulos?.length ?? 0})</p>
+                    <button onClick={() => setShowModulo(v => !v)} className="text-xs text-kap-600 hover:underline flex items-center gap-0.5">
                       <Package size={11} /> Activar
                     </button>
                   </div>
                   {showModulo && (
-                    <div className="space-y-1.5 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="space-y-1.5 p-2.5 bg-ink-1 rounded-lg border border-ink-3">
                       <select className="input text-xs py-1" value={selectedModulo} onChange={e => setSelectedModulo(e.target.value)}>
                         {MODULES.map(m => <option key={m} value={m}>{MODULE_LABELS[m] ?? m}</option>)}
                       </select>
@@ -1039,53 +1039,53 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                       </div>
                     </div>
                   )}
-                  <div className="divide-y divide-gray-100">
-                    {!detail?.modulos?.length && <p className="text-xs text-gray-400 italic py-1">Sin módulos</p>}
+                  <div className="divide-y divide-ink-2">
+                    {!detail?.modulos?.length && <p className="text-xs text-ink-4 italic py-1">Sin módulos</p>}
                     {detail?.modulos?.map((m: any) => (
                       <div key={m.id} className="py-2 space-y-2">
                         <div className="flex items-center gap-2">
                           <span>{MODULE_ICONS[m.module] ?? '📦'}</span>
-                          <span className="text-xs flex-1 text-gray-700 font-medium">{MODULE_LABELS[m.module] ?? m.module}</span>
+                          <span className="text-xs flex-1 text-ink-7 font-medium">{MODULE_LABELS[m.module] ?? m.module}</span>
                           <button
                             title="Editar configuración"
                             onClick={() => setNicheModalModulo(m)}
-                            className="text-gray-400 hover:text-brand-600 text-xs">
+                            className="text-ink-4 hover:text-kap-600 text-xs">
                             ⚙
                           </button>
-                          <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-gray-300 hover:text-gray-600">
+                          <button onClick={() => toggleModuloMutation.mutate({ id: m.id, is_active: !m.is_active })} className="text-ink-4 hover:text-ink-6">
                             {m.is_active ? <ToggleRight size={15} className="text-emerald-500" /> : <ToggleLeft size={15} />}
                           </button>
                         </div>
 
                         {/* ── Rubros seleccionables inline ── */}
                         {m.module === 'adjudicadas' && m.is_active && (
-                          <div className="space-y-2 bg-violet-50/50 border border-violet-100 rounded-xl p-3">
+                          <div className="space-y-2 bg-kap-100/50 border border-kap-300 rounded-xl p-3">
                             <div>
-                              <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Rubros habilitados</p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">Activa/desactiva los rubros que verá este tenant en Mercado Público.</p>
+                              <p className="text-xs font-semibold text-kap-600 uppercase tracking-wide">Rubros habilitados</p>
+                              <p className="text-[10px] text-ink-4 mt-0.5">Activa/desactiva los rubros que verá este tenant en Mercado Público.</p>
                             </div>
                             {rubrosLoading ? (
-                              <p className="text-xs text-gray-400 italic">cargando...</p>
+                              <p className="text-xs text-ink-4 italic">cargando...</p>
                             ) : (
                               <>
                                 {/* Buscador + acciones rápidas */}
                                 <div className="flex items-center gap-2">
                                   <div className="relative flex-1">
-                                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-4" />
                                     <input
                                       type="text"
                                       placeholder="Buscar rubro..."
                                       value={buscarRubro}
                                       onChange={e => setBuscarRubro(e.target.value)}
-                                      className="w-full text-xs pl-6 pr-2 py-1.5 rounded-lg border border-gray-200 bg-white outline-none focus:border-violet-300"
+                                      className="w-full text-xs pl-6 pr-2 py-1.5 rounded-lg border border-ink-3 bg-white outline-none focus:border-kap-300"
                                     />
                                   </div>
                                   <button
-                                    className="text-xs text-violet-600 font-medium px-2 py-1 rounded-lg hover:bg-violet-100 whitespace-nowrap"
+                                    className="text-xs text-kap-600 font-medium px-2 py-1 rounded-lg hover:bg-kap-100 whitespace-nowrap"
                                     onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}
                                   >Todos</button>
                                   <button
-                                    className="text-xs text-gray-400 px-2 py-1 rounded-lg hover:bg-gray-100 whitespace-nowrap"
+                                    className="text-xs text-ink-4 px-2 py-1 rounded-lg hover:bg-ink-2 whitespace-nowrap"
                                     onClick={() => setRubrosSeleccionados([])}
                                   >Ninguno</button>
                                 </div>
@@ -1104,22 +1104,22 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                                           )}
                                           className={`flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-lg border text-left transition-colors ${
                                             activo
-                                              ? 'bg-violet-600 text-white border-violet-600 font-medium'
-                                              : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                                              ? 'bg-kap-100 text-white border-kap-300 font-medium'
+                                              : 'bg-white text-ink-5 border-ink-3 hover:border-kap-300 hover:text-kap-600'
                                           }`}
                                         >
-                                          <span className={`w-3 h-3 rounded-full border flex-shrink-0 flex items-center justify-center ${activo ? 'bg-white border-white' : 'border-gray-300'}`}>
-                                            {activo && <span className="block w-1.5 h-1.5 rounded-full bg-violet-600" />}
+                                          <span className={`w-3 h-3 rounded-full border flex-shrink-0 flex items-center justify-center ${activo ? 'bg-white border-white' : 'border-ink-3'}`}>
+                                            {activo && <span className="block w-1.5 h-1.5 rounded-full bg-kap-100" />}
                                           </span>
                                           <span className="capitalize truncate">{r}</span>
                                         </button>
                                       )
                                     })}
                                 </div>
-                                <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                                  <span className="text-xs text-gray-400">{rubrosSeleccionados.length} seleccionados</span>
+                                <div className="flex items-center gap-2 pt-2 border-t border-ink-2">
+                                  <span className="text-xs text-ink-4">{rubrosSeleccionados.length} seleccionados</span>
                                   {JSON.stringify([...rubrosSeleccionados].sort()) !== JSON.stringify([...(rubrosData?.habilitados ?? [])].sort()) && (
-                                    <button className="text-xs text-gray-400 hover:text-gray-600" onClick={() => setRubrosSeleccionados(rubrosData?.habilitados ?? [])}>
+                                    <button className="text-xs text-ink-4 hover:text-ink-6" onClick={() => setRubrosSeleccionados(rubrosData?.habilitados ?? [])}>
                                       Descartar
                                     </button>
                                   )}
@@ -1144,12 +1144,12 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
               {/* ── Acceso directo ── */}
               {admins.length > 0 && (
                 <div className="flex items-center gap-3 flex-wrap pt-1">
-                  <span className="text-xs text-gray-400 font-medium">Entrar como:</span>
+                  <span className="text-xs text-ink-4 font-medium">Entrar como:</span>
                   {admins.map((u: any) => (
                     <div key={u.id} className="flex items-center gap-1">
-                      <span className="text-xs text-gray-600 mr-1">{u.full_name}</span>
+                      <span className="text-xs text-ink-6 mr-1">{u.full_name}</span>
                       {modulosActivos.includes('adjudicadas') && (
-                        <button onClick={() => verComo(u.id, '/adjudicadas')} disabled={loadingUser === u.id} title="Mercado Público" className="px-2 py-1 text-xs bg-violet-50 text-violet-700 hover:bg-violet-100 rounded-lg disabled:opacity-50">🏆</button>
+                        <button onClick={() => verComo(u.id, '/adjudicadas')} disabled={loadingUser === u.id} title="Mercado Público" className="px-2 py-1 text-xs bg-kap-100 text-kap-600 hover:bg-kap-100 rounded-lg disabled:opacity-50">🏆</button>
                       )}
                       {modulosActivos.includes('licitaciones') && (
                         <button onClick={() => verComo(u.id, '/licitaciones')} disabled={loadingUser === u.id} title="Licitaciones" className="px-2 py-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg disabled:opacity-50">📄</button>
@@ -1157,7 +1157,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                       {modulosActivos.includes('prospector') && (
                         <button onClick={() => verComo(u.id, '/prospeccion')} disabled={loadingUser === u.id} title="Prospección" className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg disabled:opacity-50">🔍</button>
                       )}
-                      <button onClick={() => verComo(u.id, '/dashboard')} disabled={loadingUser === u.id} className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                      <button onClick={() => verComo(u.id, '/dashboard')} disabled={loadingUser === u.id} className="flex items-center gap-1 px-2 py-1 text-xs bg-ink-2 text-ink-6 hover:bg-ink-2 rounded-lg disabled:opacity-50">
                         {loadingUser === u.id ? <Loader2 size={11} className="animate-spin" /> : <><Eye size={11} /> Dashboard</>}
                       </button>
                     </div>
@@ -1169,29 +1169,29 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
               {showRubros && (
                 <Modal title={`Rubros — ${t.name}`} onClose={() => setShowRubros(false)}>
                   {rubrosLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Cargando...</div>
+                    <div className="flex items-center gap-2 text-sm text-ink-4 py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Cargando...</div>
                   ) : (
                     <div className="space-y-3">
                       <input type="text" placeholder="Buscar rubro..." value={buscarRubro} onChange={e => { setBuscarRubro(e.target.value); setCategoriaAbierta(null) }} className="input text-sm py-2" />
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-gray-500">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
+                        <p className="text-xs text-ink-5">{rubrosSeleccionados.length} de {rubrosData?.todos?.length ?? 0} seleccionados</p>
                         <div className="flex gap-3">
-                          <button className="text-xs text-violet-500 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Todos</button>
-                          <button className="text-xs text-gray-400" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
+                          <button className="text-xs text-kap-600 font-medium" onClick={() => setRubrosSeleccionados(rubrosData?.todos ?? [])}>Todos</button>
+                          <button className="text-xs text-ink-4" onClick={() => setRubrosSeleccionados([])}>Limpiar</button>
                         </div>
                       </div>
                       <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
                         {buscarRubro.trim() ? (
-                          <div className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="border border-ink-3 rounded-xl overflow-hidden">
                             {(rubrosData?.todos ?? []).filter((r: string) => r.toLowerCase().includes(buscarRubro.toLowerCase())).map((r: string) => {
                               const activo = rubrosSeleccionados.includes(r)
                               return (
                                 <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-b border-gray-100 last:border-0 hover:bg-violet-50">
-                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left border-b border-ink-2 last:border-0 hover:bg-kap-100">
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-kap-600 border-kap-600' : 'bg-ink-0 border-ink-3'}`}>
                                     {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                   </div>
-                                  <span className={`text-xs capitalize ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
+                                  <span className={`text-xs capitalize ${activo ? 'font-medium text-ink-9' : 'text-ink-6'}`}>{r}</span>
                                 </button>
                               )
                             })}
@@ -1202,32 +1202,32 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                           const activosEnCategoria = disponibles.filter(r => rubrosSeleccionados.includes(r)).length
                           const abierta = categoriaAbierta === categoria
                           return (
-                            <div key={categoria} className="border border-gray-200 rounded-xl overflow-hidden">
-                              <div className="flex items-center px-3 py-2.5 bg-white hover:bg-gray-50">
+                            <div key={categoria} className="border border-ink-3 rounded-xl overflow-hidden">
+                              <div className="flex items-center px-3 py-2.5 bg-white hover:bg-ink-1">
                                 <button className="flex-1 flex items-center gap-2 text-left" onClick={() => setCategoriaAbierta(abierta ? null : categoria)}>
-                                  <span className="text-sm font-medium text-gray-800">{categoria}</span>
-                                  {activosEnCategoria > 0 && <span className="bg-violet-100 text-violet-700 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>}
+                                  <span className="text-sm font-medium text-ink-8">{categoria}</span>
+                                  {activosEnCategoria > 0 && <span className="bg-kap-100 text-kap-600 text-xs font-semibold px-2 py-0.5 rounded-full">{activosEnCategoria}</span>}
                                 </button>
                                 <div className="flex items-center gap-2">
-                                  <button className="text-xs text-violet-500 hover:text-violet-700 font-medium whitespace-nowrap"
+                                  <button className="text-xs text-kap-600 hover:text-kap-600 font-medium whitespace-nowrap"
                                     onClick={e => { e.stopPropagation(); const todosSelec = disponibles.every(r => rubrosSeleccionados.includes(r)); setRubrosSeleccionados(prev => todosSelec ? prev.filter(r => !disponibles.includes(r)) : Array.from(new Set([...prev, ...disponibles]))) }}>
                                     {disponibles.every(r => rubrosSeleccionados.includes(r)) ? 'Desmarcar' : 'Seleccionar todos'}
                                   </button>
-                                  <span className="text-xs text-gray-400">{activosEnCategoria}/{disponibles.length}</span>
-                                  <ChevronDown size={14} className={`text-gray-400 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
+                                  <span className="text-xs text-ink-4">{activosEnCategoria}/{disponibles.length}</span>
+                                  <ChevronDown size={14} className={`text-ink-4 transition-transform cursor-pointer ${abierta ? 'rotate-180' : ''}`} onClick={() => setCategoriaAbierta(abierta ? null : categoria)} />
                                 </div>
                               </div>
                               {abierta && (
-                                <div className="border-t border-gray-100 grid grid-cols-2 bg-gray-50">
+                                <div className="border-t border-ink-2 grid grid-cols-2 bg-ink-1">
                                   {disponibles.map(r => {
                                     const activo = rubrosSeleccionados.includes(r)
                                     return (
                                       <button key={r} onClick={() => setRubrosSeleccionados(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
-                                        className="flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 border-b border-r border-gray-100">
-                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-violet-600 border-violet-600' : 'bg-white border-gray-300'}`}>
+                                        className="flex items-center gap-2 px-3 py-2 text-left hover:bg-kap-100 border-b border-r border-ink-2">
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${activo ? 'bg-kap-600 border-kap-600' : 'bg-ink-0 border-ink-3'}`}>
                                           {activo && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                         </div>
-                                        <span className={`text-xs capitalize truncate ${activo ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{r}</span>
+                                        <span className={`text-xs capitalize truncate ${activo ? 'font-medium text-ink-9' : 'text-ink-6'}`}>{r}</span>
                                       </button>
                                     )
                                   })}
@@ -1237,7 +1237,7 @@ function TenantCard({ t, onDelete, isExpanded, onToggle }: { t: any; onDelete: (
                           )
                         })}
                       </div>
-                      <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <div className="flex gap-2 pt-2 border-t border-ink-2">
                         <button className="btn-ghost text-sm flex-1" onClick={() => setShowRubros(false)}>Cancelar</button>
                         <button className="btn-primary text-sm flex-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
                           onClick={() => { if (!rubrosSeleccionados.length) { alert('Selecciona al menos 1 rubro'); return }; saveRubrosMutation.mutate(rubrosSeleccionados) }}
@@ -1310,13 +1310,13 @@ function TenantsTab() {
     },
   })
 
-  if (isLoading) return <p className="text-gray-500 text-sm">Cargando tenants...</p>
+  if (isLoading) return <p className="text-ink-5 text-sm">Cargando tenants...</p>
 
   return (
     <div className="space-y-4">
       {confirmDelete && (
         <Modal title="Eliminar tenant" onClose={() => setConfirmDelete(null)}>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-ink-6">
             ¿Eliminar <strong>{confirmDelete.name}</strong> y todos sus datos? Esto es <strong className="text-red-600">irreversible</strong>.
           </p>
           <div className="flex gap-2 pt-2">
@@ -1334,7 +1334,7 @@ function TenantsTab() {
       )}
 
       <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">{data?.total ?? 0} tenants en total</p>
+        <p className="text-sm text-ink-5">{data?.total ?? 0} tenants en total</p>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={14} /> Nuevo tenant
         </button>
@@ -1342,7 +1342,7 @@ function TenantsTab() {
 
       {showForm && (
         <div className="card p-4 space-y-3">
-          <h3 className="font-semibold text-gray-900 text-sm">Crear tenant</h3>
+          <h3 className="font-semibold text-ink-9 text-sm">Crear tenant</h3>
           <input
             className="input" placeholder="Nombre de la empresa" value={form.company_name}
             onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
@@ -1352,10 +1352,10 @@ function TenantsTab() {
             onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
           />
           <div>
-            <p className="text-xs font-medium text-gray-600 mb-1.5">Módulos a activar</p>
+            <p className="text-xs font-medium text-ink-6 mb-1.5">Módulos a activar</p>
             <div className="flex flex-wrap gap-2">
               {MODULES.map(m => (
-                <label key={m} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-gray-700">
+                <label key={m} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-ink-7">
                   <input
                     type="checkbox"
                     checked={selectedModules.includes(m)}
@@ -1438,12 +1438,12 @@ function UsuariosTab() {
     onError: (err: any) => alert(err?.response?.data?.detail ?? 'Error al guardar'),
   })
 
-  if (isLoading) return <p className="text-gray-500 text-sm">Cargando usuarios...</p>
+  if (isLoading) return <p className="text-ink-5 text-sm">Cargando usuarios...</p>
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">{data?.total} usuarios en total</p>
+        <p className="text-sm text-ink-5">{data?.total} usuarios en total</p>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 text-sm">
           <UserPlus size={14} /> Nuevo usuario
         </button>
@@ -1451,7 +1451,7 @@ function UsuariosTab() {
 
       {showForm && (
         <div className="card p-4 space-y-3">
-          <h3 className="font-semibold text-gray-900 text-sm">Crear usuario</h3>
+          <h3 className="font-semibold text-ink-9 text-sm">Crear usuario</h3>
           <input
             className="input" placeholder="Nombre completo" value={form.full_name}
             onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
@@ -1465,7 +1465,7 @@ function UsuariosTab() {
               className="input pr-10" placeholder="Contraseña" type={showCreatePass ? 'text' : 'password'} value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
             />
-            <button type="button" onClick={() => setShowCreatePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button type="button" onClick={() => setShowCreatePass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-4 hover:text-ink-6">
               {showCreatePass ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
@@ -1502,24 +1502,24 @@ function UsuariosTab() {
         <Modal title={`Editar — ${editUser.full_name}`} onClose={() => setEditUser(null)}>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Nombre completo</label>
+              <label className="text-xs text-ink-5 mb-1 block">Nombre completo</label>
               <input className="input" value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Email</label>
+              <label className="text-xs text-ink-5 mb-1 block">Email</label>
               <input className="input" type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Nueva contraseña <span className="text-gray-400">(dejar vacío para no cambiar)</span></label>
+              <label className="text-xs text-ink-5 mb-1 block">Nueva contraseña <span className="text-ink-4">(dejar vacío para no cambiar)</span></label>
               <div className="relative">
                 <input className="input pr-10" type={showEditPass ? 'text' : 'password'} placeholder="••••••••" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))} />
-                <button type="button" onClick={() => setShowEditPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setShowEditPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-4 hover:text-ink-6">
                   {showEditPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Rol</label>
+              <label className="text-xs text-ink-5 mb-1 block">Rol</label>
               <select className="input" value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -1544,30 +1544,30 @@ function UsuariosTab() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-ink-1 border-b border-ink-3">
             <tr>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Usuario</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">Empresa</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Rol</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Último login</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">Estado</th>
+              <th className="text-left px-4 py-3 text-ink-5 font-medium">Usuario</th>
+              <th className="text-left px-4 py-3 text-ink-5 font-medium">Empresa</th>
+              <th className="text-center px-4 py-3 text-ink-5 font-medium">Rol</th>
+              <th className="text-center px-4 py-3 text-ink-5 font-medium">Último login</th>
+              <th className="text-center px-4 py-3 text-ink-5 font-medium">Estado</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink-2">
             {data?.usuarios?.map((u: any) => (
-              <tr key={u.id} className="hover:bg-gray-50">
+              <tr key={u.id} className="hover:bg-ink-1">
                 <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{u.full_name}</p>
-                  <p className="text-xs text-gray-400">{u.email}</p>
+                  <p className="font-medium text-ink-9">{u.full_name}</p>
+                  <p className="text-xs text-ink-4">{u.email}</p>
                 </td>
-                <td className="px-4 py-3 text-gray-600">{u.tenant_name ?? '—'}</td>
+                <td className="px-4 py-3 text-ink-6">{u.tenant_name ?? '—'}</td>
                 <td className="px-4 py-3 text-center">
                   {u.role === 'super_admin' ? (
                     <span className="badge bg-purple-100 text-purple-700 capitalize">{u.role}</span>
                   ) : (
                     <select
-                      className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                      className="text-xs border border-ink-3 rounded px-2 py-1 bg-white"
                       value={u.role}
                       onChange={e => cambiarRolMutation.mutate({ id: u.id, role: e.target.value })}
                     >
@@ -1575,7 +1575,7 @@ function UsuariosTab() {
                     </select>
                   )}
                 </td>
-                <td className="px-4 py-3 text-center text-gray-500 text-xs">
+                <td className="px-4 py-3 text-center text-ink-5 text-xs">
                   {u.last_login ? new Date(u.last_login).toLocaleDateString('es-CL') : 'Nunca'}
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -1599,7 +1599,7 @@ function UsuariosTab() {
                       <button
                         title="Editar usuario"
                         onClick={() => { setEditUser(u); setEditForm({ full_name: u.full_name, email: u.email, password: '', role: u.role }); setShowEditPass(false) }}
-                        className="text-gray-400 hover:text-brand-600"
+                        className="text-ink-4 hover:text-kap-600"
                       >
                         <Pencil size={15} />
                       </button>
@@ -1607,7 +1607,7 @@ function UsuariosTab() {
                     <button
                       title={u.is_active ? 'Desactivar' : 'Activar'}
                       onClick={() => toggleMutation.mutate({ id: u.id, is_active: !u.is_active })}
-                      className="text-gray-400 hover:text-gray-700"
+                      className="text-ink-4 hover:text-ink-7"
                     >
                       {u.is_active
                         ? <ToggleRight size={18} className="text-emerald-500" />
@@ -1650,12 +1650,12 @@ function PlanesTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-plans'] }); setEditId(null) },
   })
 
-  if (isLoading) return <p className="text-gray-500 text-sm">Cargando planes...</p>
+  if (isLoading) return <p className="text-ink-5 text-sm">Cargando planes...</p>
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">{data?.planes?.length ?? 0} planes</p>
+        <p className="text-sm text-ink-5">{data?.planes?.length ?? 0} planes</p>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={14} /> Nuevo plan
         </button>
@@ -1663,7 +1663,7 @@ function PlanesTab() {
 
       {showForm && (
         <div className="card p-4 space-y-3">
-          <h3 className="font-semibold text-gray-900 text-sm">Crear plan</h3>
+          <h3 className="font-semibold text-ink-9 text-sm">Crear plan</h3>
           <select
             className="input" value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -1696,7 +1696,7 @@ function PlanesTab() {
           <div key={p.id} className="card p-5 space-y-3">
             {editId === p.id ? (
               <div className="space-y-2">
-                <p className="font-bold text-gray-900 capitalize">{p.name}</p>
+                <p className="font-bold text-ink-9 capitalize">{p.name}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <input className="input text-sm" type="number" placeholder="Prospectos" defaultValue={p.max_prospects}
                     onChange={e => setEditForm(f => ({ ...f, max_prospects: +e.target.value }))} />
@@ -1719,11 +1719,11 @@ function PlanesTab() {
             ) : (
               <>
                 <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-gray-900 capitalize">{p.name}</h3>
+                  <h3 className="font-bold text-ink-9 capitalize">{p.name}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-brand-600">
+                    <span className="text-lg font-bold text-kap-600">
                       ${p.price_usd}
-                      <span className="text-xs text-gray-400 font-normal">/mes</span>
+                      <span className="text-xs text-ink-4 font-normal">/mes</span>
                     </span>
                     <button
                       onClick={() => {
@@ -1735,28 +1735,28 @@ function PlanesTab() {
                           price_usd: p.price_usd,
                         })
                       }}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-ink-4 hover:text-ink-6"
                     >
                       <Pencil size={13} />
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1 text-sm text-gray-600">
+                <div className="space-y-1 text-sm text-ink-6">
                   <div className="flex justify-between">
                     <span>Prospectos</span>
-                    <span className="font-medium text-gray-900">{p.max_prospects.toLocaleString()}</span>
+                    <span className="font-medium text-ink-9">{p.max_prospects.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Mensajes/mes</span>
-                    <span className="font-medium text-gray-900">{p.max_messages_per_month.toLocaleString()}</span>
+                    <span className="font-medium text-ink-9">{p.max_messages_per_month.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Usuarios</span>
-                    <span className="font-medium text-gray-900">{p.max_users}</span>
+                    <span className="font-medium text-ink-9">{p.max_users}</span>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">
+                <div className="pt-2 border-t border-ink-2">
+                  <p className="text-xs text-ink-4">
                     {p.num_tenants} cliente{p.num_tenants !== 1 ? 's' : ''} en este plan
                   </p>
                 </div>
@@ -1765,7 +1765,7 @@ function PlanesTab() {
           </div>
         ))}
         {(!data?.planes || data.planes.length === 0) && (
-          <div className="col-span-3 card p-8 text-center text-gray-500 text-sm">
+          <div className="col-span-3 card p-8 text-center text-ink-5 text-sm">
             No hay planes. Crea uno con el boton de arriba.
           </div>
         )}
@@ -1803,17 +1803,17 @@ function TestEmailTab() {
     <div className="max-w-lg space-y-5">
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Mail size={18} className="text-indigo-500" />
-          <h3 className="font-semibold text-gray-900">Prueba de email</h3>
+          <Mail size={18} className="text-kap-500" />
+          <h3 className="font-semibold text-ink-9">Prueba de email</h3>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-ink-5">
           Envía un email de prueba para verificar que <strong>Resend</strong> está configurado correctamente
-          y los emails salen desde <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">alertas@kapturo.cl</code>.
+          y los emails salen desde <code className="bg-ink-2 px-1.5 py-0.5 rounded text-xs">alertas@kapturo.cl</code>.
         </p>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Email destino</label>
+            <label className="text-xs font-medium text-ink-6 mb-1 block">Email destino</label>
             <input
               type="email"
               className="input"
@@ -1825,7 +1825,7 @@ function TestEmailTab() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Tipo de email</label>
+            <label className="text-xs font-medium text-ink-6 mb-1 block">Tipo de email</label>
             <div className="grid grid-cols-3 gap-2">
               {([
                 { id: 'basico', label: '✅ Básico', desc: 'Email simple de confirmación' },
@@ -1838,12 +1838,12 @@ function TestEmailTab() {
                   className={clsx(
                     'p-3 rounded-xl border-2 text-left transition-all',
                     tipo === opt.id
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-kap-500 bg-kap-50'
+                      : 'border-ink-3 hover:border-ink-3'
                   )}
                 >
-                  <p className="text-xs font-semibold text-gray-800">{opt.label}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</p>
+                  <p className="text-xs font-semibold text-ink-8">{opt.label}</p>
+                  <p className="text-[10px] text-ink-4 mt-0.5">{opt.desc}</p>
                 </button>
               ))}
             </div>
@@ -1885,18 +1885,18 @@ function TestEmailTab() {
       </div>
 
       <div className="card p-4 space-y-2">
-        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Configuración actual</p>
+        <p className="text-xs font-semibold text-ink-6 uppercase tracking-wide">Configuración actual</p>
         <div className="space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-500">Remitente</span>
-            <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">alertas@kapturo.cl</code>
+            <span className="text-ink-5">Remitente</span>
+            <code className="text-xs bg-ink-2 px-2 py-0.5 rounded">alertas@kapturo.cl</code>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Proveedor</span>
-            <span className="text-gray-700 font-medium">Resend</span>
+            <span className="text-ink-5">Proveedor</span>
+            <span className="text-ink-7 font-medium">Resend</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Dominio</span>
+            <span className="text-ink-5">Dominio</span>
             <span className="text-emerald-600 font-medium">✅ kapturo.cl (verificado)</span>
           </div>
         </div>
@@ -1927,11 +1927,11 @@ export default function SuperAdminPage() {
           <ShieldAlert size={18} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Super Admin</h1>
-          <p className="text-sm text-gray-500">Panel de control global de Kapturo</p>
+          <h1 className="text-2xl font-bold text-ink-9">Super Admin</h1>
+          <p className="text-sm text-ink-5">Panel de control global de Kapturo</p>
         </div>
       </div>
-      <div className="flex border-b border-gray-200 gap-1 flex-wrap">
+      <div className="flex border-b border-ink-3 gap-1 flex-wrap">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -1939,8 +1939,8 @@ export default function SuperAdminPage() {
             className={clsx(
               'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
               activeTab === id
-                ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                ? 'border-kap-300 text-kap-600'
+                : 'border-transparent text-ink-5 hover:text-ink-9'
             )}
           >
             <Icon size={15} />{label}

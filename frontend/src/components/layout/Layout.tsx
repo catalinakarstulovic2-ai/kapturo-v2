@@ -5,7 +5,6 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAuthStore } from '../../store/authStore'
 import FloatingNotes from '../ui/FloatingNotes'
-import BugReportButton from '../ui/BugReportButton'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -21,11 +20,11 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-ink-1 overflow-hidden">
       {/* Overlay oscuro en móvil cuando el sidebar está abierto */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-20 md:hidden"
+          className="fixed inset-0 bg-ink-9/50 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -35,7 +34,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Banner impersonación */}
         {isImpersonating && (
-          <div className="flex-shrink-0 bg-purple-600 text-white px-4 py-2 flex items-center justify-between text-sm z-10">
+          <div className="flex-shrink-0 bg-kap-500 text-white px-4 py-2 flex items-center justify-between text-sm z-10">
             <div className="flex items-center gap-2">
               <ShieldAlert size={15} />
               <span>Viendo como <strong>{user?.full_name}</strong> · {user?.email}</span>
@@ -59,9 +58,7 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Notas flotantes — visible en toda la app */}
       <FloatingNotes />
     </div>
   )
 }
-

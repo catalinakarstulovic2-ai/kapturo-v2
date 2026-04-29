@@ -29,7 +29,43 @@ import unicodedata
 
 def _norm(s: str) -> str:
     """Normaliza texto: minúsculas + sin tildes para comparación robusta."""
-    return unicodedata.normalize('NFD', s.lower()).encode('ascii', 'ignore').decode()
+    return unicodedata.normalize('NFD', (s or '').lower()).encode('ascii', 'ignore').decode()
+
+
+# Aliases de región para normalizar distintas formas que devuelve la API de MP
+_REGION_ALIASES: dict[str, list[str]] = {
+    "metropolitana de santiago": ["region metropolitana", "metropolitana", "rm", "santiago"],
+    "valparaiso":                ["v region", "valpo"],
+    "biobio":                    ["viii region", "bio-bio", "bio bio", "concepcion"],
+    "la araucania":              ["ix region", "araucania", "temuco"],
+    "maule":                     ["vii region"],
+    "los lagos":                 ["x region", "puerto montt"],
+    "coquimbo":                  ["iv region"],
+    "o'higgins":                 ["vi region", "ohiggins", "rancagua"],
+    "nuble":                     ["xvi region"],
+    "antofagasta":               ["ii region"],
+    "tarapaca":                  ["i region", "iquique"],
+    "atacama":                   ["iii region", "copiapo"],
+    "los rios":                  ["xiv region", "valdivia"],
+    "aysen":                     ["xi region", "aysen del general carlos ibanez"],
+    "magallanes":                ["xii region", "punta arenas"],
+    "arica y parinacota":        ["xv region", "arica"],
+}
+
+def _region_coincide(region_perfil: str, region_licit: str) -> bool:
+    """Compara región del perfil con región de la licitación tolerando distintas formas."""
+    rp = _norm(region_perfil)
+    rl = _norm(region_licit)
+    if rp in rl or rl in rp:
+        return True
+    # Buscar por aliases
+    for canonical, aliases in _REGION_ALIASES.items():
+        grupo = [canonical] + aliases
+        rp_en_grupo = any(a in rp or rp in a for a in grupo)
+        rl_en_grupo = any(a in rl or rl in a for a in grupo)
+        if rp_en_grupo and rl_en_grupo:
+            return True
+    return False
 
 
 def _fechas_desde_rango(fecha_desde: str | None, fecha_hasta: str | None, max_dias: int = 7) -> list[str]:
@@ -67,47 +103,54 @@ def _fechas_desde_rango(fecha_desde: str | None, fecha_hasta: str | None, max_di
 def _calcular_fit_rapido(nombre_licit: str, categoria_licit: str, rubros_perfil: list[str], regiones_perfil: list[str], region_licit: str) -> dict:
     """
     Calcula un score de fit rápido (0-100) sin llamar a Claude.
-    Basado en coincidencia de rubros y región del perfil con la licitación.
+    Compara los rubros del perfil (categorías UNSPSC de ChileCompra) contra
+    la categoría real de la licitación y su nombre.
     """
+    # Texto completo a buscar: nombre + categoría completa (ruta jerárquica)
     txt = _norm((nombre_licit or '') + ' ' + (categoria_licit or ''))
     match_rubros = 0
     rubro_match = ''
 
-    # Si no hay rubros configurados en el perfil, no penalizamos por eso
     sin_rubros_perfil = not rubros_perfil
 
     for rubro in rubros_perfil:
         r_norm = _norm(rubro)
-        palabras = [p for p in r_norm.split() if len(p) > 3]
-        if r_norm in txt or any(p in txt for p in palabras):
+        # Intentar match exacto primero (el rubro completo está en la categoría)
+        if r_norm in txt:
             match_rubros += 1
             if not rubro_match:
                 rubro_match = rubro
-    
-    # Score base por rubros: 0 match=0, 1=50, 2+=70
-    # Si el perfil no tiene rubros, no podemos evaluar → score neutro 50
+            continue
+        # Si no, buscar coincidencia parcial: basta con que aparezca alguna
+        # palabra clave del rubro (las significativas, > 4 chars)
+        palabras = [p for p in r_norm.split() if len(p) > 4]
+        if palabras and any(p in txt for p in palabras):
+            match_rubros += 1
+            if not rubro_match:
+                rubro_match = rubro
+
     if sin_rubros_perfil:
         score_rubro = 50
     elif match_rubros == 0:
         score_rubro = 0
     elif match_rubros == 1:
-        score_rubro = 50
+        score_rubro = 55
     else:
-        score_rubro = 70
-    
-    # Bonus por región
+        score_rubro = 75
+
+    # Bonus por región (usando comparación tolerante a distintas formas)
     score_region = 0
     if regiones_perfil and region_licit:
-        if region_licit in regiones_perfil or 'RM' in regiones_perfil:
+        if any(_region_coincide(r, region_licit) for r in regiones_perfil):
             score_region = 20
-    elif not regiones_perfil:  # sin restricción de región
+    elif not regiones_perfil:
         score_region = 20
-    
+
     fit = min(100, score_rubro + score_region)
     motivo = (
         "Perfil sin rubros configurados — configura tu Perfil IA para ver fit real" if sin_rubros_perfil
-        else f"Rubro calza: {rubro_match}" if match_rubros > 0
-        else "Sin coincidencia de rubros con tu perfil"
+        else f"Categoría calza: {rubro_match}" if match_rubros > 0
+        else "Sin coincidencia de categoría con tu perfil"
     )
     return {'fit_score': fit, 'fit_motivo': motivo, 'fit_rubro_match': match_rubros > 0}
 
@@ -133,12 +176,17 @@ class LicitacionesService:
         if not mod or not mod.niche_config:
             return {}
         cfg = mod.niche_config
+        rubros = cfg.get("rubros") or []
+        regiones = cfg.get("regiones") or []
         return {
             "producto": cfg.get("descripcion") or "",
-            "sector": ", ".join(cfg.get("rubros") or []),
-            "rubro": (cfg.get("rubros") or [""])[0],
+            "descripcion": cfg.get("descripcion") or "",
+            "sector": ", ".join(rubros),
+            "rubro": rubros[0] if rubros else "",
+            "todos_rubros": rubros,
             "experiencia": str(cfg.get("experiencia_anos") or ""),
-            "region_cliente": ", ".join(cfg.get("regiones") or []),
+            "region_cliente": ", ".join(regiones),
+            "todas_regiones": regiones,
             "razon_social": cfg.get("razon_social") or "",
             "certificaciones": cfg.get("certificaciones") or "",
             "diferenciadores": cfg.get("diferenciadores") or "",
@@ -227,17 +275,29 @@ class LicitacionesService:
                 if _tipo_cod(i.get("CodigoExterno", "")) == tipo_licitacion
             ]
 
-        # Filtro por keyword (Nombre + Descripcion del listado — campos livianos)
+        # Filtro por keyword o, si no hay keyword, por rubros del perfil del tenant
+        # Ambos usan matching parcial: basta con que aparezca UNA palabra clave
+        terminos_busqueda: list[str] = []
         if keyword:
-            rubros_kw = [r.strip() for r in keyword.split(",") if r.strip()]
+            terminos_busqueda = [r.strip() for r in keyword.split(",") if r.strip()]
+        elif rubros_perfil:
+            # Sin keyword explícito → pre-filtrar por los rubros configurados en el perfil
+            terminos_busqueda = list(rubros_perfil)
+
+        if terminos_busqueda:
             def _txt_listado(i: dict) -> str:
                 return _norm((i.get("Nombre") or "") + " " + (i.get("Descripcion") or ""))
             def _match_listado(i: dict) -> bool:
                 txt = _txt_listado(i)
-                for rubro in rubros_kw:
-                    r_norm = _norm(rubro)
-                    palabras = [p for p in r_norm.split() if len(p) > 2]
-                    if any(p in txt for p in palabras) or r_norm in txt:
+                for termino in terminos_busqueda:
+                    t_norm = _norm(termino)
+                    palabras = [p for p in t_norm.split() if len(p) > 4]
+                    if not palabras:
+                        if t_norm in txt:
+                            return True
+                        continue
+                    # Basta con que aparezca UNA palabra clave del término
+                    if t_norm in txt or any(p in txt for p in palabras):
                         return True
                 return False
             items_listado = [i for i in items_listado if _match_listado(i)]

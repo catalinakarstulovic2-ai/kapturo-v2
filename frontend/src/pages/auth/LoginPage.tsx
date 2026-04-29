@@ -27,21 +27,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-ink-1 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-500 rounded-xl mb-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-kap-500 rounded-xl mb-3">
             <Zap size={24} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Bienvenida a Kapturo</h1>
-          <p className="text-gray-500 mt-1">Ingresa a tu cuenta</p>
+          <h1 className="text-2xl font-bold text-ink-9">Bienvenida a Kapturo</h1>
+          <p className="text-ink-5 mt-1">Ingresa a tu cuenta</p>
         </div>
 
         <div className="card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-ink-7 mb-1">Email</label>
               <input
                 type="email"
                 className="input"
@@ -52,7 +52,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <label className="block text-sm font-medium text-ink-7 mb-1">Contraseña</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -65,7 +65,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-4 hover:text-ink-6"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -78,9 +78,9 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-ink-5 mt-4">
           ¿No tienes cuenta?{' '}
-          <Link to="/signup" className="text-brand-600 font-medium hover:underline">
+          <Link to="/signup" className="text-kap-600 font-medium hover:underline">
             Registrar empresa
           </Link>
         </p>

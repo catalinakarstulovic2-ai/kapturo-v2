@@ -16,15 +16,60 @@ import toast from 'react-hot-toast'
 import clsx from 'clsx'
 
 // Reutilizamos las mismas constantes de LicitacionesPage
+// Categorías reales del sistema UNSPSC de ChileCompra — las mismas que usa la API de Mercado Público
 const RUBRO_CATEGORIAS = [
-  { label: 'Consultoría y Gestión',          rubros: ['asesoría', 'auditoría', 'consultoría', 'contabilidad', 'gestión', 'legal', 'recursos humanos', 'administración', 'finanzas', 'marketing', 'comunicaciones', 'relaciones públicas', 'estrategia', 'planificación'] },
-  { label: 'Construcción e Infraestructura', rubros: ['arquitectura', 'construcción', 'ingeniería', 'instalaciones eléctricas', 'obras civiles', 'pavimentación', 'sanitaria', 'topografía', 'diseño', 'proyectos', 'infraestructura', 'urbanismo', 'remodelación'] },
-  { label: 'Educación y Capacitación',       rubros: ['capacitación', 'consultoría educativa', 'e-learning', 'educación', 'formación', 'entrenamiento', 'coaching', 'talleres', 'cursos', 'certificación profesional'] },
-  { label: 'Equipamiento y Suministros',     rubros: ['equipamiento', 'insumos', 'maquinaria', 'mobiliario', 'vehículos', 'vestuario', 'materiales', 'herramientas', 'repuestos', 'suministros', 'imprenta', 'señalética', 'uniformes'] },
-  { label: 'Medio Ambiente',                 rubros: ['agua', 'energía renovable', 'medioambiente', 'residuos', 'sustentabilidad', 'eficiencia energética', 'solar', 'reciclaje', 'tratamiento de agua', 'impacto ambiental'] },
-  { label: 'Salud y Bienestar',              rubros: ['enfermería', 'equipos médicos', 'farmacia', 'laboratorio', 'medicina', 'psicología', 'salud', 'dental', 'kinesiología', 'nutrición', 'salud ocupacional', 'bienestar', 'telemedicina'] },
-  { label: 'Servicios Generales',            rubros: ['alimentación', 'aseo', 'catering', 'logística', 'mantención', 'seguridad', 'transporte', 'vigilancia', 'jardinería', 'lavandería', 'courier', 'bodegaje', 'casino', 'limpieza'] },
-  { label: 'Tecnología e Informática',       rubros: ['ciberseguridad', 'informática', 'inteligencia artificial', 'software', 'soporte técnico', 'tecnología', 'telecomunicaciones', 'desarrollo web', 'aplicaciones', 'cloud', 'datos', 'redes', 'sistemas', 'automatización', 'erp', 'crm'] },
+  { label: 'Construcción e Infraestructura', rubros: [
+    'Servicios de construcción y mantenimiento',
+    'Materiales y productos de construcción',
+    'Artículos para estructuras, obras y construcciones',
+    'Servicios de ingeniería y arquitectura',
+  ]},
+  { label: 'Tecnología e Informática', rubros: [
+    'Tecnologías de información y telecomunicaciones',
+    'Equipos y suministros de oficina e informática',
+    'Equipos eléctricos, electrónicos e instrumentos',
+    'Servicios de investigación y desarrollo',
+  ]},
+  { label: 'Salud y Farmacia', rubros: [
+    'Equipamiento y suministros médicos',
+    'Servicios de salud y bienestar social',
+    'Productos farmacéuticos y químicos',
+    'Servicios de laboratorio y análisis',
+  ]},
+  { label: 'Servicios Generales', rubros: [
+    'Servicios de limpieza, aseo y mantenimiento de espacios',
+    'Servicios de seguridad y vigilancia',
+    'Recursos humanos y servicios de personal',
+    'Servicios hoteleros, gastronómicos y turismo',
+  ]},
+  { label: 'Consultoría y Gestión', rubros: [
+    'Servicios profesionales, administrativos y consultorías de gestión empresarial',
+    'Servicios financieros, contables y de seguros',
+    'Servicios jurídicos y legales',
+    'Servicios de comunicaciones, publicidad y marketing',
+  ]},
+  { label: 'Educación y Cultura', rubros: [
+    'Servicios de educación y formación profesional',
+    'Servicios deportivos, recreativos y culturales',
+    'Servicios de impresión, edición y artes gráficas',
+  ]},
+  { label: 'Logística y Transporte', rubros: [
+    'Servicios de transporte y logística',
+    'Vehículos y medios de transporte',
+    'Combustibles, energía y productos relacionados',
+  ]},
+  { label: 'Equipamiento y Suministros', rubros: [
+    'Equipos y maquinaria industrial',
+    'Mobiliario y equipamiento de oficina',
+    'Vestuario, uniformes y calzado',
+    'Alimentos, bebidas y tabaco',
+  ]},
+  { label: 'Medio Ambiente e Industria', rubros: [
+    'Servicios de medio ambiente y gestión de residuos',
+    'Servicios agrícolas, ganaderos y forestales',
+    'Minería y extracción de recursos naturales',
+    'Servicios veterinarios y de animales',
+  ]},
 ]
 
 const CAMPOS_COMPLETITUD = [
@@ -82,13 +127,23 @@ export default function PerfilIAPage() {
   useEffect(() => {
     if (!perfilRemoto || syncedRef.current) return
     syncedRef.current = true
-    const rubrosGuardados: string[] = (perfilRemoto.rubros || []).map((r: string) => r.toLowerCase().trim())
+    const rubrosGuardados: string[] = (perfilRemoto.rubros || []).map((r: string) => r.trim())
+    // Migrar rubros viejos (palabras cortas) a categorías UNSPSC nuevas si aplica
+    const todosRubrosNuevos = RUBRO_CATEGORIAS.flatMap(c => c.rubros)
+    const rubrosMigrados = rubrosGuardados.map(rViejo => {
+      // Si ya es una categoría UNSPSC nueva, la mantenemos tal cual
+      if (todosRubrosNuevos.some(r => r.toLowerCase() === rViejo.toLowerCase())) return rViejo
+      // Si es una palabra vieja, buscar qué categoría UNSPSC la contiene como substring
+      const match = todosRubrosNuevos.find(r => r.toLowerCase().includes(rViejo.toLowerCase()))
+      return match ?? rViejo
+    }).filter((r, i, arr) => arr.indexOf(r) === i) // deduplicar
+
     // Abrir automáticamente las categorías que ya tienen rubros seleccionados
+    const rubrosMigradosLower = rubrosMigrados.map(r => r.toLowerCase())
     setOpenCats(new Set(
-      RUBRO_CATEGORIAS.filter(cat => cat.rubros.some(r => rubrosGuardados.includes(r))).map(c => c.label)
+      RUBRO_CATEGORIAS.filter(cat => cat.rubros.some(r => rubrosMigradosLower.includes(r.toLowerCase()))).map(c => c.label)
     ))
-    // Auto-switch tab to first category with saved rubros
-    const firstCatWithRubros = RUBRO_CATEGORIAS.find(cat => cat.rubros.some(r => rubrosGuardados.includes(r)))
+    const firstCatWithRubros = RUBRO_CATEGORIAS.find(cat => cat.rubros.some(r => rubrosMigradosLower.includes(r.toLowerCase())))
     if (firstCatWithRubros) setTabCat(firstCatWithRubros.label)
     setForm({
       rut_empresa: perfilRemoto.rut_empresa || '',
@@ -99,7 +154,7 @@ export default function PerfilIAPage() {
       certificaciones: perfilRemoto.certificaciones || '',
       diferenciadores: perfilRemoto.diferenciadores || '',
       inscrito_chile_proveedores: perfilRemoto.inscrito_chile_proveedores || false,
-      rubros: ((perfilRemoto.rubros as string[]) || []).map((r: string) => r.toLowerCase().trim()),
+      rubros: rubrosMigrados,
       regiones: (perfilRemoto.regiones as string[]) || [],
       email_alertas: perfilRemoto.email_alertas || '',
       nombre_contacto: perfilRemoto.nombre_contacto || '',
@@ -550,21 +605,35 @@ export default function PerfilIAPage() {
       {/* Banner de flujo — solo si perfil incompleto */}
       {!listoParaPostular && (
         <div className="mb-5 grid grid-cols-3 gap-3">
-          {[
-            { num: '1', label: 'Describe tu empresa', desc: 'Qué hace, rubros y regiones donde operas', done: !!(form.descripcion && form.rubros.length > 0 && form.regiones.length > 0) },
-            { num: '2', label: 'Guarda el perfil', desc: 'La IA genera un análisis de cómo te ve el sistema', done: !!(perfilRemoto?.descripcion) },
-            { num: '3', label: 'Busca licitaciones', desc: 'Los resultados se filtran por tu perfil automáticamente', done: false },
-          ].map(s => (
-            <div key={s.num} className={clsx('rounded-xl border px-4 py-3 flex items-start gap-3',
-              s.done ? 'bg-emerald-50 border-emerald-200' : 'bg-ink-1 border-ink-3')}>
-              <span className={clsx('text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-                s.done ? 'bg-emerald-500 text-white' : 'bg-ink-4 text-white')}>{s.done ? '✓' : s.num}</span>
-              <div>
-                <p className={clsx('text-xs font-semibold', s.done ? 'text-emerald-800' : 'text-ink-7')}>{s.label}</p>
-                <p className="text-[10px] text-ink-4 mt-0.5">{s.desc}</p>
+          {(() => {
+            const paso1ok = !!(form.descripcion && form.rubros.length > 0 && form.regiones.length > 0)
+            const paso2ok = !!(perfilRemoto?.descripcion)
+            const pasos = [
+              { num: '1', label: 'Describe tu empresa',  desc: 'Qué hace, rubros y regiones donde operas',            done: paso1ok,  cta: null },
+              { num: '2', label: 'Guarda el perfil',     desc: 'La IA analiza cómo te ve el sistema',                 done: paso2ok,  cta: null },
+              { num: '3', label: 'Busca licitaciones',   desc: paso2ok ? '→ Tu perfil ya filtra los resultados' : 'Completa los pasos anteriores primero', done: false, cta: paso2ok ? () => navigate('/licitaciones') : null },
+            ]
+            return pasos.map(s => (
+              <div
+                key={s.num}
+                onClick={s.cta ?? undefined}
+                className={clsx('rounded-xl border px-4 py-3 flex items-start gap-3 transition-colors',
+                  s.done ? 'bg-emerald-50 border-emerald-200' :
+                  s.cta  ? 'bg-kap-50 border-kap-300 cursor-pointer hover:bg-kap-100' :
+                           'bg-ink-1 border-ink-3')}
+              >
+                <span className={clsx('text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                  s.done ? 'bg-emerald-500 text-white' : s.cta ? 'bg-kap-500 text-white' : 'bg-ink-4 text-white')}>
+                  {s.done ? '✓' : s.num}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={clsx('text-xs font-semibold', s.done ? 'text-emerald-800' : s.cta ? 'text-kap-700' : 'text-ink-7')}>{s.label}</p>
+                  <p className={clsx('text-[10px] mt-0.5', s.cta ? 'text-kap-500 font-medium' : 'text-ink-4')}>{s.desc}</p>
+                </div>
+                {s.cta && <ArrowRight size={14} className="text-kap-500 shrink-0 mt-0.5" />}
               </div>
-            </div>
-          ))}
+            ))
+          })()}
         </div>
       )}
 

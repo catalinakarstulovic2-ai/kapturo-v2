@@ -47,7 +47,7 @@ interface PipelineStage {
 const scoreColor = (s: number) => {
   if (s >= 80) return 'bg-emerald-100 text-emerald-700'
   if (s >= 65) return 'bg-amber-100 text-amber-700'
-  return 'bg-gray-100 text-gray-500'
+  return 'bg-ink-2 text-ink-5'
 }
 
 const sourceBadge = (src: string | null) => {
@@ -55,7 +55,7 @@ const sourceBadge = (src: string | null) => {
   if (src.includes('linkedin')) return { label: 'LinkedIn', cls: 'bg-blue-100 text-blue-700' }
   if (src.includes('social')) return { label: 'Social', cls: 'bg-pink-100 text-pink-700' }
   if (src.includes('maps') || src.includes('google')) return { label: 'Google Maps', cls: 'bg-green-100 text-green-700' }
-  return { label: src, cls: 'bg-gray-100 text-gray-500' }
+  return { label: src, cls: 'bg-ink-2 text-ink-5' }
 }
 
 const isMobileNumber = (num: string) => {
@@ -79,9 +79,9 @@ const getContactType = (p: { whatsapp?: string | null; phone?: string | null; em
 
 const contactTypeMeta: Record<ContactType, { label: string; cls: string; Icon: React.ElementType }> = {
   directo:      { label: 'Directo',    cls: 'bg-emerald-100 text-emerald-700', Icon: Zap },
-  diferido:     { label: 'Con email',  cls: 'bg-violet-100 text-violet-700',   Icon: Mail },
+  diferido:     { label: 'Con email',  cls: 'bg-kap-100 text-kap-700',   Icon: Mail },
   telefono:     { label: 'Teléfono',   cls: 'bg-blue-100 text-blue-700',       Icon: PhoneCall },
-  sin_contacto: { label: 'Sin datos',  cls: 'bg-gray-100 text-gray-400',       Icon: UserX },
+  sin_contacto: { label: 'Sin datos',  cls: 'bg-ink-2 text-ink-4',       Icon: UserX },
 }
 
 function KanbanCard({
@@ -126,21 +126,21 @@ function KanbanCard({
       onDragEnd={onDragEnd}
       className={clsx(
         'bg-white rounded-xl border transition-all duration-200 select-none',
-        isExpanded ? 'border-violet-300 shadow-md ring-1 ring-violet-100' : 'border-gray-200 cursor-grab hover:shadow-sm hover:border-violet-200',
-        isDragging && 'opacity-30 scale-95 cursor-grabbing ring-2 ring-violet-300'
+        isExpanded ? 'border-kap-300 shadow-md ring-1 ring-kap-100' : 'border-ink-3 cursor-grab hover:shadow-sm hover:border-kap-200',
+        isDragging && 'opacity-30 scale-95 cursor-grabbing ring-2 ring-kap-300'
       )}
     >
       <div className="p-3 cursor-pointer" onClick={onToggle}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-gray-900 text-sm leading-tight truncate">
+            <p className="font-semibold text-ink-9 text-sm leading-tight truncate">
               {p.company_name || p.contact_name || 'Sin nombre'}
             </p>
             {p.contact_name && p.company_name && (
-              <p className="text-[11px] text-gray-500 truncate mt-0.5">{p.contact_name}</p>
+              <p className="text-[11px] text-ink-5 truncate mt-0.5">{p.contact_name}</p>
             )}
             {p.contact_title && (
-              <p className="text-[11px] text-gray-400 truncate">{p.contact_title}</p>
+              <p className="text-[11px] text-ink-4 truncate">{p.contact_title}</p>
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -149,7 +149,7 @@ function KanbanCard({
                 {Math.round(p.score)}
               </span>
             )}
-            <ChevronRight size={13} className={clsx('text-gray-400 transition-transform duration-200', isExpanded && 'rotate-90')} />
+            <ChevronRight size={13} className={clsx('text-ink-4 transition-transform duration-200', isExpanded && 'rotate-90')} />
           </div>
         </div>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -158,16 +158,16 @@ function KanbanCard({
           </span>
           {badge && <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full font-medium', badge.cls)}>{badge.label}</span>}
           {location && (
-            <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+            <span className="flex items-center gap-0.5 text-[10px] text-ink-4">
               <MapPin size={9} /> {location}
             </span>
           )}
         </div>
       </div>
       {isExpanded && (
-        <div className="border-t border-violet-100 px-3 pb-3 pt-3 space-y-3">
+        <div className="border-t border-kap-100 px-3 pb-3 pt-3 space-y-3">
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Contactar</p>
+            <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider mb-1.5">Contactar</p>
             <div className="flex gap-1.5 flex-wrap">
               {waNum ? (
                 <a href={`https://wa.me/${waNum}?text=${msgWA}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
@@ -177,11 +177,11 @@ function KanbanCard({
               ) : null}
               {hasPhone ? (
                 <a href={`tel:${phoneNum}`} onClick={e => e.stopPropagation()}
-                  className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors">
+                  className="flex items-center gap-1 bg-ink-2 hover:bg-ink-3 text-ink-7 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors">
                   <Phone size={11} /> {p.phone}
                 </a>
               ) : !waNum ? (
-                <span className="flex items-center gap-1 bg-gray-100 text-gray-400 text-xs px-2.5 py-1.5 rounded-lg">
+                <span className="flex items-center gap-1 bg-ink-2 text-ink-4 text-xs px-2.5 py-1.5 rounded-lg">
                   <Phone size={11} /> Sin tel.
                 </span>
               ) : null}
@@ -191,7 +191,7 @@ function KanbanCard({
                   <Mail size={11} /> Email
                 </a>
               ) : (
-                <span className="flex items-center gap-1 bg-gray-100 text-gray-400 text-xs px-2.5 py-1.5 rounded-lg">
+                <span className="flex items-center gap-1 bg-ink-2 text-ink-4 text-xs px-2.5 py-1.5 rounded-lg">
                   <Mail size={11} /> Sin email
                 </span>
               )}
@@ -205,7 +205,7 @@ function KanbanCard({
               {p.website && (
                 <a href={p.website.startsWith('http') ? p.website : `https://${p.website}`}
                   target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                  className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2.5 py-1.5 rounded-lg transition-colors">
+                  className="flex items-center gap-1 bg-ink-2 hover:bg-ink-3 text-ink-6 text-xs px-2.5 py-1.5 rounded-lg transition-colors">
                   <Globe size={11} /> Web
                 </a>
               )}
@@ -213,17 +213,17 @@ function KanbanCard({
           </div>
           {p.score_reason && (
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Razón IA</p>
-              <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-3">{p.score_reason}</p>
+              <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider mb-1">Razón IA</p>
+              <p className="text-[11px] text-ink-5 leading-relaxed line-clamp-3">{p.score_reason}</p>
             </div>
           )}
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Mover a</p>
+            <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider mb-1.5">Mover a</p>
             <div className="flex flex-wrap gap-1">
               {stages.filter(s => s.id !== card.stage_id).map(s => (
                 <button key={s.id} onClick={e => { e.stopPropagation(); moverMutation.mutate(s.id) }}
                   disabled={moverMutation.isPending}
-                  className="text-[10px] px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="text-[10px] px-2 py-1 rounded-lg border border-ink-3 text-ink-6 hover:bg-ink-1 transition-colors disabled:opacity-50"
                   style={{ borderLeftColor: s.color, borderLeftWidth: 3 }}>
                   {s.name}
                 </button>
@@ -293,14 +293,14 @@ export default function PipelinePage() {
 
   if (isPending) return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 size={24} className="animate-spin text-gray-300" />
+      <Loader2 size={24} className="animate-spin text-ink-4" />
     </div>
   )
 
   if (isError) return (
     <div className="flex flex-col items-center justify-center h-64 gap-4">
-      <p className="text-gray-500 text-sm">Error cargando el pipeline.</p>
-      <button onClick={() => refetch()} className="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-medium">Reintentar</button>
+      <p className="text-ink-5 text-sm">Error cargando el pipeline.</p>
+      <button onClick={() => refetch()} className="px-4 py-2 bg-kap-600 text-white rounded-xl text-sm font-medium">Reintentar</button>
     </div>
   )
 
@@ -308,19 +308,19 @@ export default function PipelinePage() {
     <div className="space-y-4 min-w-0">
       <div className="flex items-center gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{totalCards} lead{totalCards !== 1 ? 's' : ''} en seguimiento</p>
+          <h1 className="text-2xl font-bold text-ink-9">Pipeline</h1>
+          <p className="text-sm text-ink-5 mt-0.5">{totalCards} lead{totalCards !== 1 ? 's' : ''} en seguimiento</p>
         </div>
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-4" />
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
-              className="text-sm pl-7 pr-3 py-2 rounded-xl border border-gray-300 outline-none focus:border-violet-400 w-44" />
+              className="text-sm pl-7 pr-3 py-2 rounded-xl border border-ink-4 outline-none focus:border-kap-400 w-44" />
           </div>
           {search && (
             <button onClick={() => setSearch('')} className="p-2 rounded-xl bg-red-50 text-red-400 hover:bg-red-100"><X size={14} /></button>
           )}
-          <button onClick={() => refetch()} className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200" title="Actualizar">
+          <button onClick={() => refetch()} className="p-2 rounded-xl bg-ink-2 text-ink-6 hover:bg-ink-3" title="Actualizar">
             <RefreshCw size={14} />
           </button>
         </div>
@@ -333,8 +333,8 @@ export default function PipelinePage() {
               className={clsx(
                 'flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium border transition-colors',
                 filterContact === f
-                  ? 'bg-violet-600 text-white border-violet-600'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300'
+                  ? 'bg-kap-600 text-white border-kap-600'
+                  : 'bg-white text-ink-5 border-ink-3 hover:border-kap-300'
               )}>
               {meta ? <meta.Icon size={10} /> : <Star size={10} />}
               {f === 'todos' ? 'Todos' : meta!.label}
@@ -355,7 +355,7 @@ export default function PipelinePage() {
               <div
                 className={clsx(
                   'flex-1 rounded-b-xl min-h-[120px] p-2 space-y-2 transition-all',
-                  isDragOver ? 'bg-violet-50 border-2 border-dashed border-violet-300' : 'bg-gray-100/80'
+                  isDragOver ? 'bg-kap-50 border-2 border-dashed border-kap-300' : 'bg-ink-2/80'
                 )}
                 onDragOver={e => e.preventDefault()}
                 onDragEnter={e => { e.preventDefault(); setDragOverStageId(stage.id) }}
@@ -375,7 +375,7 @@ export default function PipelinePage() {
                   />
                 ))}
                 {stage.cards.length === 0 && !isDragOver && (
-                  <div className="h-16 flex items-center justify-center text-xs text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                  <div className="h-16 flex items-center justify-center text-xs text-ink-4 border-2 border-dashed border-ink-3 rounded-xl">
                     Arrastra aquí
                   </div>
                 )}

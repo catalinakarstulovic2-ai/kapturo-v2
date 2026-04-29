@@ -68,23 +68,40 @@ function getBaseURL(): string {
   return raw && raw.startsWith('http') ? `${raw}/api/v1` : '/api/v1'
 }
 
+// Términos demasiado genéricos que generan falsos positivos en la búsqueda.
+// Se excluyen del keyword antes de enviar a la API.
+const GENERIC_TERMS = new Set([
+  'gestión', 'proyectos', 'administración', 'planificación', 'estrategia',
+  'comunicaciones', 'marketing', 'relaciones públicas', 'finanzas',
+  'recursos humanos', 'capacitación', 'consultoría', 'asesoría',
+  'servicios generales', 'ventas', 'negocios', 'coordinación', 'supervisión',
+])
+
 // Mapeo inteligente de rubros a keywords de búsqueda más precisos.
-// Rubros ambiguos (ej: "seguridad") se reemplazan según el contexto de los otros rubros.
+// Filtra términos genéricos y reemplaza rubros ambiguos según contexto.
 function buildKeyword(rubros: string[]): string {
   if (rubros.length === 0) return ''
   const set = new Set(rubros.map(r => r.toLowerCase()))
   const isTech = set.has('tecnología') || set.has('informática') || set.has('software') || set.has('telecomunicaciones') || set.has('ti')
   const isConstruction = set.has('construcción') || set.has('obras civiles') || set.has('infraestructura')
   const isHealth = set.has('salud') || set.has('médico') || set.has('hospitalario') || set.has('farmacéutico')
+  const isServices = set.has('aseo') || set.has('sanitaria') || set.has('limpieza') || set.has('ornato')
 
-  const mapped = rubros.map(r => {
+  // Primero filtrar genéricos, luego mapear los específicos
+  const filtered = rubros.filter(r => !GENERIC_TERMS.has(r.toLowerCase()))
+
+  const mapped = filtered.map(r => {
     const l = r.toLowerCase()
     if (l === 'seguridad') {
       if (isTech) return 'ciberseguridad'
       if (isConstruction) return 'seguridad vial'
       return 'seguridad vigilancia'
     }
-    if (l === 'mantención' && isConstruction) return 'mantenimiento infraestructura'
+    if (l === 'mantención') {
+      if (isConstruction) return 'mantenimiento infraestructura'
+      if (isServices) return 'mantención edificios'
+      return 'mantención'
+    }
     if (l === 'laboratorio' && isHealth) return 'laboratorio clínico'
     return r
   })

@@ -42,53 +42,64 @@ class LicitacionesScorer:
 
     def _prompt_licitador_b(self, prospect: dict, cliente: dict) -> str:
         monto = prospect.get("licitacion_monto_adjudicado") or prospect.get("licitacion_monto") or 0
-        return f"""Eres un experto en ventas B2B. Califica qué tan buen prospecto es esta empresa.
+        descripcion_licit = prospect.get('licitacion_descripcion') or prospect.get('descripcion') or ''
+        return f"""Eres un experto en ventas B2B en Chile. Evalúa qué tan buen prospecto de venta es esta empresa.
 
-CLIENTE (quien vende):
-- Producto/servicio: {cliente.get('producto', 'No especificado')}
-- Sector objetivo: {cliente.get('sector', 'No especificado')}
+VENDEDOR (quien ofrece su producto/servicio):
+- Qué vende: {cliente.get('producto', 'No especificado')}
+- Sectores objetivo: {cliente.get('sector') or cliente.get('rubro', 'No especificado')}
+- Descripción completa: {cliente.get('descripcion') or cliente.get('producto', 'No especificado')}
 
 PROSPECTO (empresa que ganó una licitación pública):
 - Empresa: {prospect.get('company_name', '')}
 - RUT: {prospect.get('rut', '')}
 - Región: {prospect.get('licitacion_region', '')}
 - Licitación ganada: {prospect.get('licitacion_nombre', '')}
+- Descripción licitación: {descripcion_licit[:300] if descripcion_licit else 'No disponible'}
+- Categoría UNSPSC: {prospect.get('licitacion_categoria', 'No disponible')}
 - Monto adjudicado: ${monto:,.0f} CLP
 - Organismo comprador: {prospect.get('licitacion_organismo', '')}
-- Rubro/Categoría: {prospect.get('licitacion_categoria', '')}
 
 CRITERIOS:
-1. ¿El monto adjudicado sugiere capacidad de compra para el producto del cliente?
-2. ¿La categoría de la licitación es relevante para el producto del cliente?
-3. ¿Ganar esta licitación implica que necesitarán el producto/servicio?
+1. ¿Ganar esta licitación implica que el prospecto necesitará el producto/servicio del vendedor?
+2. ¿El monto adjudicado indica capacidad de inversión suficiente?
+3. ¿La categoría y descripción de la licitación son relevantes para lo que vende el cliente?
 
-Responde SOLO en este formato JSON:
-{{"score": <0-100>, "razon": "<1-2 oraciones>"}}"""
+Responde SOLO en este formato JSON (sin texto adicional):
+{{"score": <0-100>, "razon": "<2-3 oraciones explicando el score>"}}"""
 
     def _prompt_licitador_a(self, prospect: dict, cliente: dict) -> str:
         monto = prospect.get("licitacion_monto") or 0
-        return f"""Eres un experto en licitaciones públicas Chile. Califica qué tan viable es ganar esta licitación.
+        rubros = cliente.get('sector') or cliente.get('rubro') or 'No especificado'
+        descripcion_empresa = cliente.get('producto') or 'No especificado'
+        descripcion_licit = prospect.get('licitacion_descripcion') or prospect.get('descripcion') or ''
+        return f"""Eres un experto en licitaciones públicas de Chile. Evalúa qué tan viable es que esta empresa gane esta licitación.
 
-CLIENTE (quien quiere ganar licitaciones):
-- Rubro: {cliente.get('rubro', 'No especificado')}
-- Experiencia: {cliente.get('experiencia', 'No especificado')}
-- Región donde opera: {cliente.get('region', 'No especificado')}
+EMPRESA (quien quiere ganar):
+- Nombre: {cliente.get('razon_social', 'No especificado')}
+- Qué ofrece: {descripcion_empresa}
+- Categorías en que opera: {rubros}
+- Años de experiencia: {cliente.get('experiencia', 'No especificado')}
+- Regiones donde opera: {cliente.get('region_cliente', 'Todas')}
+- Certificaciones/diferenciadores: {cliente.get('certificaciones') or cliente.get('diferenciadores') or 'No especificado'}
 
-LICITACIÓN DISPONIBLE:
+LICITACIÓN:
 - Nombre: {prospect.get('licitacion_nombre', '')}
+- Descripción: {descripcion_licit[:400] if descripcion_licit else 'No disponible'}
+- Categoría UNSPSC: {prospect.get('licitacion_categoria', 'No disponible')}
+- Organismo comprador: {prospect.get('licitacion_organismo', '')}
 - Monto estimado: ${monto:,.0f} CLP
-- Fecha cierre: {prospect.get('licitacion_fecha_cierre', '')}
 - Región: {prospect.get('licitacion_region', '')}
-- Categoría: {prospect.get('licitacion_categoria', '')}
-- Organismo: {prospect.get('licitacion_organismo', '')}
+- Fecha cierre: {prospect.get('licitacion_fecha_cierre', '')}
 
-CRITERIOS:
-1. ¿La categoría coincide con el rubro del cliente?
-2. ¿El monto es razonable para el tamaño del cliente?
-3. ¿La región es operacionalmente viable?
+CRITERIOS DE EVALUACIÓN:
+1. ¿La categoría UNSPSC y descripción de la licitación corresponden al rubro de la empresa?
+2. ¿El monto estimado es coherente con el tamaño y capacidad de la empresa?
+3. ¿La región de la licitación es operable para la empresa?
+4. ¿Tiene la empresa los requisitos evidentes (experiencia, certificaciones) que se infieren del nombre/descripción?
 
-Responde SOLO en este formato JSON:
-{{"score": <0-100>, "razon": "<1-2 oraciones>"}}"""
+Responde SOLO en este formato JSON (sin texto adicional):
+{{"score": <0-100>, "razon": "<2-3 oraciones explicando el score>"}}"""
 
     def _parse_score(self, response_text: str) -> tuple[float, str]:
         """Extrae el score y la razón del texto que devuelve Claude."""

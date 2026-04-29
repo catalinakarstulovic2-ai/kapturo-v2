@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { jsPDF } from 'jspdf'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
 import {
   Sparkles, FileText, Copy, Download, ChevronRight, ChevronLeft,
   Building2, CheckCircle2, RotateCcw, Loader2, FileSignature,
@@ -261,7 +262,12 @@ export default function LicitacionPropuestaPage() {
         // Si ya tiene docs, abrir directo en "Generar todos" con licitación seleccionada
         setModoTodos(true)
       } else {
-        setStep(tipo ? 2 : 1)
+        // Solo saltar al paso 1 si el score es suficiente para desbloquear docs
+        const score = match.score
+        if (score != null && score >= 50) {
+          setStep(tipo ? 2 : 1)
+        }
+        // Si score < 50 o sin score, se queda en step 0 donde ve el bloqueo claramente
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,6 +402,36 @@ export default function LicitacionPropuestaPage() {
     const nombre = selectedPostulacion?.licitacion_nombre ?? 'licitacion'
     const tipoInfo = TODOS_TIPOS.find(t => t.id === tipo)
     descargarPDF(resultadoConCampos, tipoInfo?.label ?? String(tipo), nombre)
+  }
+
+  const descargarDocx = async (texto: string, nombreArchivo: string) => {
+    const lineas = texto.split('\n')
+    const children: Paragraph[] = []
+    for (const linea of lineas) {
+      const trim = linea.trim()
+      if (!trim) { children.push(new Paragraph({ text: '' })); continue }
+      if (trim.startsWith('# ')) {
+        children.push(new Paragraph({ text: trim.replace(/^# /, ''), heading: HeadingLevel.HEADING_1 }))
+      } else if (trim.startsWith('## ')) {
+        children.push(new Paragraph({ text: trim.replace(/^## /, ''), heading: HeadingLevel.HEADING_2 }))
+      } else if (trim.startsWith('### ')) {
+        children.push(new Paragraph({ text: trim.replace(/^### /, ''), heading: HeadingLevel.HEADING_3 }))
+      } else if (/^[IVX]+\.\s|^\d+\.\s/.test(trim) && trim.length < 80) {
+        children.push(new Paragraph({ text: trim, heading: HeadingLevel.HEADING_2 }))
+      } else {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: trim, size: 24 })],
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 120 },
+        }))
+      }
+    }
+    const doc = new Document({ sections: [{ children }] })
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = nombreArchivo; a.click()
+    URL.revokeObjectURL(url)
   }
 
   const reiniciar = () => {
@@ -874,6 +910,15 @@ export default function LicitacionPropuestaPage() {
           <button onClick={descargar}
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-ink-7 bg-ink-2 hover:bg-ink-2 transition-colors">
             <Download size={15} /> Descargar PDF
+          </button>
+          <button onClick={() => {
+              const nombre = selectedPostulacion?.licitacion_nombre ?? 'licitacion'
+              const tipoInfo = TODOS_TIPOS.find(t => t.id === tipo)
+              const slug = (tipoInfo?.label ?? String(tipo)).toLowerCase().replace(/\s+/g, '_')
+              descargarDocx(resultadoConCampos, `${slug}_${nombre.slice(0, 40).replace(/\s+/g, '_')}.docx`)
+            }}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-ink-7 bg-ink-2 hover:bg-ink-2 transition-colors">
+            <Download size={15} /> Descargar .docx
           </button>
           <button onClick={reiniciar}
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-ink-7 bg-ink-2 hover:bg-ink-2 transition-colors">
@@ -1741,13 +1786,22 @@ export default function LicitacionPropuestaPage() {
                 </button>
                 <button
                   onClick={() => {
-                    // Reusar la función descargar con el texto actual
                     descargar()
                     toast.success('Descargando PDF con marca de agua…')
                   }}
-                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-kap-600 hover:bg-kap-700 text-white font-medium"
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-ink-2 hover:bg-ink-3 text-ink-7 font-medium"
                 >
                   <Download size={13} /> Descargar PDF
+                </button>
+                <button
+                  onClick={() => {
+                    const nombre = selectedPostulacion?.licitacion_nombre ?? 'documento'
+                    const slug = docViewer.titulo.toLowerCase().replace(/\s+/g, '_')
+                    descargarDocx(docViewer.texto, `${slug}_${nombre.slice(0, 40).replace(/\s+/g, '_')}.docx`)
+                  }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-kap-600 hover:bg-kap-700 text-white font-medium"
+                >
+                  <Download size={13} /> Descargar .docx
                 </button>
                 <button
                   onClick={() => setDocViewer(null)}

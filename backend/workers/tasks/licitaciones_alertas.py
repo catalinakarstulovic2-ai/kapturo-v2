@@ -44,7 +44,11 @@ async def _run_alertas():
 
     def _fit_rapido(nombre: str, descripcion: str, rubros: list, regiones: list, region_item: str) -> int:
         txt = _norm_kw(nombre + " " + descripcion)
-        matches = sum(1 for r in rubros if _norm_kw(r) in txt)
+        def _rubro_coincide(r: str) -> bool:
+            r_n = _norm_kw(r)
+            palabras = [p for p in r_n.split() if len(p) > 3]
+            return r_n in txt or (bool(palabras) and any(p in txt for p in palabras))
+        matches = sum(1 for r in rubros if _rubro_coincide(r))
         score_rubro = 0 if matches == 0 else (50 if matches == 1 else 70)
         region_ok = not regiones or not region_item or any(r.lower() in region_item.lower() for r in regiones)
         return min(score_rubro + (10 if region_ok else 0), 80)
@@ -77,7 +81,6 @@ async def _run_alertas():
                 continue
 
             try:
-                keyword = rubros[0] if len(rubros) == 1 else ", ".join(rubros[:3])
                 fecha_ayer_api = (ahora - timedelta(days=1)).strftime("%d%m%Y")
                 region_param = regiones[0] if len(regiones) == 1 else None
 
@@ -88,13 +91,57 @@ async def _run_alertas():
                 )
                 listado_raw = resp.get("Listado", [])
 
-                # Filtrar por keyword en nombre/descripción
-                kw_norm = _norm_kw(keyword)
-                palabras_kw = [p for p in kw_norm.split() if len(p) > 2]
-                items_filtrados = []
+                # Pre-filtro rápido por nombre/descripción del listado
+                # usando palabras clave de los rubros del perfil
+                palabras_kw = []
+                for r in rubros:
+                    palabras_kw += [p for p in _norm_kw(r).split() if len(p) > 4]
+
+                candidatos = []
                 for it in listado_raw:
                     txt = _norm_kw((it.get("Nombre") or "") + " " + (it.get("Descripcion") or ""))
                     if not palabras_kw or any(p in txt for p in palabras_kw):
+                        candidatos.append(it)
+
+                # Obtener detalle de los candidatos para tener categoría UNSPSC real
+                # (máx 30 para no sobrecargar la API)
+                items_filtrados = []
+                sem = asyncio.Semaphore(5)
+
+                async def _enriquecer(it_raw: dict) -> dict | None:
+                    async with sem:
+                        codigo = it_raw.get("CodigoExterno") or ""
+                        if not codigo:
+                            return None
+                        try:
+                            det = await client.obtener_detalle(codigo)
+                            if not det:
+                                return it_raw
+                            # Extraer categoría UNSPSC del primer ítem
+                            items_det = (det.get("Items") or {}).get("Listado", [])
+                            categoria = items_det[0].get("Categoria", "") if items_det else ""
+                            it_raw["_categoria_unspsc"] = categoria
+                            it_raw["_descripcion_completa"] = det.get("Descripcion") or it_raw.get("Descripcion") or ""
+                            comprador = det.get("Comprador") or {}
+                            it_raw["NombreOrganismo"] = comprador.get("NombreOrganismo") or it_raw.get("NombreOrganismo") or ""
+                            it_raw["RegionUnidad"] = comprador.get("RegionUnidad") or it_raw.get("RegionUnidad") or ""
+                            fechas = det.get("Fechas") or {}
+                            it_raw["FechaCierre"] = fechas.get("FechaCierre") or it_raw.get("FechaCierre") or ""
+                            return it_raw
+                        except Exception:
+                            return it_raw
+
+                enriquecidos = await asyncio.gather(*[_enriquecer(it) for it in candidatos[:30]])
+
+                for it in enriquecidos:
+                    if not it:
+                        continue
+                    nombre = it.get("Nombre") or "Sin nombre"
+                    categoria = it.get("_categoria_unspsc") or ""
+                    descripcion = it.get("_descripcion_completa") or it.get("Descripcion") or ""
+                    region_item = it.get("RegionUnidad") or it.get("NombreRegion") or ""
+                    fit = _fit_rapido(nombre + " " + categoria, descripcion, rubros, regiones, region_item)
+                    if fit >= 20:
                         items_filtrados.append(it)
 
                 # ── Guardar en BD (sin duplicados) ────────────────────────
@@ -115,9 +162,9 @@ async def _run_alertas():
                     monto = float(it.get("MontoEstimado") or 0)
                     fecha_cierre = (it.get("FechaCierre") or "")[:10]
                     region_item = it.get("RegionUnidad") or it.get("NombreRegion") or ""
-                    descripcion = it.get("Descripcion") or ""
-
-                    fit = _fit_rapido(nombre, descripcion, rubros, regiones, region_item)
+                    categoria = it.get("_categoria_unspsc") or ""
+                    descripcion = it.get("_descripcion_completa") or it.get("Descripcion") or ""
+                    fit = _fit_rapido(nombre + " " + categoria, descripcion, rubros, regiones, region_item)
 
                     prospect = Prospect(
                         tenant_id=mod.tenant_id,
@@ -129,7 +176,7 @@ async def _run_alertas():
                         licitacion_monto=monto,
                         licitacion_fecha_cierre=fecha_cierre,
                         score=fit,
-                        score_reason="Evaluación automática por rubros — analiza para ver detalle completo",
+                        score_reason="Evaluación automática por categoría UNSPSC — analiza con IA para ver detalle completo",
                         is_qualified=False,
                         status=ProspectStatus.new,
                         notes="Auto-guardada desde alerta diaria",
