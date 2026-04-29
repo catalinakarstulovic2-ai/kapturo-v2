@@ -163,6 +163,9 @@ def _do_migrations():
         """,
         "CREATE INDEX IF NOT EXISTS ix_step_feedback_paso ON step_feedback (paso)",
         "CREATE INDEX IF NOT EXISTS ix_step_feedback_tenant ON step_feedback (tenant_id)",
+        # Columnas para flujo de postulación
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS datos_postulacion JSONB",
+        "ALTER TABLE prospects ADD COLUMN IF NOT EXISTS documentos_ia JSONB DEFAULT '[]'",
         # Convertir config de String a JSONB si aún es texto (limpia datos inválidos primero)
         """
         DO $$

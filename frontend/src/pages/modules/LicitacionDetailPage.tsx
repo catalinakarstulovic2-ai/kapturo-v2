@@ -27,6 +27,7 @@ interface ProspectoLicit {
   postulacion_estado?: string
   notes?: string
   documentos_ia?: Array<{ tipo: string; label?: string; texto: string; created_at: string }>
+  datos_postulacion?: Record<string, string>
 }
 
 interface AnalisisResult {
@@ -100,6 +101,12 @@ export default function LicitacionDetailPage() {
   const [generandoTipo, setGenerandoTipo] = useState<string | null>(null)
   const [docResultado, setDocResultado]   = useState<{ tipo: string; texto: string } | null>(null)
   const [copiado, setCopiado]             = useState(false)
+
+  // ── Flujo de postulación ─────────────────────────────────────────────
+  const [decidioPostular, setDecidioPostular] = useState(false)
+  const [datosForm, setDatosForm]             = useState<Record<string, string>>({})
+  const [guardandoDatos, setGuardandoDatos]   = useState(false)
+  const [datosGuardados, setDatosGuardados]   = useState(false)
 
   useEffect(() => {
     if (!analizando) { setAnalisisSeg(0); return }
@@ -182,6 +189,26 @@ export default function LicitacionDetailPage() {
   const bloqueadoDocs = !tieneScore && !analisisData
   const docsGuardados = prospect.documentos_ia ?? []
 
+  // Lógica de pasos
+  const paso1Done = tieneScore || !!analisisData
+  const paso2Done = decidioPostular || prospect.postulacion_estado === 'en_preparacion'
+  const paso3Done = datosGuardados || Object.keys(prospect.datos_postulacion ?? {}).length > 0
+  const bloqueadoSobres = !paso1Done || !paso2Done || !paso3Done
+
+  const guardarDatos = async () => {
+    if (!id || Object.keys(datosForm).length === 0) return
+    setGuardandoDatos(true)
+    try {
+      await api.post(`/modules/licitaciones/prospectos/${id}/datos-postulacion`, { datos: datosForm })
+      setDatosGuardados(true)
+      toast.success('Datos guardados')
+    } catch {
+      toast.error('Error al guardar. Intenta de nuevo.')
+    } finally {
+      setGuardandoDatos(false)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto pb-16 px-4 pt-4 space-y-6">
 
@@ -192,6 +219,34 @@ export default function LicitacionDetailPage() {
       >
         <ArrowLeft size={15} /> Mis postulaciones
       </button>
+
+      {/* ── Indicador de pasos ── */}
+      <div className="flex items-center gap-0 text-[11px]">
+        {[
+          { num: 1, label: 'Evaluar', done: paso1Done },
+          { num: 2, label: 'Decidir', done: paso2Done },
+          { num: 3, label: 'Completar datos', done: paso3Done },
+          { num: 4, label: 'Generar sobres', done: docsGuardados.length > 0 },
+        ].map((paso, i) => (
+          <div key={paso.num} className="flex items-center">
+            <div className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold transition-colors',
+              paso.done
+                ? 'bg-emerald-100 text-emerald-700'
+                : i === [paso1Done, paso2Done, paso3Done].filter(Boolean).length
+                  ? 'bg-kap-100 text-kap-700'
+                  : 'bg-ink-2 text-ink-4'
+            )}>
+              {paso.done
+                ? <CheckCircle size={11} />
+                : <span className="w-3.5 h-3.5 rounded-full border-2 border-current flex items-center justify-center text-[9px]">{paso.num}</span>
+              }
+              {paso.label}
+            </div>
+            {i < 3 && <div className="w-4 h-px bg-ink-3 mx-0.5" />}
+          </div>
+        ))}
+      </div>
 
       {/* ── Header ── */}
       <div className="card p-5 space-y-3">
@@ -335,15 +390,149 @@ export default function LicitacionDetailPage() {
         )}
       </div>
 
+      {/* ── Paso 2: Decisión ── */}
+      <div className={clsx('card p-5 space-y-3', !paso1Done && 'opacity-50 pointer-events-none')}>
+        <h2 className="text-sm font-bold text-ink-9 flex items-center gap-2">
+          {paso2Done
+            ? <CheckCircle size={14} className="text-ok" />
+            : <span className="w-5 h-5 rounded-full bg-ink-2 text-ink-5 text-[10px] font-bold flex items-center justify-center">2</span>
+          }
+          ¿Vas a postular?
+        </h2>
+
+        {!paso1Done && (
+          <p className="text-xs text-ink-4">Primero analiza la licitación con IA (paso 1).</p>
+        )}
+
+        {paso1Done && !paso2Done && (
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                setDecidioPostular(true)
+                await api.patch(`/modules/licitaciones/prospectos/${id}/estado`, { estado: 'en_preparacion' })
+                qc.invalidateQueries({ queryKey: ['licitacion-detalle', id] })
+                toast.success('Registrado — ahora completa los datos')
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-kap-600 text-white text-sm font-semibold hover:bg-kap-700 transition-colors"
+            >
+              Sí, voy a postular
+            </button>
+            <button
+              onClick={() => navigate('/licitaciones/postulaciones')}
+              className="flex-1 py-2.5 rounded-xl border border-ink-3 text-ink-6 text-sm font-medium hover:bg-ink-2 transition-colors"
+            >
+              No conviene
+            </button>
+          </div>
+        )}
+
+        {paso2Done && (
+          <p className="text-xs text-ok flex items-center gap-1.5">
+            <CheckCircle size={12} /> Decidiste postular — completa los datos para generar los sobres.
+          </p>
+        )}
+      </div>
+
+      {/* ── Paso 3: Datos para postular ── */}
+      <div className={clsx('card p-5 space-y-4', !paso2Done && 'opacity-50 pointer-events-none')}>
+        <h2 className="text-sm font-bold text-ink-9 flex items-center gap-2">
+          {paso3Done
+            ? <CheckCircle size={14} className="text-ok" />
+            : <span className="w-5 h-5 rounded-full bg-ink-2 text-ink-5 text-[10px] font-bold flex items-center justify-center">3</span>
+          }
+          Datos para la postulación
+        </h2>
+
+        {!paso2Done && (
+          <p className="text-xs text-ink-4">Decide si vas a postular primero (paso 2).</p>
+        )}
+
+        {paso2Done && !paso3Done && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-5">Esta información se usa para personalizar los documentos generados.</p>
+
+            <div className="space-y-2">
+              <label className="block text-[11px] font-semibold text-ink-6 uppercase tracking-wide">
+                Proyectos similares que hayas ejecutado
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Ej: Mantención de áreas verdes en Municipio de Ñuñoa (2023), Limpieza de colegios SLEP (2022)"
+                value={datosForm.proyectos_similares ?? ''}
+                onChange={e => setDatosForm(f => ({ ...f, proyectos_similares: e.target.value }))}
+                className="input w-full text-sm resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[11px] font-semibold text-ink-6 uppercase tracking-wide">
+                Certificaciones o acreditaciones relevantes
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: ISO 9001, OHSAS 18001, ninguna"
+                value={datosForm.certificaciones_especificas ?? ''}
+                onChange={e => setDatosForm(f => ({ ...f, certificaciones_especificas: e.target.value }))}
+                className="input w-full text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[11px] font-semibold text-ink-6 uppercase tracking-wide">
+                Nombre y cargo del firmante de la oferta
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: María González, Gerente General"
+                value={datosForm.firmante ?? ''}
+                onChange={e => setDatosForm(f => ({ ...f, firmante: e.target.value }))}
+                className="input w-full text-sm"
+              />
+            </div>
+
+            <button
+              onClick={guardarDatos}
+              disabled={guardandoDatos || Object.keys(datosForm).length === 0}
+              className="btn-kap w-full flex items-center justify-center gap-2"
+            >
+              {guardandoDatos
+                ? <><Loader2 size={14} className="animate-spin" /> Guardando…</>
+                : 'Guardar y continuar →'
+              }
+            </button>
+          </div>
+        )}
+
+        {paso3Done && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-ok flex items-center gap-1.5 mb-2">
+              <CheckCircle size={12} /> Datos guardados — ya puedes generar los sobres.
+            </p>
+            {Object.entries({ ...prospect.datos_postulacion, ...datosForm }).map(([k, v]) => v && (
+              <div key={k} className="text-xs text-ink-6 flex gap-2">
+                <span className="text-ink-4 capitalize">{k.replace(/_/g, ' ')}:</span>
+                <span>{String(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Generar documentos ─── */}
       <div className="card p-5 space-y-4">
         <h2 className="text-sm font-bold text-ink-9 flex items-center gap-2">
-          <FileSignature size={14} className="text-kap-500" /> Generar documentos
+          {docsGuardados.length > 0
+            ? <CheckCircle size={14} className="text-ok" />
+            : <span className="w-5 h-5 rounded-full bg-ink-2 text-ink-5 text-[10px] font-bold flex items-center justify-center">4</span>
+          }
+          Generar sobres de postulación
         </h2>
 
-        {bloqueadoDocs && (
+        {bloqueadoSobres && (
           <p className="text-xs text-ink-4 bg-ink-2 rounded-xl px-4 py-3">
-            Primero analiza la licitación con IA — así los documentos usarán los requisitos reales de las bases técnicas.
+            {!paso1Done ? 'Primero analiza la licitación con IA (paso 1).'
+            : !paso2Done ? 'Decide si vas a postular (paso 2).'
+            : 'Completa los datos de la postulación (paso 3).'}
           </p>
         )}
 
@@ -351,7 +540,7 @@ export default function LicitacionDetailPage() {
           {DOCS.map(doc => {
             const yaGenerado = docsGuardados.some(d => d.tipo === doc.tipo)
             const esteGenerando = generandoTipo === doc.tipo
-            const disabled = bloqueadoDocs || !!generandoTipo
+            const disabled = bloqueadoSobres || !!generandoTipo
             return (
               <button
                 key={doc.tipo}

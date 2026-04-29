@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Float, Boolean, DateTime, ForeignKey, Text, Enum as PgEnum
+from sqlalchemy import String, Float, Boolean, DateTime, ForeignKey, Text, Enum as PgEnum, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 import enum
@@ -102,3 +102,9 @@ class Prospect(Base):
     data_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # Fecha del dato original
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Datos específicos para esta postulación (formulario paso 3)
+    datos_postulacion: Mapped[dict] = mapped_column(JSON, nullable=True)
+
+    # Documentos generados por IA [ {tipo, label, texto, created_at} ]
+    documentos_ia: Mapped[list] = mapped_column(JSON, nullable=True)

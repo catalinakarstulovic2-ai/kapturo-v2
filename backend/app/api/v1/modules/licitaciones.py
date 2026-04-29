@@ -70,6 +70,46 @@ async def obtener_catalogos(current_user: User = Depends(get_current_user)):
     return client.obtener_catalogo()
 
 
+# ── Completitud del perfil ────────────────────────────────────────────────────
+
+@router.get("/perfil/completitud")
+async def perfil_completitud(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Calcula qué tan completo está el perfil de empresa para poder buscar."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    mod = db.query(TenantModule).filter(
+        TenantModule.tenant_id == current_user.tenant_id,
+        TenantModule.module.in_(["licitaciones", "licitador"]),
+    ).first()
+
+    cfg = (mod.niche_config or {}) if mod else {}
+
+    CAMPOS = [
+        ("razon_social",              "Razón social de tu empresa",    20, bool(cfg.get("razon_social"))),
+        ("descripcion",               "Descripción de lo que haces",   25, bool(cfg.get("descripcion"))),
+        ("rubros",                    "Al menos 1 rubro de trabajo",   25, bool(cfg.get("rubros"))),
+        ("regiones",                  "Al menos 1 región donde operas",15, bool(cfg.get("regiones"))),
+        ("inscrito_chile_proveedores","Estado en ChileProveedores",    15, cfg.get("inscrito_chile_proveedores") is not None),
+    ]
+
+    score = sum(peso for _, _, peso, ok in CAMPOS if ok)
+    faltantes = [
+        {"campo": campo, "label": label, "peso": peso}
+        for campo, label, peso, ok in CAMPOS if not ok
+    ]
+
+    return {
+        "score": score,
+        "perfil_completo": score >= 80,
+        "bloqueado": score < 80,
+        "campos_faltantes": faltantes,
+    }
+
+
 # ── Sugerir rubros desde descripción libre ────────────────────────────────────
 
 class SugerirRubrosRequest(BaseModel):
@@ -333,6 +373,39 @@ async def obtener_prospecto(
         raise HTTPException(status_code=404, detail="Prospecto no encontrado")
     servicio = LicitacionesService(db=db, tenant_id=current_user.tenant_id)
     return servicio._serializar(p)
+
+
+# ── Datos de postulación ──────────────────────────────────────────────────────
+
+class DatosPostulacionRequest(BaseModel):
+    datos: dict
+
+
+@router.post("/prospectos/{prospect_id}/datos-postulacion")
+async def guardar_datos_postulacion(
+    prospect_id: str,
+    data: DatosPostulacionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Guarda datos adicionales específicos para preparar la postulación (paso 3 del flujo)."""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="Usuario sin tenant asignado")
+
+    from app.models.prospect import Prospect as ProspectModel
+    prospect = db.query(ProspectModel).filter(
+        ProspectModel.id == prospect_id,
+        ProspectModel.tenant_id == current_user.tenant_id,
+    ).first()
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Postulación no encontrada")
+
+    existentes = prospect.datos_postulacion or {}
+    existentes.update(data.datos)
+    prospect.datos_postulacion = existentes
+    db.commit()
+
+    return {"prospect_id": prospect_id, "datos_postulacion": prospect.datos_postulacion}
 
 
 class AsistentePerfilRequest(BaseModel):

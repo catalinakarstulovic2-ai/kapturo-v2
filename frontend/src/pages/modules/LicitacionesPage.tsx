@@ -712,6 +712,13 @@ export default function LicitacionesPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Completitud del perfil — controla la compuerta de búsqueda
+  const { data: completitudPerfil } = useQuery({
+    queryKey: ['perfil-completitud'],
+    queryFn: () => api.get('/modules/licitaciones/perfil/completitud').then(r => r.data).catch(() => null),
+    staleTime: 2 * 60 * 1000,
+  })
+
   const autoSearchTriggeredRef = useRef(false)
 
   useEffect(() => {
@@ -1294,23 +1301,45 @@ export default function LicitacionesPage() {
       {/* ─────────── SECCIÓN BUSCAR (solo cuando tab=buscar) ─────────── */}
       {mainTab === 'buscar' && (<>
 
-      {/* Gate: perfil no configurado */}
-      {!perfilEmpresa?.descripcion ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-5 text-center">
+      {/* Gate: perfil incompleto */}
+      {completitudPerfil?.bloqueado ? (
+        <div className="flex flex-col items-center justify-center py-14 gap-5 text-center">
           <div className="w-16 h-16 bg-kap-100 rounded-2xl flex items-center justify-center">
             <Settings size={28} className="text-kap-500" />
           </div>
-          <div className="max-w-sm">
-            <p className="font-semibold text-ink-9 text-base mb-1">Configura tu perfil antes de buscar</p>
+          <div className="max-w-sm space-y-2">
+            <p className="font-semibold text-ink-9 text-base">Completa tu perfil para buscar</p>
             <p className="text-sm text-ink-5 leading-relaxed">
-              La IA usa tu perfil para pre-filtrar licitaciones relevantes y generar propuestas personalizadas. Sin esto, los resultados no tienen valor real.
+              La IA usa tu perfil para filtrar licitaciones relevantes y generar propuestas personalizadas.
+              Te faltan estos datos:
             </p>
+            {/* Lista de campos faltantes */}
+            <div className="flex flex-wrap justify-center gap-2 mt-1">
+              {(completitudPerfil?.campos_faltantes ?? []).map((campo: { campo: string; label: string; peso: number }) => (
+                <span key={campo.campo} className="text-xs px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-medium">
+                  ○ {campo.label}
+                </span>
+              ))}
+            </div>
+            {/* Barra de progreso */}
+            <div className="mt-3 max-w-xs mx-auto">
+              <div className="flex justify-between text-[10px] text-ink-4 mb-1">
+                <span>Perfil completado</span>
+                <span className="font-bold text-kap-600">{completitudPerfil?.score ?? 0}%</span>
+              </div>
+              <div className="w-full bg-ink-2 rounded-full h-2">
+                <div
+                  className="bg-kap-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${completitudPerfil?.score ?? 0}%` }}
+                />
+              </div>
+            </div>
           </div>
           <button
             onClick={() => navigate('/licitaciones/perfil')}
             className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 bg-kap-600 text-white rounded-xl hover:bg-kap-700 transition-colors"
           >
-            <Sparkles size={15} /> Configurar perfil — 2 minutos
+            <Sparkles size={15} /> Completar perfil ahora
           </button>
         </div>
       ) : (<>

@@ -1018,6 +1018,7 @@ class LicitacionesService:
             "postulacion_estado": p.postulacion_estado,
             "notes": p.notes,
             "documentos_ia": self._parse_documentos_ia(p.notes_history),
+            "datos_postulacion": p.datos_postulacion or {},
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }
 
