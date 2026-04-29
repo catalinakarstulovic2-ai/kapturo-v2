@@ -782,11 +782,11 @@ export default function PerfilIAPage() {
                         </div>
                       </button>
                       {!form.inscrito_chile_proveedores && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-start gap-2">
-                          <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-xs font-semibold text-red-700">Sin ChileProveedores no puedes postular</p>
-                            <p className="text-[10px] text-red-600 mt-0.5">El registro en chileproveedores.cl es obligatorio para participar en licitaciones públicas. Si aún no tienes cuenta, créala antes de postular a cualquier proceso.</p>
+                            <p className="text-xs font-semibold text-amber-700">Sin ChileProveedores no puedes postular</p>
+                            <p className="text-[10px] text-amber-600 mt-0.5">El registro en chileproveedores.cl es obligatorio para participar en licitaciones públicas. Si aún no tienes cuenta, créala antes de postular a cualquier proceso.</p>
                           </div>
                         </div>
                       )}
