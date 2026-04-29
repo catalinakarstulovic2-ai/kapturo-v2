@@ -90,7 +90,6 @@ const CAMPOS_COMPLETITUD = [
 const DOCS_TIPOS = [
   { key: 'cv_empresa',          label: 'CV de empresa',             desc: 'Presentación institucional — se adjunta en cada postulación', requerido: true  },
   { key: 'certificaciones_pdf', label: 'Certificados (ISO, etc.)',  desc: 'ISO 9001, 14001, OHSAS 18001, ChileValora u otros',           requerido: false },
-  { key: 'declaracion_jurada',  label: 'Declaración jurada',        desc: 'Sin deudas tributarias, sin inhabilidades',                   requerido: false },
 ]
 
 function apiError(err: any, fallback: string) {
@@ -814,18 +813,6 @@ export default function PerfilIAPage() {
                           <p className="text-[10px] text-ink-4 mt-1">La IA descarta licitaciones que excedan tu capacidad</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Sitio web</label>
-                          <input className="input text-xs w-full" placeholder="www.empresa.cl"
-                            value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Dirección</label>
-                          <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
-                            value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-                        </div>
-                      </div>
                     </div>
                   </>)}
 
@@ -1207,15 +1194,6 @@ export default function PerfilIAPage() {
                           <input type="email" className="input text-xs w-full" placeholder="contacto@empresa.cl"
                             value={form.correo} onChange={e => setForm(f => ({ ...f, correo: e.target.value }))} />
                         </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-ink-4 uppercase tracking-wider">Alertas</p>
-                      <div>
-                        <label className="block text-xs font-medium text-ink-6 mb-1.5">Email para alertas de licitaciones</label>
-                        <input type="email" className="input text-xs w-full" placeholder="alertas@empresa.cl"
-                          value={form.email_alertas} onChange={e => setForm(f => ({ ...f, email_alertas: e.target.value }))} />
-                        <p className="text-[10px] text-ink-4 mt-1">Te avisamos cuando aparezcan licitaciones que coincidan con tus rubros</p>
                       </div>
                     </div>
                   </>)}
