@@ -190,6 +190,7 @@ class LicitacionesService:
             "razon_social": cfg.get("razon_social") or "",
             "certificaciones": cfg.get("certificaciones") or "",
             "diferenciadores": cfg.get("diferenciadores") or "",
+            "monto_max_proyecto_uf": cfg.get("monto_max_proyecto_uf") or "",
         }
 
     # ─── PREVIEW — busca y muestra, no guarda ────────────────────────────

@@ -69,10 +69,12 @@ Responde SOLO en este formato JSON (sin texto adicional):
 {{"score": <0-100>, "razon": "<2-3 oraciones explicando el score>"}}"""
 
     def _prompt_licitador_a(self, prospect: dict, cliente: dict) -> str:
-        monto = prospect.get("licitacion_monto") or 0
+        monto_clp = prospect.get("licitacion_monto") or 0
         rubros = cliente.get('sector') or cliente.get('rubro') or 'No especificado'
         descripcion_empresa = cliente.get('producto') or 'No especificado'
         descripcion_licit = prospect.get('licitacion_descripcion') or prospect.get('descripcion') or ''
+        monto_max_uf = cliente.get('monto_max_proyecto_uf')
+        capacidad_str = f"{monto_max_uf} UF" if monto_max_uf else "No especificada"
         return f"""Eres un experto en licitaciones públicas de Chile. Evalúa qué tan viable es que esta empresa gane esta licitación.
 
 EMPRESA (quien quiere ganar):
@@ -81,20 +83,22 @@ EMPRESA (quien quiere ganar):
 - Categorías en que opera: {rubros}
 - Años de experiencia: {cliente.get('experiencia', 'No especificado')}
 - Regiones donde opera: {cliente.get('region_cliente', 'Todas')}
-- Certificaciones/diferenciadores: {cliente.get('certificaciones') or cliente.get('diferenciadores') or 'No especificado'}
+- Certificaciones: {cliente.get('certificaciones') or 'No especificadas'}
+- Diferenciadores: {cliente.get('diferenciadores') or 'No especificados'}
+- Capacidad máxima por proyecto: {capacidad_str}
 
 LICITACIÓN:
 - Nombre: {prospect.get('licitacion_nombre', '')}
 - Descripción: {descripcion_licit[:400] if descripcion_licit else 'No disponible'}
 - Categoría UNSPSC: {prospect.get('licitacion_categoria', 'No disponible')}
 - Organismo comprador: {prospect.get('licitacion_organismo', '')}
-- Monto estimado: ${monto:,.0f} CLP
+- Monto estimado: ${monto_clp:,.0f} CLP
 - Región: {prospect.get('licitacion_region', '')}
 - Fecha cierre: {prospect.get('licitacion_fecha_cierre', '')}
 
 CRITERIOS DE EVALUACIÓN:
 1. ¿La categoría UNSPSC y descripción de la licitación corresponden al rubro de la empresa?
-2. ¿El monto estimado es coherente con el tamaño y capacidad de la empresa?
+2. ¿El monto estimado es coherente con la capacidad máxima declarada? Si el monto supera significativamente la capacidad, penaliza fuerte (−20 a −30 puntos).
 3. ¿La región de la licitación es operable para la empresa?
 4. ¿Tiene la empresa los requisitos evidentes (experiencia, certificaciones) que se infieren del nombre/descripción?
 

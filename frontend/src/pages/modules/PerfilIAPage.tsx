@@ -117,6 +117,7 @@ export default function PerfilIAPage() {
     rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '',
     proyectos_anteriores: '', certificaciones: '', diferenciadores: '',
     inscrito_chile_proveedores: false,
+    monto_max_proyecto_uf: '',
     rubros: [] as string[], regiones: [] as string[],
     email_alertas: '',
     nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '',
@@ -154,6 +155,7 @@ export default function PerfilIAPage() {
       certificaciones: perfilRemoto.certificaciones || '',
       diferenciadores: perfilRemoto.diferenciadores || '',
       inscrito_chile_proveedores: perfilRemoto.inscrito_chile_proveedores || false,
+      monto_max_proyecto_uf: perfilRemoto.monto_max_proyecto_uf != null ? String(perfilRemoto.monto_max_proyecto_uf) : '',
       rubros: rubrosMigrados,
       regiones: (perfilRemoto.regiones as string[]) || [],
       email_alertas: perfilRemoto.email_alertas || '',
@@ -576,7 +578,7 @@ export default function PerfilIAPage() {
           <button
             onClick={() => {
               if (!confirm('¿Borrar toda la información del perfil?')) return
-              setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
+              setForm({ rut_empresa: '', razon_social: '', descripcion: '', experiencia_anos: '', proyectos_anteriores: '', certificaciones: '', diferenciadores: '', inscrito_chile_proveedores: false, monto_max_proyecto_uf: '', rubros: [], regiones: [], email_alertas: '', nombre_contacto: '', cargo_contacto: '', telefono: '', correo: '', sitio_web: '', direccion: '', equipo_tecnico: '', metodologia_trabajo: '' })
               setOpenCats(new Set()); setDocsMeta({})
             }}
             className="flex items-center gap-1 text-xs text-ink-4 hover:text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
@@ -785,6 +787,15 @@ export default function PerfilIAPage() {
                           <p className="text-[10px] text-ink-4">Registro de proveedores del Estado</p>
                         </div>
                       </button>
+                      {!form.inscrito_chile_proveedores && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+                          <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-red-700">Sin ChileProveedores no puedes postular</p>
+                            <p className="text-[10px] text-red-600 mt-0.5">El registro en chileproveedores.cl es obligatorio para participar en licitaciones públicas. Si aún no tienes cuenta, créala antes de postular a cualquier proceso.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Datos complementarios */}
@@ -797,15 +808,23 @@ export default function PerfilIAPage() {
                             value={form.experiencia_anos} onChange={e => setForm(f => ({ ...f, experiencia_anos: e.target.value }))} />
                         </div>
                         <div>
+                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Capacidad máxima por proyecto (UF)</label>
+                          <input type="number" min="0" className="input text-sm w-full" placeholder="Ej: 5000"
+                            value={form.monto_max_proyecto_uf} onChange={e => setForm(f => ({ ...f, monto_max_proyecto_uf: e.target.value }))} />
+                          <p className="text-[10px] text-ink-4 mt-1">La IA descarta licitaciones que excedan tu capacidad</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
                           <label className="block text-xs font-medium text-ink-6 mb-1.5">Sitio web</label>
                           <input className="input text-xs w-full" placeholder="www.empresa.cl"
                             value={form.sitio_web} onChange={e => setForm(f => ({ ...f, sitio_web: e.target.value }))} />
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-ink-6 mb-1.5">Dirección</label>
-                        <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
-                          value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+                        <div>
+                          <label className="block text-xs font-medium text-ink-6 mb-1.5">Dirección</label>
+                          <input className="input text-xs w-full" placeholder="Av. Providencia 1234, Santiago"
+                            value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+                        </div>
                       </div>
                     </div>
                   </>)}
@@ -1073,6 +1092,29 @@ export default function PerfilIAPage() {
 
                   {/* ── QUÉ HACE TU EMPRESA ── */}
                   {sec.key === 'que_hace' && (<>
+                    {/* Alertas de calidad del perfil */}
+                    {(!form.proyectos_anteriores || !form.certificaciones) && (
+                      <div className="space-y-2 mb-1">
+                        {!form.proyectos_anteriores && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+                            <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-semibold text-amber-700">Sin experiencia documentada</p>
+                              <p className="text-[10px] text-amber-600 mt-0.5">Las licitaciones LP y LR exigen acreditar experiencia previa. Sin proyectos registrados, la IA no puede generar propuestas competitivas para esos tipos.</p>
+                            </div>
+                          </div>
+                        )}
+                        {!form.certificaciones && (
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex items-start gap-2">
+                            <AlertCircle size={14} className="text-blue-400 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-semibold text-blue-700">Certificaciones no informadas</p>
+                              <p className="text-[10px] text-blue-600 mt-0.5">Para LP y LR, las bases suelen pedir ISO 9001, ChileValora u otras. Si las tienes, agrégalas — el scorer las pondera.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-semibold text-ink-7">Descripción <span className="text-red-400">*</span>
@@ -1084,8 +1126,8 @@ export default function PerfilIAPage() {
                           {generando === 'descripcion' ? 'Generando…' : 'Generar con IA'}
                         </button>
                       </div>
-                      <textarea className="input text-sm w-full resize-none" rows={3}
-                        placeholder="Ej: Empresa de aseo industrial con 8 años de experiencia en hospitales y minería. Equipo de 40 personas en RM y Biobío. ISO 9001 vigente."
+                      <textarea className="input text-sm w-full resize-none" rows={4}
+                        placeholder={"Ej: Empresa de servicios de aseo e higiene ambiental con 8 años de trayectoria en licitaciones públicas. Ejecutamos contratos para hospitales, municipalidades y organismos de gobierno en la RM y Región del Biobío. Equipo de 40 personas, vehículos propios y maquinaria de última generación. ISO 9001:2015 vigente. Contrato más relevante: Hospital Clínico Regional de Concepción (2023, $180M CLP)."}
                         value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
                     </div>
                     <div>
@@ -1097,14 +1139,14 @@ export default function PerfilIAPage() {
                           {generando === 'proyectos_anteriores' ? 'Generando…' : 'Ayudarme'}
                         </button>
                       </div>
-                      <textarea rows={3} className="input text-xs w-full resize-none"
-                        placeholder="Ej: Suministro equipos Hospital Regional Temuco (2023) — 12 meses&#10;Mantención vial Municipalidad Rancagua (2022) — $65M"
+                      <textarea rows={4} className="input text-xs w-full resize-none"
+                        placeholder={"Formato: Organismo / Tipo (LP, LE, LR…) / Monto / Duración / Año\n\nEj: Hospital Regional Temuco / LP / $180M CLP / 24 meses / 2023\n    Municipalidad de Rancagua / LE / $32M CLP / 6 meses / 2022\n    SERVIU Metropolitano / LR / $95M CLP / 12 meses / 2021"}
                         value={form.proyectos_anteriores} onChange={e => setForm(f => ({ ...f, proyectos_anteriores: e.target.value }))} />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-ink-7 mb-1">Certificaciones</label>
                       <input className="input text-xs w-full"
-                        placeholder="ISO 9001, ISO 14001, OHSAS 18001, ChileValora…"
+                        placeholder="Ej: ISO 9001:2015 (vigente), ISO 14001:2015, ChileValora (3 trabajadores), OHSAS 18001"
                         value={form.certificaciones} onChange={e => setForm(f => ({ ...f, certificaciones: e.target.value }))} />
                     </div>
                     <div>
@@ -1116,8 +1158,8 @@ export default function PerfilIAPage() {
                           {generando === 'diferenciadores' ? 'Generando…' : 'Sugerir'}
                         </button>
                       </div>
-                      <textarea rows={2} className="input text-xs w-full resize-none"
-                        placeholder="Ej: Únicos con ISO en la región, respuesta en 24h…"
+                      <textarea rows={3} className="input text-xs w-full resize-none"
+                        placeholder={"Ej: Única empresa de la región con ISO 9001 + ISO 14001 vigentes\n    Movilización propia — no dependemos de subcontratos\n    Tiempo de respuesta garantizado en 24h para emergencias\n    100% de contratos públicos ejecutados sin multas ni términos anticipados"}
                         value={form.diferenciadores} onChange={e => setForm(f => ({ ...f, diferenciadores: e.target.value }))} />
                     </div>
                   </>)}
@@ -1126,8 +1168,8 @@ export default function PerfilIAPage() {
                   {sec.key === 'equipo' && (<>
                     <div>
                       <label className="block text-xs font-medium text-ink-7 mb-1">Equipo técnico</label>
-                      <textarea rows={2} className="input text-xs w-full resize-none"
-                        placeholder="Ej: 15 técnicos: 3 ingenieros civiles, 5 supervisores, 7 operarios. Liderado por Ing. Juan Pérez (20 años)."
+                      <textarea rows={4} className="input text-xs w-full resize-none"
+                        placeholder={"Formato: Nombre Apellido — Título — X años exp — Rol en proyecto\n\nEj: Juan Pérez González — Ing. Civil — 18 años — Director de Proyecto\n    María López Soto — Arquitecta — 9 años — Coordinadora técnica\n    Carlos Fuentes — Técnico en prev. de riesgos — 12 años — HSEC"}
                         value={form.equipo_tecnico} onChange={e => setForm(f => ({ ...f, equipo_tecnico: e.target.value }))} />
                     </div>
                     <div>
