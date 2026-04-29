@@ -104,7 +104,12 @@ export default function OnboardingPage() {
     try {
       await api.put('/tenant/me/agent-config', { ...config, onboarding_completed: true })
       toast.success(`¡${config.agent_name} está listo para trabajar!`)
-      navigate('/dashboard')
+      // Licitador A → completar perfil IA antes de buscar licitaciones
+      if (config.module === 'licitador_a') {
+        navigate('/licitaciones/perfil')
+      } else {
+        navigate('/dashboard')
+      }
     } catch {
       toast.error('Error al guardar la configuración')
     } finally {

@@ -200,8 +200,14 @@ class LicitacionesService:
         """
         Busca licitaciones y retorna para la tabla del frontend. No guarda nada.
 
-        Paginado: 50 items por página. Fase 1 carga todos los códigos (rápido),
-        Fase 2 carga detalles solo para la página solicitada (~50 llamadas).
+        Flujo correcto:
+          1. Trae el listado completo del rango de fechas (rápido, sin categoría)
+          2. Pre-filtra por tipo / keyword / rubros sobre nombre+descripción del listado
+          3. Pide el DETALLE de todos los candidatos (hasta MAX_CANDIDATOS)
+             → solo el detalle tiene la categoría UNSPSC real
+          4. Calcula fit para TODOS usando categoría UNSPSC real del perfil
+          5. Ordena por fit_score descendente → los más relevantes primero
+          6. Pagina sobre la lista ordenada
 
         Filtros del frontend:
           - fecha_desde / fecha_hasta (YYYY-MM-DD): rango de fechas (max 180 días)
@@ -212,7 +218,8 @@ class LicitacionesService:
           - proveedor: texto libre — filtra post-detalle en nombre del adjudicado
         """
         import re
-        POR_PAGINA = 50
+        POR_PAGINA = 25
+        MAX_CANDIDATOS = 120  # máx candidatos a los que pedimos detalle
         filtros = filtros or {}
 
         # Extraer filtros
@@ -228,7 +235,7 @@ class LicitacionesService:
         estado = "adjudicada" if tipo == "licitador_b" else "publicada"
 
         # ── Fase 1: Obtener TODOS los items del listado (sin detalle) ──────
-        list_sem = asyncio.Semaphore(20)  # máx 20 fechas en paralelo para no saturar la API
+        list_sem = asyncio.Semaphore(20)
 
         async def fetch_lista(fecha: str) -> list[dict]:
             async with list_sem:
@@ -254,7 +261,7 @@ class LicitacionesService:
 
         listas = await asyncio.gather(*[fetch_lista(f) for f in fechas])
 
-        # Merge y deduplicar, conservando el objeto completo del listado
+        # Merge y deduplicar
         codigos_vistos: set[str] = set()
         items_listado: list[dict] = []
         for lista in listas:
@@ -276,13 +283,11 @@ class LicitacionesService:
                 if _tipo_cod(i.get("CodigoExterno", "")) == tipo_licitacion
             ]
 
-        # Filtro por keyword o, si no hay keyword, por rubros del perfil del tenant
-        # Ambos usan matching parcial: basta con que aparezca UNA palabra clave
+        # Filtro por keyword o rubros del perfil sobre nombre+descripción del listado
         terminos_busqueda: list[str] = []
         if keyword:
             terminos_busqueda = [r.strip() for r in keyword.split(",") if r.strip()]
         elif rubros_perfil:
-            # Sin keyword explícito → pre-filtrar por los rubros configurados en el perfil
             terminos_busqueda = list(rubros_perfil)
 
         if terminos_busqueda:
@@ -297,103 +302,104 @@ class LicitacionesService:
                         if t_norm in txt:
                             return True
                         continue
-                    # Basta con que aparezca UNA palabra clave del término
                     if t_norm in txt or any(p in txt for p in palabras):
                         return True
                 return False
             items_listado = [i for i in items_listado if _match_listado(i)]
 
-        # ── Rubros counts desde listado (rápido, cubre todas las páginas) ──
+        # ── Rubros counts desde listado (rápido, sin detalle) ─────────────
         catalogo_rubros = self.mp_client.obtener_catalogo()["rubros"]
         rubros_counts: dict[str, int] = {}
         for rubro in catalogo_rubros:
             r_norm = _norm(rubro)
             palabras = [p for p in r_norm.split() if len(p) > 2]
-            count = 0
-            for it in items_listado:
-                txt = _norm((it.get("Nombre") or "") + " " + (it.get("Descripcion") or ""))
-                if any(p in txt for p in palabras) or r_norm in txt:
-                    count += 1
+            count = sum(
+                1 for it in items_listado
+                if any(p in _norm((it.get("Nombre") or "") + " " + (it.get("Descripcion") or "")) for p in palabras)
+            )
             if count > 0:
                 rubros_counts[rubro] = count
 
-        # ── Paginación ─────────────────────────────────────────────────────
-        total_disponible = len(items_listado)
-        total_paginas = max(1, (total_disponible + POR_PAGINA - 1) // POR_PAGINA)
-        pagina = max(1, min(pagina, total_paginas))
-
-        inicio = (pagina - 1) * POR_PAGINA
-        items_pagina = items_listado[inicio:inicio + POR_PAGINA]
-        codigos_pagina = [i.get("CodigoExterno") for i in items_pagina]
-        # Fallback: si el detalle falla usamos los datos mínimos del listado
-        listado_por_codigo = {i.get("CodigoExterno"): i for i in items_pagina}
-
-        # ── Fase 2: Detalle solo para los ~50 items de la página actual ────
-        sem = asyncio.Semaphore(5)  # max 5 paralelos — la API de MP es sensible a concurrencia alta
+        # ── Fase 2: Detalle de TODOS los candidatos (hasta MAX_CANDIDATOS) ─
+        # Necesitamos el detalle para obtener la categoría UNSPSC real,
+        # que es la que usamos para calcular el fit con el perfil del usuario.
+        candidatos = items_listado[:MAX_CANDIDATOS]
+        listado_por_codigo = {i.get("CodigoExterno"): i for i in candidatos}
+        sem = asyncio.Semaphore(8)
 
         async def fetch_detalle(cod: str) -> dict | None:
             async with sem:
-                for intento in range(3):  # hasta 3 intentos con backoff
+                for intento in range(3):
                     try:
                         return await self.mp_client.obtener_detalle(cod)
                     except Exception:
                         if intento < 2:
-                            await asyncio.sleep(0.8 * (intento + 1))  # 0.8s, 1.6s
+                            await asyncio.sleep(0.5 * (intento + 1))
                             continue
-                # Fallback: datos mínimos del listado para no perder el item
-                return listado_por_codigo.get(cod)
+                return listado_por_codigo.get(cod)  # fallback sin categoría
 
-        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_pagina])
+        codigos_candidatos = [i.get("CodigoExterno") for i in candidatos]
+        detalles = await asyncio.gather(*[fetch_detalle(c) for c in codigos_candidatos])
         detalles_ok = [d for d in detalles if d]
 
-        # ── Normalizar ─────────────────────────────────────────────────────
-        items = normalizar_para_preview({"Listado": detalles_ok}, tipo)
+        # ── Normalizar todos los candidatos con detalle ────────────────────
+        items_todos = normalizar_para_preview({"Listado": detalles_ok}, tipo)
 
-        # ── Filtros post-detalle (requieren datos completos) ────────────────
+        # ── Filtros post-detalle (requieren datos completos) ───────────────
         if comprador_txt:
-            items = [i for i in items if _norm(comprador_txt) in _norm(i.get("organismo", ""))]
+            items_todos = [i for i in items_todos if _norm(comprador_txt) in _norm(i.get("organismo", ""))]
 
         if proveedor_txt and tipo == "licitador_b":
-            items = [
-                i for i in items
+            items_todos = [
+                i for i in items_todos
                 if _norm(proveedor_txt) in _norm(i.get("adjudicado_nombre", ""))
             ]
 
+        # ── Fit score para TODOS usando categoría UNSPSC real ─────────────
+        for item in items_todos:
+            fit_data = _calcular_fit_rapido(
+                item.get('nombre', ''),
+                item.get('categoria', ''),   # categoría UNSPSC real del detalle
+                rubros_perfil or [],
+                regiones_perfil or [],
+                item.get('region', ''),
+            )
+            item.update(fit_data)
+
+        # ── Ordenar por fit_score descendente → más relevantes primero ─────
+        items_todos.sort(key=lambda x: x.get('fit_score', 0), reverse=True)
+
+        # ── Paginación sobre lista ordenada ────────────────────────────────
+        total_disponible = len(items_todos)
+        total_paginas = max(1, (total_disponible + POR_PAGINA - 1) // POR_PAGINA)
+        pagina = max(1, min(pagina, total_paginas))
+        inicio = (pagina - 1) * POR_PAGINA
+        items = items_todos[inicio:inicio + POR_PAGINA]
+
         # ── Cruzar con prospectos ya guardados ─────────────────────────────
         for item in items:
-            rut = item.get("adjudicado_rut") if tipo == "licitador_b" else item.get("organismo_rut")
-            if rut:
-                existing = (
-                    self.db.query(Prospect)
-                    .filter(
-                        Prospect.tenant_id == self.tenant_id,
-                        Prospect.rut == rut,
-                        Prospect.source_module == tipo,
-                    )
-                    .first()
+            existing = (
+                self.db.query(Prospect)
+                .filter(
+                    Prospect.tenant_id == self.tenant_id,
+                    Prospect.licitacion_codigo == item.get("codigo"),
                 )
-                if existing:
-                    item["prospect_id"] = existing.id
-                    item["email"] = existing.email
-                    item["phone"] = existing.phone
-                    item["website"] = existing.website
-                    item["address"] = existing.address
-                    item["contact_name"] = existing.contact_name
-                    item["enrichment_source"] = existing.enrichment_source
-                    item["score"] = existing.score
-                    item["score_reason"] = existing.score_reason
-
-        # ── Fit score rápido basado en rubros del perfil ───────────────────
-        for item in items:
-            if not item.get("prospect_id"):  # solo para las no guardadas aún
-                fit_data = _calcular_fit_rapido(
-                    item.get('nombre', ''),
-                    item.get('categoria', ''),
-                    rubros_perfil or [],
-                    regiones_perfil or [],
-                    item.get('region', ''),
-                )
-                item.update(fit_data)
+                .first()
+            )
+            if existing:
+                item["prospect_id"] = existing.id
+                item["email"] = existing.email
+                item["phone"] = existing.phone
+                item["website"] = existing.website
+                item["address"] = existing.address
+                item["contact_name"] = existing.contact_name
+                item["enrichment_source"] = existing.enrichment_source
+                item["score"] = existing.score
+                item["score_reason"] = existing.score_reason
+                # Sobrescribir fit con el score real de Claude si ya fue calificado
+                if existing.score is not None:
+                    item["fit_score"] = existing.score
+                    item["fit_motivo"] = existing.score_reason or item.get("fit_motivo", "")
 
         return {
             "total": total_disponible,

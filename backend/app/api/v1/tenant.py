@@ -77,6 +77,7 @@ class LicitacionesProfileRequest(BaseModel):
     # Capacidades (para generar documentos técnicos realistas)
     equipo_tecnico: Optional[str] = None       # quiénes ejecutan, cuántas personas, roles
     metodologia_trabajo: Optional[str] = None  # forma de trabajo estándar
+    monto_max_proyecto_uf: Optional[float] = None  # capacidad máxima — scorer penaliza si licitación excede
     # Alertas
     email_alertas: Optional[str] = None
     frecuencia_alertas: Optional[str] = None  # "diaria" | "semanal" | "nunca"
@@ -287,7 +288,7 @@ def obtener_licitaciones_profile(
         raise HTTPException(status_code=400, detail="Usuario sin tenant")
     mod = db.query(TenantModule).filter(
         TenantModule.tenant_id == current_user.tenant_id,
-        TenantModule.module == "licitaciones",
+        TenantModule.module.in_(["licitaciones", "licitador"]),
         TenantModule.is_active == True,
     ).first()
     if not mod:
@@ -314,7 +315,7 @@ def guardar_licitaciones_profile(
         raise HTTPException(status_code=400, detail="Usuario sin tenant")
     mod = db.query(TenantModule).filter(
         TenantModule.tenant_id == current_user.tenant_id,
-        TenantModule.module == "licitaciones",
+        TenantModule.module.in_(["licitaciones", "licitador"]),
         TenantModule.is_active == True,
     ).first()
     if not mod:
